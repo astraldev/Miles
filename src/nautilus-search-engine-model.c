@@ -151,16 +151,8 @@ model_directory_ready_cb (NautilusDirectory *directory,
 
         if (mime_types->len > 0)
         {
-            found = FALSE;
-
-            for (guint i = 0; i < mime_types->len; i++)
-            {
-                if (nautilus_file_is_mime_type (file, g_ptr_array_index (mime_types, i)))
-                {
-                    found = TRUE;
-                    break;
-                }
-            }
+            found = nautilus_query_matches_content_type (model->query,
+                                                         nautilus_file_get_mime_type (file));
         }
         if (!found)
         {

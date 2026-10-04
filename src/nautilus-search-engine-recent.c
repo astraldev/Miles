@@ -259,18 +259,8 @@ recent_thread_func (gpointer user_data)
             if (mime_types->len > 0)
             {
                 const gchar *mime_type = gtk_recent_info_get_mime_type (info);
-                gboolean found = FALSE;
 
-                for (guint i = 0; mime_type != NULL && i < mime_types->len; i++)
-                {
-                    if (g_content_type_is_a (mime_type, g_ptr_array_index (mime_types, i)))
-                    {
-                        found = TRUE;
-                        break;
-                    }
-                }
-
-                if (!found)
+                if (!nautilus_query_matches_content_type (self->query, mime_type))
                 {
                     continue;
                 }

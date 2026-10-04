@@ -305,6 +305,14 @@ nautilus_deps = [
   icu_i18n_dep,
 ]
 
+if host_machine.system() == 'darwin'
+  libnautilus_sources += [
+    'mac/nautilus-search-engine-spotlight.c',
+    'mac/nautilus-search-engine-spotlight.h',
+  ]
+  nautilus_deps += dependency('appleframeworks', modules: ['CoreServices'])
+endif
+
 libnautilus = static_library(
   'nautilus',
   libnautilus_sources,

@@ -45,6 +45,9 @@ struct _NautilusQuery
     GFile *location;
     /* MIME types - an empty array means "Any type" */
     GPtrArray *mime_types;
+    /* Answers of nautilus_query_matches_content_type(), by content type. Guarded by the mutex. */
+    GHashTable *content_type_matches;
+    GMutex content_type_mutex;
     gboolean show_hidden;
     GPtrArray *date_range;
     NautilusSpeedTradeoffValue recursion_tradeoff;
@@ -96,6 +99,8 @@ finalize (GObject *object)
     g_clear_pointer (&query->prepared_words, g_ptr_array_unref);
     g_clear_object (&query->location);
     g_clear_pointer (&query->mime_types, g_ptr_array_unref);
+    g_clear_pointer (&query->content_type_matches, g_hash_table_unref);
+    g_mutex_clear (&query->content_type_mutex);
     g_clear_pointer (&query->date_range, g_ptr_array_unref);
 
     G_OBJECT_CLASS (nautilus_query_parent_class)->finalize (object);
@@ -114,6 +119,8 @@ static void
 nautilus_query_init (NautilusQuery *query)
 {
     query->mime_types = g_ptr_array_new ();
+    query->content_type_matches = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    g_mutex_init (&query->content_type_mutex);
     query->show_hidden = TRUE;
     query->search_type = g_settings_get_enum (nautilus_preferences, "search-filter-time-type");
     nautilus_query_update_recursive_setting (query);
@@ -290,6 +297,120 @@ nautilus_query_get_mime_types (NautilusQuery *query)
     return g_ptr_array_ref (query->mime_types);
 }
 
+/* GIO names content types per platform (UTIs on macOS). Returns: (transfer full): @type as one. */
+static char *
+content_type_from_mime_type (const char *type)
+{
+    char *content_type = NULL;
+
+    /* Anything without a slash is a content type already. */
+    if (strchr (type, '/') != NULL)
+    {
+        content_type = g_content_type_from_mime_type (type);
+    }
+
+    return content_type != NULL ? content_type : g_strdup (type);
+}
+
+static GPtrArray *
+content_types_from_mime_types (GPtrArray *mime_types)
+{
+    GPtrArray *content_types = g_ptr_array_new_full (mime_types->len, g_free);
+    g_autofree char *unknown_type = NULL;
+
+    for (guint i = 0; i < mime_types->len; i++)
+    {
+        g_autofree char *content_type = content_type_from_mime_type (g_ptr_array_index (mime_types, i));
+
+        /* macOS invents a "dyn." identifier for a MIME type it does not know: no file has it. */
+        if (g_str_has_prefix (content_type, "dyn."))
+        {
+            if (unknown_type == NULL)
+            {
+                unknown_type = g_steal_pointer (&content_type);
+            }
+            continue;
+        }
+
+        /* Several MIME types can stand for the same content type. */
+        if (!g_ptr_array_find_with_equal_func (content_types, content_type, g_str_equal, NULL))
+        {
+            g_ptr_array_add (content_types, g_steal_pointer (&content_type));
+        }
+    }
+
+    if (content_types->len == 0 && unknown_type != NULL)
+    {
+        /* An empty filter means "Any type", so keep one that matches nothing. */
+        g_ptr_array_add (content_types, g_steal_pointer (&unknown_type));
+    }
+
+    return content_types;
+}
+
+static gboolean
+content_type_matches_filter (GPtrArray  *filter,
+                             const char *type)
+{
+    g_autofree char *content_type = content_type_from_mime_type (type);
+
+    for (guint i = 0; i < filter->len; i++)
+    {
+        if (g_content_type_is_a (content_type, g_ptr_array_index (filter, i)))
+        {
+            return TRUE;
+        }
+    }
+
+#ifdef __APPLE__
+    /* "Any file" is application/octet-stream: public.data on macOS, which misses unknown types. */
+    if (g_ptr_array_find_with_equal_func (filter, "public.data", g_str_equal, NULL))
+    {
+        return !g_content_type_is_a (content_type, "public.folder") &&
+               !g_content_type_is_a (content_type, "public.symlink");
+    }
+#endif
+
+    return FALSE;
+}
+
+/* Returns: whether a file of this content or MIME type passes the filter. Cached; any thread. */
+gboolean
+nautilus_query_matches_content_type (NautilusQuery *query,
+                                     const char    *content_type)
+{
+    gpointer answer;
+    gboolean matches;
+
+    g_return_val_if_fail (NAUTILUS_IS_QUERY (query), FALSE);
+
+    g_mutex_lock (&query->content_type_mutex);
+
+    if (query->mime_types->len == 0)
+    {
+        matches = TRUE;
+    }
+    else if (content_type == NULL)
+    {
+        matches = FALSE;
+    }
+    else if (g_hash_table_lookup_extended (query->content_type_matches, content_type,
+                                           NULL, &answer))
+    {
+        matches = GPOINTER_TO_INT (answer);
+    }
+    else
+    {
+        matches = content_type_matches_filter (query->mime_types, content_type);
+        g_hash_table_insert (query->content_type_matches, g_strdup (content_type),
+                             GINT_TO_POINTER (matches));
+    }
+
+    g_mutex_unlock (&query->content_type_mutex);
+
+    return matches;
+}
+
 /**
  * nautilus_query_set_mime_types:
  * @query: A #NautilusQuery
@@ -297,6 +418,8 @@ nautilus_query_get_mime_types (NautilusQuery *query)
  *
  * Set a new MIME types filter for @query. Once set, the filter must not be
  * modified, and it can only be replaced by setting another filter.
+ *
+ * The filter is stored as content types.
  *
  * Search engines that are already running for a previous filter will ignore the
  * new filter. So, the caller must ensure that the search will be reloaded
@@ -306,10 +429,17 @@ void
 nautilus_query_set_mime_types (NautilusQuery *query,
                                GPtrArray     *mime_types)
 {
+    g_autoptr (GPtrArray) content_types = NULL;
+
     g_return_if_fail (NAUTILUS_IS_QUERY (query));
     g_return_if_fail (mime_types != NULL);
 
-    g_set_ptr_array (&query->mime_types, mime_types);
+    content_types = content_types_from_mime_types (mime_types);
+
+    g_mutex_lock (&query->content_type_mutex);
+    g_set_ptr_array (&query->mime_types, content_types);
+    g_hash_table_remove_all (query->content_type_matches);
+    g_mutex_unlock (&query->content_type_mutex);
 }
 
 gboolean

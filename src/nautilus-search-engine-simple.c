@@ -346,16 +346,7 @@ visit_directory (GFile            *dir,
                                                               G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE);
             }
 
-            found = FALSE;
-
-            for (guint i = 0; mime_type != NULL && i < data->mime_types->len; i++)
-            {
-                if (g_content_type_is_a (mime_type, g_ptr_array_index (data->mime_types, i)))
-                {
-                    found = TRUE;
-                    break;
-                }
-            }
+            found = nautilus_query_matches_content_type (data->query, mime_type);
         }
 
         mtime = g_file_info_get_modification_date_time (info);

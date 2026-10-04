@@ -27,6 +27,9 @@
 #include "nautilus-query.h"
 #include "nautilus-search-engine-model.h"
 #include "nautilus-search-engine-localsearch.h"
+#ifdef __APPLE__
+#include "mac/nautilus-search-engine-spotlight.h"
+#endif
 #include "nautilus-search-engine-recent.h"
 #include "nautilus-search-engine-simple.h"
 #include "nautilus-search-hit.h"
@@ -336,6 +339,10 @@ nautilus_search_engine_set_search_type (NautilusSearchEngine *self,
 #ifdef ENABLE_LOCALSEARCH
     setup_provider (self, &self->localsearch, NAUTILUS_SEARCH_TYPE_LOCALSEARCH,
                     (CreateFunc) nautilus_search_engine_localsearch_new);
+#elif defined (__APPLE__)
+    /* Spotlight is the system index on macOS. */
+    setup_provider (self, &self->localsearch, NAUTILUS_SEARCH_TYPE_LOCALSEARCH,
+                    (CreateFunc) nautilus_search_engine_spotlight_new);
 #endif
     setup_provider (self, &self->model, NAUTILUS_SEARCH_TYPE_MODEL,
                     (CreateFunc) nautilus_search_engine_model_new);

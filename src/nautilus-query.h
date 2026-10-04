@@ -46,6 +46,8 @@ void           nautilus_query_set_location       (NautilusQuery *query,
 
 GPtrArray *    nautilus_query_get_mime_types     (NautilusQuery *query);
 void           nautilus_query_set_mime_types     (NautilusQuery *query, GPtrArray *mime_types);
+gboolean       nautilus_query_matches_content_type (NautilusQuery *query,
+                                                    const char    *content_type);
 
 gboolean
 nautilus_query_can_search_content (NautilusQuery *self);
