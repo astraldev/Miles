@@ -30,6 +30,9 @@
 #include "nautilus-file.h"
 #include "nautilus-icon-names.h"
 #include "nautilus-scheme.h"
+#ifdef __APPLE__
+#include "mac/nautilus-mac-places.h"
+#endif
 
 #include <gio/gio.h>
 #include <string.h>
@@ -814,6 +817,14 @@ nautilus_bookmark_list_can_bookmark_location (NautilusBookmarkList *list,
         /* Already in the sidebar */
         return FALSE;
     }
+
+#ifdef __APPLE__
+    if (nautilus_mac_location_is_place (location))
+    {
+        /* Already in the sidebar */
+        return FALSE;
+    }
+#endif
 
     return TRUE;
 }

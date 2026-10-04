@@ -307,6 +307,10 @@ nautilus_deps = [
 
 if host_machine.system() == 'darwin'
   libnautilus_sources += [
+    'mac/nautilus-mac-appearance.c',
+    'mac/nautilus-mac-appearance.h',
+    'mac/nautilus-mac-places.c',
+    'mac/nautilus-mac-places.h',
     'mac/nautilus-search-engine-spotlight.c',
     'mac/nautilus-search-engine-spotlight.h',
   ]

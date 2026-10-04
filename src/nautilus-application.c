@@ -70,6 +70,9 @@
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
 #include "nautilus-window.h"
+#ifdef __APPLE__
+#include "mac/nautilus-mac-appearance.h"
+#endif
 
 struct _NautilusApplication
 {
@@ -1105,6 +1108,47 @@ nautilus_application_identify_to_portal (GApplication *app)
                             NULL, NULL, NULL);
 }
 
+#ifdef __APPLE__
+/* Where macos/scripts/install-yaru.sh puts the icon theme bundled with the app. */
+#define BUNDLED_ICONS_DIR NAUTILUS_DATADIR "/icons"
+
+static gboolean
+bundled_icon_theme_exists (const char *name)
+{
+    g_autofree char *index = g_build_filename (BUNDLED_ICONS_DIR, name, "index.theme", NULL);
+
+    return g_file_test (index, G_FILE_TEST_EXISTS);
+}
+
+/* Uses the bundled icon theme variant for the macOS accent colour. Runs again when it changes. */
+static void
+update_macos_icon_theme (void)
+{
+    const char *name = nautilus_mac_get_accent_icon_theme ();
+
+    if (!bundled_icon_theme_exists (name))
+    {
+        /* The theme is installed with the app: without it this install is broken. */
+        g_error ("The icon theme %s is missing from %s", name, BUNDLED_ICONS_DIR);
+    }
+
+    g_object_set (gtk_settings_get_default (), "gtk-icon-theme-name", name, NULL);
+}
+
+/* GTK has no icon theme setting on macOS, and Adwaita has few file icons: use our own. */
+static void
+set_macos_icon_theme (void)
+{
+    GtkIconTheme *icon_theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
+
+    /* Part of the app: do not rely on the environment pointing GTK at it. */
+    gtk_icon_theme_add_search_path (icon_theme, BUNDLED_ICONS_DIR);
+
+    update_macos_icon_theme ();
+    nautilus_mac_watch_accent_colour (update_macos_icon_theme);
+}
+#endif
+
 static void
 nautilus_application_startup (GApplication *app)
 {
@@ -1140,6 +1184,10 @@ nautilus_application_startup (GApplication *app)
     g_assert (display == NULL || gdk_display_get_default () == display);
 
     gtk_window_set_default_icon_name (APPLICATION_ID);
+
+#ifdef __APPLE__
+    set_macos_icon_theme ();
+#endif
 
     /* initialize preferences and create the global GSettings objects */
     nautilus_global_preferences_init ();

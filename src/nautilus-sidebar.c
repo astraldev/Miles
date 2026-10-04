@@ -38,6 +38,9 @@
 #include "nautilus-trash-monitor.h"
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
+#ifdef __APPLE__
+#include "mac/nautilus-mac-places.h"
+#endif
 
 #ifdef GDK_WINDOWING_X11
 #include <gdk/x11/gdkx.h>
@@ -641,6 +644,36 @@ on_account_updated (GObject    *object,
 
 #endif
 
+#ifdef __APPLE__
+/* On macOS the user's folders are fixed places, in a section of their own. */
+static void
+add_user_folder_places (NautilusSidebar *sidebar)
+{
+    for (guint i = 0; i < NAUTILUS_MAC_N_PLACES; i++)
+    {
+        g_autofree char *path = nautilus_mac_place_get_path (i);
+        g_autofree char *uri = NULL;
+        g_autofree char *name = NULL;
+        g_autoptr (GIcon) start_icon = NULL;
+
+        if (path == NULL)
+        {
+            continue;
+        }
+
+        uri = g_filename_to_uri (path, NULL, NULL);
+        name = g_filename_display_basename (path);
+        start_icon = nautilus_mac_place_get_symbolic_icon (i);
+
+        add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
+                   NAUTILUS_SIDEBAR_SECTION_USER_FOLDERS,
+                   name, start_icon, NULL, uri,
+                   NULL, NULL, NULL, NULL, i,
+                   NULL);
+    }
+}
+#endif
+
 static void
 update_places (NautilusSidebar *sidebar)
 {
@@ -737,6 +770,10 @@ update_places (NautilusSidebar *sidebar)
             g_free (mount_uri);
         }
     }
+
+#ifdef __APPLE__
+    add_user_folder_places (sidebar);
+#endif
 
     /* Network view */
     start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_VIEW);

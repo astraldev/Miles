@@ -282,6 +282,13 @@ gnome.post_install(
   update_desktop_database: host_machine.system() != 'darwin',
 )
 
+if host_machine.system() == 'darwin'
+  # Bundles the icon theme on macOS, where set_macos_icon_theme() looks for it.
+  meson.add_install_script('macos/scripts/install-yaru.sh',
+    join_paths(datadir, 'nautilus', 'icons'),
+  )
+endif
+
 #### Summary ####
 
 summary('Extensions', get_option('extensions').to_string(), section: 'Features')
