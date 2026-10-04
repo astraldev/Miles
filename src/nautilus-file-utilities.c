@@ -41,7 +41,12 @@
 #include <gio/gio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#ifdef __APPLE__
+#include <sys/param.h>
+#include <sys/mount.h>
+#else
 #include <sys/vfs.h>
+#endif
 
 #define NAUTILUS_USER_DIRECTORY_NAME "nautilus"
 #define DEFAULT_NAUTILUS_DIRECTORY_MODE (0755)
@@ -1102,12 +1107,22 @@ nautilus_location_is_autofs_mountpoint (GFile *location)
 
     g_autofree char *path = g_file_get_path (location);
     struct statfs buf;
-    gint fd;
 
     if (path == NULL)
     {
         return FALSE;
     }
+
+#ifdef __APPLE__
+    /* macOS has no O_PATH and identifies file systems by name. */
+    if (statfs (path, &buf) < 0)
+    {
+        return FALSE;
+    }
+
+    return g_str_equal (buf.f_fstypename, "autofs");
+#else
+    gint fd;
 
     fd = g_open (path, O_PATH | O_NOFOLLOW, 0);
     if (fd < 0)
@@ -1124,4 +1139,5 @@ nautilus_location_is_autofs_mountpoint (GFile *location)
     close (fd);
 
     return (buf.f_type == AUTOFS_SUPER_MAGIC);
+#endif
 }
