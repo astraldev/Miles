@@ -1,0 +1,38 @@
+This patch is needed because gnome-desktop 44.5 fails to build on mac:
+meson setup -Dintrospection=false fails due to an empty file name in
+gnome-rr/meson.build, and compiling fails due to the Linux-only header
+sys/personality.h.
+
+The header is only used by the Linux thumbnailer sandbox, which
+mac does not have, so thumbnailers run unsandboxed.
+
+diff --git a/libgnome-desktop/gnome-desktop-thumbnail-script.c b/libgnome-desktop/gnome-desktop-thumbnail-script.c
+index 0da8804..083d155 100644
+--- a/libgnome-desktop/gnome-desktop-thumbnail-script.c
++++ b/libgnome-desktop/gnome-desktop-thumbnail-script.c
+@@ -31,11 +31,11 @@
+ #include <glib/gstdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+-#include <sys/personality.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+ 
+ #ifdef ENABLE_SECCOMP
++#include <sys/personality.h>
+ #include <errno.h>
+ #include <sys/socket.h>
+ #include <sys/ioctl.h>
+diff --git a/libgnome-desktop/gnome-rr/meson.build b/libgnome-desktop/gnome-rr/meson.build
+index d247731..eba0409 100644
+--- a/libgnome-desktop/gnome-rr/meson.build
++++ b/libgnome-desktop/gnome-rr/meson.build
+@@ -57,7 +57,7 @@ if get_option('introspection')
+     install: true,
+   )
+ else
+-  libgnome_rr_gir = ''
++  libgnome_rr_gir = []
+ endif
+ 
+ 

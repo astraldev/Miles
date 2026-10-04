@@ -1,0 +1,36 @@
+This patch is needed because libportal 0.9.1 fails to build on mac,
+due to memfd_create (creates a file that lives only in memory) in
+notification.c, which only exists on Linux.
+
+Nautilus does not use notifications, so this is not needed
+
+diff --git a/libportal/notification.c b/libportal/notification.c
+index 1cd67b2..0bbde91 100644
+--- a/libportal/notification.c
++++ b/libportal/notification.c
+@@ -35,6 +35,25 @@
+ #include "notification.h"
+ #include "portal-private.h"
+ 
++#ifndef __linux__
++/* memfd_create() is Linux-only; fall back to an unlinked temporary file. */
++#define MFD_ALLOW_SEALING 0
++
++static int
++memfd_create (const char   *name,
++              unsigned int  flags)
++{
++  g_autofree char *path = NULL;
++  int fd;
++
++  fd = g_file_open_tmp ("libportal-XXXXXX", &path, NULL);
++  if (fd >= 0)
++    g_unlink (path);
++
++  return fd;
++}
++#endif
++
+ static void
+ action_invoked (GDBusConnection *bus,
+                 const char *sender_name,
