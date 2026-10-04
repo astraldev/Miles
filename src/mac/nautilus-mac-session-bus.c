@@ -35,6 +35,7 @@
 
 #define BUS_CONFIG_FILE NAUTILUS_DATADIR "/dbus-session.conf"
 #define BUS_START_TIMEOUT_MS 3000
+#define BUS_STOP_TIMEOUT_MS 1000
 
 /* 0 if the bus was already running. */
 static GPid bus_pid = 0;
@@ -263,6 +264,19 @@ nautilus_mac_session_bus_stop (void)
     }
 
     kill (bus_pid, SIGTERM);
-    waitpid (bus_pid, NULL, 0);
+
+    for (int waited_ms = 0; waitpid (bus_pid, NULL, WNOHANG) == 0; waited_ms += 10)
+    {
+        /* A bus that ignores the signal must not hang Nautilus. */
+        if (waited_ms >= BUS_STOP_TIMEOUT_MS)
+        {
+            kill (bus_pid, SIGKILL);
+            waitpid (bus_pid, NULL, 0);
+            break;
+        }
+
+        g_usleep (10 * G_TIME_SPAN_MILLISECOND);
+    }
+
     bus_pid = 0;
 }
