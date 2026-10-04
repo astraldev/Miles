@@ -31,7 +31,6 @@
 #include <glib/gstdio.h>
 #include <CoreServices/CoreServices.h>
 
-#define BATCH_SIZE 100
 /* A broad query can match most of the disk. Spotlight stops gathering here. */
 #define MAX_RESULTS 10000
 /* Limit for one-folder searches: gathering cannot be interrupted, and this takes about a second. */
@@ -62,37 +61,26 @@ typedef struct
     /* The same folder as seen from the root, when it is on the data volume. */
     const char *location_alias;
     MDQueryRef md_query;
-
-    GMutex idle_mutex;
-    /* The following data is shared between threads: lock the mutex. */
-    GQueue *idle_queue;
-    guint processing_id;
-    gboolean finished;
 } SearchThreadData;
 
 struct _NautilusSearchEngineSpotlight
 {
-    GObject parent_instance;
+    NautilusSearchProvider parent_instance;
 
-    NautilusQuery *query;
-
-    SearchThreadData *active_search;
+    /* Built by should_search(), used by start_search(). */
+    char *query_string;
 };
 
-static void nautilus_search_provider_init (NautilusSearchProviderInterface *iface);
-
-G_DEFINE_TYPE_WITH_CODE (NautilusSearchEngineSpotlight,
-                         nautilus_search_engine_spotlight,
-                         G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (NAUTILUS_TYPE_SEARCH_PROVIDER,
-                                                nautilus_search_provider_init))
+G_DEFINE_FINAL_TYPE (NautilusSearchEngineSpotlight,
+                     nautilus_search_engine_spotlight,
+                     NAUTILUS_TYPE_SEARCH_PROVIDER)
 
 static void
 finalize (GObject *object)
 {
     NautilusSearchEngineSpotlight *self = NAUTILUS_SEARCH_ENGINE_SPOTLIGHT (object);
 
-    g_clear_object (&self->query);
+    g_free (self->query_string);
 
     G_OBJECT_CLASS (nautilus_search_engine_spotlight_parent_class)->finalize (object);
 }
@@ -100,7 +88,7 @@ finalize (GObject *object)
 static gboolean
 query_wants_only_folders (NautilusQuery *query)
 {
-    g_autoptr (GPtrArray) types = nautilus_query_get_mime_types (query);
+    g_autoptr (GPtrArray) types = nautilus_query_get_content_types (query);
 
     return types->len == 1 && g_str_equal (g_ptr_array_index (types, 0), "public.folder");
 }
@@ -116,7 +104,7 @@ search_thread_data_new (NautilusSearchEngineSpotlight *engine,
     data = g_new0 (SearchThreadData, 1);
 
     data->engine = g_object_ref (engine);
-    data->cancellable = g_cancellable_new ();
+    data->cancellable = g_object_ref (nautilus_search_provider_get_cancellable (engine));
     data->query = g_object_ref (query);
     g_set_object (&data->location, location);
     data->query_string = query_string;
@@ -125,17 +113,12 @@ search_thread_data_new (NautilusSearchEngineSpotlight *engine,
     data->search_content = nautilus_query_get_search_content (query);
     data->only_folders = query_wants_only_folders (query);
 
-    g_mutex_init (&data->idle_mutex);
-    data->idle_queue = g_queue_new ();
-
     return data;
 }
 
 static void
 search_thread_data_free (SearchThreadData *data)
 {
-    GPtrArray *hits;
-
     g_clear_pointer (&data->md_query, CFRelease);
     g_free (data->location_path);
     g_free (data->query_string);
@@ -143,122 +126,16 @@ search_thread_data_free (SearchThreadData *data)
     g_object_unref (data->query);
     g_object_unref (data->cancellable);
     g_object_unref (data->engine);
-    g_mutex_clear (&data->idle_mutex);
-
-    while ((hits = g_queue_pop_head (data->idle_queue)))
-    {
-        g_ptr_array_unref (hits);
-    }
-    g_queue_free (data->idle_queue);
 
     g_free (data);
 }
 
-/* Runs in the main thread, once the search thread is done with @data. */
-static gboolean
+static void
 search_thread_done (SearchThreadData *data)
 {
-    NautilusSearchEngineSpotlight *engine = data->engine;
-
-    if (g_cancellable_is_cancelled (data->cancellable))
-    {
-        g_debug ("Spotlight engine finished and cancelled");
-    }
-    else
-    {
-        g_debug ("Spotlight engine finished");
-    }
-
-    engine->active_search = NULL;
-    nautilus_search_provider_finished (NAUTILUS_SEARCH_PROVIDER (engine),
-                                       NAUTILUS_SEARCH_PROVIDER_STATUS_NORMAL);
+    nautilus_search_provider_finished (NAUTILUS_SEARCH_PROVIDER (data->engine));
 
     search_thread_data_free (data);
-
-    return G_SOURCE_REMOVE;
-}
-
-/* Runs in the main thread and delivers one batch per main loop iteration. */
-static gboolean
-search_thread_process_idle (gpointer user_data)
-{
-    SearchThreadData *data = user_data;
-    GPtrArray *hits;
-    gboolean finished;
-    gboolean cancelled;
-
-    g_mutex_lock (&data->idle_mutex);
-
-    hits = g_queue_pop_head (data->idle_queue);
-    finished = data->finished;
-    cancelled = g_cancellable_is_cancelled (data->cancellable);
-
-    /* Done when the queue is empty, or at once if the search was cancelled and has finished. */
-    if (hits == NULL || (finished && cancelled))
-    {
-        data->processing_id = 0;
-        g_mutex_unlock (&data->idle_mutex);
-
-        g_clear_pointer (&hits, g_ptr_array_unref);
-
-        if (finished)
-        {
-            search_thread_done (data);
-        }
-
-        return G_SOURCE_REMOVE;
-    }
-
-    g_mutex_unlock (&data->idle_mutex);
-
-    if (!cancelled)
-    {
-        g_debug ("Spotlight engine add hits");
-        nautilus_search_provider_hits_added (NAUTILUS_SEARCH_PROVIDER (data->engine),
-                                             g_steal_pointer (&hits));
-    }
-
-    g_clear_pointer (&hits, g_ptr_array_unref);
-
-    return G_SOURCE_CONTINUE;
-}
-
-static void
-send_batch_in_idle (SearchThreadData  *data,
-                    GPtrArray        **hits)
-{
-    if (*hits == NULL)
-    {
-        return;
-    }
-
-    g_mutex_lock (&data->idle_mutex);
-
-    g_queue_push_tail (data->idle_queue, g_steal_pointer (hits));
-    if (data->processing_id == 0)
-    {
-        data->processing_id = g_idle_add (search_thread_process_idle, data);
-    }
-
-    g_mutex_unlock (&data->idle_mutex);
-}
-
-/* The search thread must not use @data after calling this. */
-static void
-finish_search_thread (SearchThreadData *data)
-{
-    gboolean idle_pending;
-
-    g_mutex_lock (&data->idle_mutex);
-    data->finished = TRUE;
-    idle_pending = data->processing_id != 0;
-    g_mutex_unlock (&data->idle_mutex);
-
-    /* If an idle is still delivering batches, it finishes the search. */
-    if (!idle_pending)
-    {
-        g_idle_add (G_SOURCE_FUNC (search_thread_done), data);
-    }
 }
 
 static char *
@@ -589,7 +466,6 @@ static gpointer
 search_thread_func (gpointer user_data)
 {
     SearchThreadData *data = user_data;
-    GPtrArray *hits = NULL;
 
     resolve_location (data);
     data->md_query = create_md_query (data);
@@ -615,30 +491,17 @@ search_thread_func (gpointer user_data)
         {
             NautilusSearchHit *hit = hit_from_result (data, i);
 
-            if (hit == NULL)
+            if (hit != NULL)
             {
-                continue;
-            }
-
-            if (hits == NULL)
-            {
-                hits = g_ptr_array_new_with_free_func (g_object_unref);
-            }
-            g_ptr_array_add (hits, hit);
-
-            if (hits->len >= BATCH_SIZE)
-            {
-                send_batch_in_idle (data, &hits);
+                nautilus_search_provider_add_hit (data->engine, hit);
             }
         }
     }
 
-    send_batch_in_idle (data, &hits);
-
     /* Release the query here: it frees every result, too slow for the main thread. */
     g_clear_pointer (&data->md_query, CFRelease);
 
-    finish_search_thread (data);
+    g_idle_add_once ((GSourceOnceFunc) search_thread_done, data);
 
     return NULL;
 }
@@ -846,7 +709,7 @@ build_query_string (NautilusQuery *query,
 {
     g_autoptr (GStrvBuilder) clauses = g_strv_builder_new ();
     g_autofree char *text = nautilus_query_get_text (query);
-    g_autoptr (GPtrArray) mime_types = nautilus_query_get_mime_types (query);
+    g_autoptr (GPtrArray) mime_types = nautilus_query_get_content_types (query);
     g_autoptr (GPtrArray) date_range = nautilus_query_get_date_range (query);
     gboolean search_content = nautilus_query_get_search_content (query);
     /* Only the children of one folder are wanted. */
@@ -902,74 +765,64 @@ build_query_string (NautilusQuery *query,
     return g_strjoinv (" && ", strv);
 }
 
-static gboolean
-search_engine_spotlight_start (NautilusSearchProvider *provider,
-                               NautilusQuery          *query)
+static const char *
+get_name (NautilusSearchProvider *provider)
 {
-    NautilusSearchEngineSpotlight *self = NAUTILUS_SEARCH_ENGINE_SPOTLIGHT (provider);
-    g_autoptr (GFile) location = NULL;
-    g_autoptr (GThread) thread = NULL;
-    g_autofree char *query_string = NULL;
+    return "spotlight";
+}
 
-    g_set_object (&self->query, query);
-
-    if (self->active_search != NULL)
-    {
-        return FALSE;
-    }
-
-    location = nautilus_query_get_location (self->query);
-    if (location != NULL && !g_file_is_native (location))
-    {
-        /* Spotlight only knows about files that have a local path. */
-        return FALSE;
-    }
-
-    query_string = build_query_string (self->query, location != NULL);
-    if (query_string == NULL)
-    {
-        return FALSE;
-    }
-
-    g_debug ("Spotlight engine start");
-    g_debug ("Spotlight query: %s", query_string);
-
-    self->active_search = search_thread_data_new (self, self->query, location,
-                                                  g_steal_pointer (&query_string));
-
-    thread = g_thread_new ("nautilus-search-spotlight", search_thread_func,
-                           self->active_search);
-
+static gboolean
+run_in_thread (NautilusSearchProvider *provider)
+{
     return TRUE;
 }
 
-static void
-nautilus_search_engine_spotlight_stop (NautilusSearchProvider *provider)
+static gboolean
+should_search (NautilusSearchProvider *provider,
+               NautilusQuery          *query)
 {
     NautilusSearchEngineSpotlight *self = NAUTILUS_SEARCH_ENGINE_SPOTLIGHT (provider);
+    g_autoptr (GFile) location = nautilus_query_get_location (query);
 
-    if (self->active_search != NULL)
+    g_clear_pointer (&self->query_string, g_free);
+
+    /* Spotlight only knows about files that have a local path. */
+    if (location != NULL && !g_file_is_native (location))
     {
-        g_debug ("Spotlight engine stop");
-        /* The thread still reports that it finished, without any hits. */
-        g_cancellable_cancel (self->active_search->cancellable);
+        return FALSE;
     }
+
+    self->query_string = build_query_string (query, location != NULL);
+
+    return self->query_string != NULL;
 }
 
 static void
-nautilus_search_provider_init (NautilusSearchProviderInterface *iface)
+start_search (NautilusSearchProvider *provider)
 {
-    iface->start = search_engine_spotlight_start;
-    iface->stop = nautilus_search_engine_spotlight_stop;
+    NautilusSearchEngineSpotlight *self = NAUTILUS_SEARCH_ENGINE_SPOTLIGHT (provider);
+    NautilusQuery *query = nautilus_search_provider_get_query (self);
+    g_autoptr (GFile) location = nautilus_query_get_location (query);
+    g_autoptr (GThread) thread = NULL;
+    SearchThreadData *data;
+
+    g_debug ("Spotlight query: %s", self->query_string);
+
+    data = search_thread_data_new (self, query, location, g_steal_pointer (&self->query_string));
+    thread = g_thread_new ("nautilus-search-spotlight", search_thread_func, data);
 }
 
 static void
 nautilus_search_engine_spotlight_class_init (NautilusSearchEngineSpotlightClass *class)
 {
-    GObjectClass *gobject_class;
+    GObjectClass *gobject_class = G_OBJECT_CLASS (class);
+    NautilusSearchProviderClass *provider_class = NAUTILUS_SEARCH_PROVIDER_CLASS (class);
 
-    gobject_class = G_OBJECT_CLASS (class);
     gobject_class->finalize = finalize;
+    provider_class->get_name = get_name;
+    provider_class->run_in_thread = run_in_thread;
+    provider_class->should_search = should_search;
+    provider_class->start_search = start_search;
 }
 
 static void

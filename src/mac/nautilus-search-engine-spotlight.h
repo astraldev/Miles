@@ -24,7 +24,7 @@
 G_BEGIN_DECLS
 
 #define NAUTILUS_TYPE_SEARCH_ENGINE_SPOTLIGHT (nautilus_search_engine_spotlight_get_type ())
-G_DECLARE_FINAL_TYPE (NautilusSearchEngineSpotlight, nautilus_search_engine_spotlight, NAUTILUS, SEARCH_ENGINE_SPOTLIGHT, GObject)
+G_DECLARE_FINAL_TYPE (NautilusSearchEngineSpotlight, nautilus_search_engine_spotlight, NAUTILUS, SEARCH_ENGINE_SPOTLIGHT, NautilusSearchProvider)
 
 NautilusSearchEngineSpotlight* nautilus_search_engine_spotlight_new (void);
 
