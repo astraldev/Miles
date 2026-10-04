@@ -199,6 +199,11 @@ conf.set_quoted('PROFILE', profile)
 conf.set_quoted('VERSION', version_string)
 
 conf.set('ENABLE_LOCALSEARCH', host_machine.system() != 'darwin')
+if host_machine.system() == 'darwin'
+  # macOS has no session bus. Nautilus starts its own, for gvfs.
+  conf.set_quoted('NAUTILUS_DBUS_DAEMON', find_program('dbus-daemon').full_path())
+  conf.set_quoted('NAUTILUS_GIO_MODULE_DIR', join_paths(prefix, libdir, 'gio', 'modules'))
+endif
 conf.set('ENABLE_PACKAGEKIT', get_option('packagekit'))
 conf.set('HAVE_SELINUX', get_option('selinux'))
 conf.set('HAVE_CLOUDPROVIDERS', get_option('cloudproviders'))
@@ -286,6 +291,16 @@ if host_machine.system() == 'darwin'
   # Bundles the icon theme on macOS, where set_macos_icon_theme() looks for it.
   meson.add_install_script('macos/scripts/install-yaru.sh',
     join_paths(datadir, 'nautilus', 'icons'),
+  )
+
+  # Builds gvfs into the prefix, for network locations.
+  meson.add_install_script('macos/scripts/install-gvfs.sh')
+
+  configure_file(
+    input: 'macos/data/dbus-session.conf.in',
+    output: 'dbus-session.conf',
+    configuration: {'servicedir': join_paths(prefix, datadir, 'dbus-1', 'services')},
+    install_dir: join_paths(datadir, 'nautilus'),
   )
 endif
 

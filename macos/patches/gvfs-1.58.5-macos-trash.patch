@@ -1,0 +1,121 @@
+This patch is needed because gvfs 1.58.5 shows an empty trash on mac, due to
+looking for trashed files in the Linux trash folders, which mac does not have.
+
+Mac does not record where a trashed file came from in a way gvfs reads,
+so files cannot be restored from the trash, and have no trashed-on date.
+
+diff --git a/daemon/trashlib/trashdir.c b/daemon/trashlib/trashdir.c
+index 707dff6..1a4ba36 100644
+--- a/daemon/trashlib/trashdir.c
++++ b/daemon/trashlib/trashdir.c
+@@ -140,6 +140,16 @@ trash_dir_enumerate (TrashDir *dir)
+         {
+           GFile *file;
+ 
++#ifdef __APPLE__
++          /* Finder's own file and the folder for files being deleted, not trashed ones. */
++          if (strcmp (g_file_info_get_name (info), ".DS_Store") == 0 ||
++              strcmp (g_file_info_get_name (info), ".expunged") == 0)
++            {
++              g_object_unref (info);
++              continue;
++            }
++#endif
++
+           file = g_file_get_child (dir->directory,
+                                    g_file_info_get_name (info));
+           files = g_slist_prepend (files, file);
+diff --git a/daemon/trashlib/trashitem.c b/daemon/trashlib/trashitem.c
+index a5b5b16..ff33240 100644
+--- a/daemon/trashlib/trashitem.c
++++ b/daemon/trashlib/trashitem.c
+@@ -144,6 +144,13 @@ trash_item_get_trashinfo (GFile  *path,
+   char *trashinfo;
+   char *basename;
+ 
++#ifdef __APPLE__
++  /* macOS keeps no .trashinfo files. */
++  *original = NULL;
++  *date = NULL;
++  return;
++#endif
++
+   files = g_file_get_parent (path);
+   trashdir = g_file_get_parent (files);
+   trashpath = g_file_get_path (trashdir);
+@@ -469,8 +476,14 @@ trash_item_delete (TrashItem  *item,
+   guint unique;
+   guint i;
+ 
++#ifdef __APPLE__
++  /* The trash folder has no "files" level on macOS. */
++  expunged = g_file_resolve_relative_path (item->file,
++                                           "../.expunged");
++#else
+   expunged = g_file_resolve_relative_path (item->file,
+                                            "../../expunged");
++#endif
+   g_file_make_directory_with_parents (expunged, NULL, NULL);
+   unique = g_random_int ();
+ 
+@@ -518,6 +531,7 @@ trash_item_restore (TrashItem  *item,
+       g_hash_table_remove (item->root->item_table, item->escaped_name);
+       g_rw_lock_writer_unlock (&item->root->lock);
+ 
++#ifndef __APPLE__
+       {
+         GFile *trashinfo;
+         gchar *basename;
+@@ -532,6 +546,7 @@ trash_item_restore (TrashItem  *item,
+         g_file_delete (trashinfo, NULL, NULL);
+         g_object_unref (trashinfo);
+       }
++#endif
+ 
+       return TRUE;
+     }
+diff --git a/daemon/trashlib/trashwatcher.c b/daemon/trashlib/trashwatcher.c
+index 80a24d3..6b99629 100644
+--- a/daemon/trashlib/trashwatcher.c
++++ b/daemon/trashlib/trashwatcher.c
+@@ -184,8 +184,13 @@ trash_mount_insert (TrashWatcher      *watcher,
+    */
+ 
+   /* (1) */
++#ifdef __APPLE__
++  mount->dirs[0] = trash_dir_new (watcher->root, watching, FALSE, mountpoint,
++                                  ".Trashes/%d", (int) getuid ());
++#else
+   mount->dirs[0] = trash_dir_new (watcher->root, watching, FALSE, mountpoint,
+                                   ".Trash/%d/files", (int) getuid ());
++#endif
+ 
+   /* (2) */
+   mount->dirs[1] = trash_dir_new (watcher->root, watching, FALSE, mountpoint,
+@@ -314,14 +319,26 @@ trash_watcher_new (TrashRoot *root)
+   g_signal_connect_swapped (watcher->mount_monitor, "mounts_changed",
+                             G_CALLBACK (trash_watcher_remount), watcher);
+ 
++#ifdef __APPLE__
++  user_datadir = g_file_new_for_path (g_get_home_dir ());
++  homedir_trashdir = g_file_get_child (user_datadir, ".Trash");
++#else
+   user_datadir = g_file_new_for_path (g_get_user_data_dir ());
+   homedir_trashdir = g_file_get_child (user_datadir, "Trash/files");
++#endif
+   homedir_mount = find_mount_entry_for_file (homedir_trashdir);
+   watcher->homedir_type = decide_watch_type (homedir_mount, TRUE);
++#ifdef __APPLE__
++  watcher->homedir_trashdir = trash_dir_new (watcher->root,
++                                             FALSE, TRUE,
++                                             g_get_home_dir (),
++                                             ".Trash");
++#else
+   watcher->homedir_trashdir = trash_dir_new (watcher->root,
+                                              FALSE, TRUE,
+                                              g_get_user_data_dir (),
+                                              "Trash/files");
++#endif
+ 
+   if (homedir_mount)
+     g_unix_mount_entry_free (homedir_mount);

@@ -30,6 +30,10 @@
 #include "nautilus-application.h"
 #include "nautilus-resources.h"
 
+#ifdef __APPLE__
+#include "mac/nautilus-mac-session-bus.h"
+#endif
+
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 
@@ -47,6 +51,11 @@ main (int   argc,
 {
     gint retval;
     NautilusApplication *application;
+
+#ifdef __APPLE__
+    nautilus_mac_session_bus_start ();
+#endif
+
     /* Initialize gettext support */
     setlocale (LC_ALL, "");
     bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
@@ -77,6 +86,10 @@ main (int   argc,
                                 argc, argv);
 
     g_object_unref (application);
+
+#ifdef __APPLE__
+    nautilus_mac_session_bus_stop ();
+#endif
 
     return retval;
 }
