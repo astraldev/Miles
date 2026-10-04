@@ -78,13 +78,17 @@ nautilus_mac_get_accent_icon_theme (void)
 
 static NautilusMacAppearanceFunc accent_changed_func = NULL;
 
-static gboolean
-accent_changed_idle (gpointer user_data)
+static void
+apply_accent (gpointer user_data)
 {
-    g_debug ("Applying the accent colour of macOS");
-    accent_changed_func ();
+    /* CFPreferences keeps what it has read. Make it read the setting again. */
+    CFPreferencesSynchronize (kCFPreferencesAnyApplication,
+                              kCFPreferencesCurrentUser,
+                              kCFPreferencesAnyHost);
+    CFPreferencesAppSynchronize (kCFPreferencesCurrentApplication);
 
-    return G_SOURCE_REMOVE;
+    g_debug ("Accent colour of macOS: %s", nautilus_mac_get_accent_icon_theme ());
+    accent_changed_func ();
 }
 
 static void
@@ -94,15 +98,12 @@ accent_changed_cb (CFNotificationCenterRef  center,
                    const void              *object,
                    CFDictionaryRef          user_info)
 {
-    g_debug ("The accent colour of macOS changed");
+    g_debug ("macOS says its colours changed");
 
-    /* CFPreferences keeps what it has read. Make it read the setting again. */
-    CFPreferencesSynchronize (kCFPreferencesAnyApplication,
-                              kCFPreferencesCurrentUser,
-                              kCFPreferencesAnyHost);
-    CFPreferencesAppSynchronize (kCFPreferencesCurrentApplication);
-
-    g_idle_add (accent_changed_idle, NULL);
+    /* The notification can come before the new setting can be read: look again later. */
+    g_idle_add_once (apply_accent, NULL);
+    g_timeout_add_once (300, apply_accent, NULL);
+    g_timeout_add_once (1500, apply_accent, NULL);
     g_main_context_wakeup (NULL);
 }
 
@@ -115,11 +116,17 @@ nautilus_mac_watch_accent_colour (NautilusMacAppearanceFunc func)
 
     accent_changed_func = func;
 
-    /* System Settings tells every app with this notification. */
+    /* System Settings tells every app with these notifications. */
     CFNotificationCenterAddObserver (CFNotificationCenterGetDistributedCenter (),
                                      &accent_changed_func,
                                      accent_changed_cb,
                                      CFSTR ("AppleColorPreferencesChangedNotification"),
+                                     NULL,
+                                     CFNotificationSuspensionBehaviorDeliverImmediately);
+    CFNotificationCenterAddObserver (CFNotificationCenterGetDistributedCenter (),
+                                     &accent_changed_func,
+                                     accent_changed_cb,
+                                     CFSTR ("AppleAquaColorVariantChanged"),
                                      NULL,
                                      CFNotificationSuspensionBehaviorDeliverImmediately);
 }

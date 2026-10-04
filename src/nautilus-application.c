@@ -1050,6 +1050,13 @@ static void
 update_macos_icon_theme (void)
 {
     const char *name = nautilus_mac_get_accent_icon_theme ();
+    g_autofree char *current_name = NULL;
+
+    g_object_get (gtk_settings_get_default (), "gtk-icon-theme-name", &current_name, NULL);
+    if (g_strcmp0 (name, current_name) == 0)
+    {
+        return;
+    }
 
     if (!bundled_icon_theme_exists (name))
     {
