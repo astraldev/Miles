@@ -120,6 +120,11 @@
         </link>
       </item>
       <item>
+        <attribute name="label" translatable="yes">Show Package Contents</attribute>
+        <attribute name="action">view.show-package-contents</attribute>
+        <attribute name="hidden-when">action-disabled</attribute>
+      </item>
+      <item>
         <attribute name="label" translatable="yes">_Open Item Location</attribute>
         <attribute name="action">view.open-item-location</attribute>
         <attribute name="hidden-when">action-disabled</attribute>

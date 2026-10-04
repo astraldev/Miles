@@ -417,6 +417,12 @@ nautilus_icon_info_lookup (GIcon *icon,
 
         icon_info = nautilus_icon_info_new_for_paintable (paintable);
 
+        /* A failed load is tried again. */
+        if (paintable == NULL)
+        {
+            return icon_info;
+        }
+
         key = loadable_icon_key_new (icon, scale, size);
         g_hash_table_insert (loadable_icon_cache, key, icon_info);
 

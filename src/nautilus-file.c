@@ -65,6 +65,10 @@
 #include "nautilus-vfs-file.h"
 #include "nautilus-video-mime-types.h"
 
+#ifdef __APPLE__
+#include "mac/nautilus-mac-app-icon.h"
+#endif
+
 #ifdef HAVE_SELINUX
 #include <selinux/selinux.h>
 #endif
@@ -1672,9 +1676,25 @@ nautilus_file_can_trash (NautilusFile *file)
     return file->details->can_trash;
 }
 
+/* Returns: whether @file is a macOS app. */
+gboolean
+nautilus_file_is_mac_app (NautilusFile *file)
+{
+#ifdef __APPLE__
+    return NAUTILUS_IS_MAC_APP_ICON (file->details->icon);
+#else
+    return FALSE;
+#endif
+}
+
 gboolean
 nautilus_file_opens_in_view (NautilusFile *file)
 {
+    if (nautilus_file_is_mac_app (file))
+    {
+        return FALSE;
+    }
+
     return (nautilus_file_is_directory (file) ||
             nautilus_file_get_file_type (file) == G_FILE_TYPE_MOUNTABLE ||
             (nautilus_file_get_file_type (file) == G_FILE_TYPE_SHORTCUT &&
@@ -2401,6 +2421,9 @@ update_info_internal (NautilusFile *file,
     const char *symlink_name, *mime_type, *selinux_context, *name;
     GFileType file_type;
     GIcon *icon;
+#ifdef __APPLE__
+    g_autoptr (GIcon) app_icon = NULL;
+#endif
     const char *filesystem_id;
     const char *trash_orig_path;
     const char *group, *owner, *owner_real;
@@ -2743,6 +2766,21 @@ update_info_internal (NautilusFile *file,
     }
 
     icon = g_file_info_get_icon (info);
+#ifdef __APPLE__
+    /* An app shows its own icon. */
+    name = update_name ? g_file_info_get_name (info) : file->details->name;
+    if (file_type == G_FILE_TYPE_DIRECTORY && name != NULL && g_str_has_suffix (name, ".app"))
+    {
+        g_autoptr (GFile) parent = nautilus_directory_get_location (file->details->directory);
+        g_autoptr (GFile) location = g_file_get_child (parent, name);
+
+        app_icon = nautilus_mac_app_icon_new (location);
+        if (app_icon != NULL)
+        {
+            icon = app_icon;
+        }
+    }
+#endif
     if (!g_icon_equal (icon, file->details->icon))
     {
         changed = TRUE;
@@ -4462,6 +4500,20 @@ get_default_file_icon (void)
     return fallback_icon;
 }
 
+/* For a macOS app whose own icon cannot be read. */
+static GIcon *
+get_default_app_icon (void)
+{
+    static GIcon *fallback_icon = NULL;
+    if (fallback_icon == NULL)
+    {
+        fallback_icon = g_themed_icon_new_from_names ((char *[]){"application-x-executable",
+                                                                 "application-x-generic"}, 2);
+    }
+
+    return fallback_icon;
+}
+
 static GFilesystemPreviewType
 get_filesystem_use_preview (NautilusFile *file,
                             NautilusFile *parent)
@@ -4952,7 +5004,10 @@ nautilus_file_get_icon (NautilusFile          *file,
         if (nautilus_icon_info_is_fallback (icon))
         {
             g_object_unref (icon);
-            icon = nautilus_icon_info_lookup (get_default_file_icon (), size, scale);
+            icon = nautilus_icon_info_lookup (nautilus_file_is_mac_app (file)
+                                              ? get_default_app_icon ()
+                                              : get_default_file_icon (),
+                                              size, scale);
         }
     }
 

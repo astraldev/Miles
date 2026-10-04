@@ -769,7 +769,11 @@ get_activation_action (NautilusFile *file)
     }
 
     action = ACTIVATION_ACTION_DO_NOTHING;
-    if (nautilus_file_is_launchable (file))
+    if (nautilus_file_is_mac_app (file))
+    {
+        action = ACTIVATION_ACTION_LAUNCH;
+    }
+    else if (nautilus_file_is_launchable (file))
     {
         char *executable_path;
 
@@ -1677,6 +1681,18 @@ activate_files_internal (ActivateParameters *parameters)
         quoted_path = g_shell_quote (executable_path);
 
         g_debug ("Launching file path %s", quoted_path);
+
+        if (nautilus_file_is_mac_app (file))
+        {
+            const char *argv[] = { "/usr/bin/open", executable_path, NULL };
+            g_autoptr (GError) error = NULL;
+
+            if (!g_spawn_async (NULL, (char **) argv, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, &error))
+            {
+                g_warning ("Could not open the app %s: %s", executable_path, error->message);
+            }
+            continue;
+        }
 
         nautilus_launch_application_from_command (display, quoted_path, FALSE, NULL);
     }

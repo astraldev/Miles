@@ -436,6 +436,7 @@ GList *                 nautilus_file_get_emblem_icons                  (Nautilu
 
 /* Whether the file should open inside a view */
 gboolean                nautilus_file_opens_in_view                     (NautilusFile                   *file);
+gboolean                nautilus_file_is_mac_app                        (NautilusFile                   *file);
 /* Thumbnailing handling */
 gboolean                nautilus_file_is_thumbnailing                   (NautilusFile                   *file);
 
