@@ -81,6 +81,7 @@ static NautilusMacAppearanceFunc accent_changed_func = NULL;
 static gboolean
 accent_changed_idle (gpointer user_data)
 {
+    g_debug ("Applying the accent colour of macOS");
     accent_changed_func ();
 
     return G_SOURCE_REMOVE;
@@ -102,6 +103,7 @@ accent_changed_cb (CFNotificationCenterRef  center,
     CFPreferencesAppSynchronize (kCFPreferencesCurrentApplication);
 
     g_idle_add (accent_changed_idle, NULL);
+    g_main_context_wakeup (NULL);
 }
 
 /* Calls @func in the main loop when the accent colour changes. Call once, from the main thread. */

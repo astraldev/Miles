@@ -1140,9 +1140,18 @@ static void
 set_macos_icon_theme (void)
 {
     GtkIconTheme *icon_theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
+    g_auto (GStrv) search_path = gtk_icon_theme_get_search_path (icon_theme);
+    g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
+    g_auto (GStrv) bundled_first = NULL;
 
-    /* Part of the app: do not rely on the environment pointing GTK at it. */
-    gtk_icon_theme_add_search_path (icon_theme, BUNDLED_ICONS_DIR);
+    /* Part of the app: searched first, so a theme of the same name elsewhere cannot replace it. */
+    g_strv_builder_add (builder, BUNDLED_ICONS_DIR);
+    if (search_path != NULL)
+    {
+        g_strv_builder_addv (builder, (const char **) search_path);
+    }
+    bundled_first = g_strv_builder_end (builder);
+    gtk_icon_theme_set_search_path (icon_theme, (const char * const *) bundled_first);
 
     update_macos_icon_theme ();
     nautilus_mac_watch_accent_colour (update_macos_icon_theme);
