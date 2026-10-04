@@ -333,8 +333,10 @@ nautilus_search_engine_set_search_type (NautilusSearchEngine *self,
 
     self->search_type = search_type;
 
+#ifdef ENABLE_LOCALSEARCH
     setup_provider (self, &self->localsearch, NAUTILUS_SEARCH_TYPE_LOCALSEARCH,
                     (CreateFunc) nautilus_search_engine_localsearch_new);
+#endif
     setup_provider (self, &self->model, NAUTILUS_SEARCH_TYPE_MODEL,
                     (CreateFunc) nautilus_search_engine_model_new);
     setup_provider (self, &self->recent, NAUTILUS_SEARCH_TYPE_RECENT,

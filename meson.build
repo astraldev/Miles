@@ -174,6 +174,7 @@ conf.set_quoted('PACKAGE_VERSION', meson.project_version())
 conf.set_quoted('PROFILE', profile)
 conf.set_quoted('VERSION', version_string)
 
+conf.set('ENABLE_LOCALSEARCH', host_machine.system() != 'darwin')
 conf.set('ENABLE_PACKAGEKIT', get_option('packagekit'))
 conf.set('HAVE_SELINUX', get_option('selinux'))
 conf.set('HAVE_CLOUDPROVIDERS', get_option('cloudproviders'))

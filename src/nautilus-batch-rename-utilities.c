@@ -926,7 +926,7 @@ check_metadata_for_selection (NautilusBatchRenameDialog *dialog,
     TrackerSparqlConnection *connection;
     g_autoptr (GString) query = NULL;
     GList *l;
-    GError *error;
+    GError *error = NULL;
     QueryData *query_data;
     FileMetadata *file_metadata;
     g_autoptr (GHashTable) selection_metadata = NULL;
