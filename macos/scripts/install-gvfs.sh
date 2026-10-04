@@ -6,13 +6,13 @@
 set -eu
 
 GVFS_URL=https://gitlab.gnome.org/GNOME/gvfs.git
-# 1.58.5
-GVFS_COMMIT=d871ae97ece1168701fa3e650efcdc552aea80a0
+# 1.62.0
+GVFS_COMMIT=046d5423ef100255f554eff84388f8ba765a2182
 
 # Off: what needs Linux, or a library that macOS or Homebrew lacks.
 GVFS_OPTIONS="
     -Dsystemduserunitdir=no -Dtmpfilesdir=no
-    -Dadmin=false -Dafc=false -Dafp=true -Darchive=false -Dburn=false -Dcdda=false
+    -Dadmin=false -Dafc=false -Dafp=true -Darchive=false -Dcdda=false
     -Ddnssd=false -Dgoa=false -Dgoogle=false -Dgphoto2=false -Dhttp=true -Dmtp=false
     -Dnfs=false -Donedrive=false -Dsftp=true -Dsmb=false -Dudisks2=false -Dwsdd=false
     -Dbluray=false -Dfuse=false -Dgcr=false -Dgcrypt=true -Dgudev=false -Dkeyring=false

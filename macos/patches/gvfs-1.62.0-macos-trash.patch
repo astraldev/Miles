@@ -1,40 +1,62 @@
-This patch is needed because gvfs 1.58.5 shows an empty trash on mac, due to
+This patch is needed because gvfs 1.62.0 shows an empty trash on mac, due to
 looking for trashed files in the Linux trash folders, which mac does not have.
 
 Mac does not record where a trashed file came from in a way gvfs reads,
 so files cannot be restored from the trash, and have no trashed-on date.
 
 diff --git a/daemon/trashlib/trashdir.c b/daemon/trashlib/trashdir.c
-index 707dff6..1a4ba36 100644
+index 6b5f21c..aba2954 100644
 --- a/daemon/trashlib/trashdir.c
 +++ b/daemon/trashlib/trashdir.c
-@@ -140,6 +140,16 @@ trash_dir_enumerate (TrashDir *dir)
-         {
-           GFile *file;
+@@ -80,6 +80,16 @@ trash_dir_set_files (TrashDir   *dir,
+   trash_root_thaw (dir->root);
+ }
  
++static gboolean
++trash_dir_skips_name (const char *name)
++{
 +#ifdef __APPLE__
-+          /* Finder's own file and the folder for files being deleted, not trashed ones. */
-+          if (strcmp (g_file_info_get_name (info), ".DS_Store") == 0 ||
-+              strcmp (g_file_info_get_name (info), ".expunged") == 0)
-+            {
-+              g_object_unref (info);
-+              continue;
-+            }
++  return strcmp (name, ".DS_Store") == 0 || strcmp (name, ".expunged") == 0;
++#else
++  return FALSE;
 +#endif
++}
 +
-           file = g_file_get_child (dir->directory,
-                                    g_file_info_get_name (info));
-           files = g_slist_prepend (files, file);
+ static void
+ trash_dir_empty (TrashDir *dir)
+ {
+@@ -116,8 +126,11 @@ trash_dir_enumerate (TrashDir *dir)
+           const gchar *name;
+ 
+           name = g_file_info_get_name (info);
+-          file = g_file_get_child (dir->directory, name);
+-          g_hash_table_insert (files, g_strdup (name), file);
++          if (!trash_dir_skips_name (name))
++            {
++              file = g_file_get_child (dir->directory, name);
++              g_hash_table_insert (files, g_strdup (name), file);
++            }
+ 
+           g_object_unref (info);
+         }
+@@ -141,7 +154,7 @@ trash_dir_changed (GFileMonitor      *monitor,
+     {
+       g_autofree gchar *name = g_file_get_basename (file);
+ 
+-      if (!g_hash_table_contains (dir->items, name))
++      if (!trash_dir_skips_name (name) && !g_hash_table_contains (dir->items, name))
+         {
+           g_hash_table_insert (dir->items, g_steal_pointer (&name), g_object_ref (file));
+           trash_root_add_item (dir->root, file, dir->topdir, dir->is_homedir);
 diff --git a/daemon/trashlib/trashitem.c b/daemon/trashlib/trashitem.c
-index a5b5b16..ff33240 100644
+index 08dd8ad..b1729c1 100644
 --- a/daemon/trashlib/trashitem.c
 +++ b/daemon/trashlib/trashitem.c
-@@ -144,6 +144,13 @@ trash_item_get_trashinfo (GFile  *path,
+@@ -148,6 +148,12 @@ trash_item_get_trashinfo (GFile  *path,
    char *trashinfo;
    char *basename;
  
 +#ifdef __APPLE__
-+  /* macOS keeps no .trashinfo files. */
 +  *original = NULL;
 +  *date = NULL;
 +  return;
@@ -43,12 +65,11 @@ index a5b5b16..ff33240 100644
    files = g_file_get_parent (path);
    trashdir = g_file_get_parent (files);
    trashpath = g_file_get_path (trashdir);
-@@ -469,8 +476,14 @@ trash_item_delete (TrashItem  *item,
+@@ -489,8 +495,13 @@ trash_item_delete (TrashItem  *item,
    guint unique;
    guint i;
  
 +#ifdef __APPLE__
-+  /* The trash folder has no "files" level on macOS. */
 +  expunged = g_file_resolve_relative_path (item->file,
 +                                           "../.expunged");
 +#else
@@ -58,7 +79,7 @@ index a5b5b16..ff33240 100644
    g_file_make_directory_with_parents (expunged, NULL, NULL);
    unique = g_random_int ();
  
-@@ -518,6 +531,7 @@ trash_item_restore (TrashItem  *item,
+@@ -538,6 +549,7 @@ trash_item_restore (TrashItem  *item,
        g_hash_table_remove (item->root->item_table, item->escaped_name);
        g_rw_lock_writer_unlock (&item->root->lock);
  
@@ -66,7 +87,7 @@ index a5b5b16..ff33240 100644
        {
          GFile *trashinfo;
          gchar *basename;
-@@ -532,6 +546,7 @@ trash_item_restore (TrashItem  *item,
+@@ -552,6 +564,7 @@ trash_item_restore (TrashItem  *item,
          g_file_delete (trashinfo, NULL, NULL);
          g_object_unref (trashinfo);
        }
@@ -75,10 +96,10 @@ index a5b5b16..ff33240 100644
        return TRUE;
      }
 diff --git a/daemon/trashlib/trashwatcher.c b/daemon/trashlib/trashwatcher.c
-index 80a24d3..6b99629 100644
+index cf3ff7b..ff756f4 100644
 --- a/daemon/trashlib/trashwatcher.c
 +++ b/daemon/trashlib/trashwatcher.c
-@@ -184,8 +184,13 @@ trash_mount_insert (TrashWatcher      *watcher,
+@@ -186,8 +186,13 @@ trash_mount_insert (TrashWatcher    *watcher,
     */
  
    /* (1) */
@@ -92,9 +113,9 @@ index 80a24d3..6b99629 100644
  
    /* (2) */
    mount->dirs[1] = trash_dir_new (watcher->root, watching, FALSE, mountpoint,
-@@ -314,14 +319,26 @@ trash_watcher_new (TrashRoot *root)
-   g_signal_connect_swapped (watcher->mount_monitor, "mounts_changed",
-                             G_CALLBACK (trash_watcher_remount), watcher);
+@@ -398,14 +403,26 @@ trash_watcher_new (TrashRoot *root)
+   watcher->mount_monitor = g_unix_mount_monitor_get ();
+   watcher->mounts_changed_id = 0;
  
 +#ifdef __APPLE__
 +  user_datadir = g_file_new_for_path (g_get_home_dir ());
