@@ -417,6 +417,15 @@ content_type_matches_filter (GPtrArray  *filter,
     return FALSE;
 }
 
+/* Returns: (transfer container): the filter's file types, which are UTIs on macOS. */
+GPtrArray *
+nautilus_query_get_content_types (NautilusQuery *query)
+{
+    g_return_val_if_fail (NAUTILUS_IS_QUERY (query), NULL);
+
+    return g_ptr_array_ref (query->mime_types);
+}
+
 /* Returns: whether a file of this content or MIME type passes the filter. Cached; any thread. */
 gboolean
 nautilus_query_matches_content_type (NautilusQuery *query,
