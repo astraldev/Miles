@@ -464,7 +464,7 @@ get_dash_width (guint size)
             return 2.0;
         }
 
-        /* case NAUTILUS_LIST_ICON_SIZE_LARGE */
+        case NAUTILUS_LIST_ICON_SIZE_LARGE:
         case NAUTILUS_GRID_ICON_SIZE_SMALL_PLUS:
         {
             return 2.0;
@@ -514,7 +514,7 @@ get_dash_length (guint size)
             return 10.0;
         }
 
-        /* case NAUTILUS_LIST_ICON_SIZE_LARGE */
+        case NAUTILUS_LIST_ICON_SIZE_LARGE:
         case NAUTILUS_GRID_ICON_SIZE_SMALL_PLUS:
         {
             return 10.0;
@@ -564,7 +564,7 @@ get_dash_radius (guint size)
             return 5.33;
         }
 
-        /* case NAUTILUS_LIST_ICON_SIZE_LARGE */
+        case NAUTILUS_LIST_ICON_SIZE_LARGE:
         case NAUTILUS_GRID_ICON_SIZE_SMALL_PLUS:
         {
             return 5.33;
