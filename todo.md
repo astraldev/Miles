@@ -31,6 +31,8 @@ Where mac-only files go:
 - [ ] libportal and gnome-desktop are pulled and patched by the build itself: `subprojects/*.wrap` pinned to commits, patches in `subprojects/packagefiles/`. `meson setup` on a clean clone now needs no manual steps
 - [ ] App bundle files: `macos/bundle/Info.plist.in`, `macos/bundle/nautilus.entitlements`. Not wired into the build yet
 - [ ] Research: a search that does not need Spotlight (see Search)
+- [ ] Apps show their own icon (`src/mac/nautilus-mac-app-icon.c`): the icon set in Finder if there is one, else the `.icns` file the app's Info.plist names. About 7 ms per app the first time it is drawn. Needs a look on screen
+- [ ] Double-click on an app launches it (`/usr/bin/open`). Right-click has "Show Package Contents" to browse inside. Needs a try on screen
 - [ ] Grid zoom steps are even now: 48, 72, 112, 168, 256, each about 1.5 times the one before (upstream: 48, 64, 96, 168, 256). Needs a look on screen
 
 ## Left
@@ -63,18 +65,35 @@ Where mac-only files go:
 - [ ] Yaru's `-dark` variants are not installed or used. Check on screen whether dark appearance needs them
 - [ ] Homebrew formula: it cannot download during a build, so it has to supply the same pinned libportal, gnome-desktop and Yaru sources itself
 - [ ] Credit Yaru in the app (About dialog or bundle). The licence files are already installed with the icons
+- [ ] App icons come from the `.icns` file. Apps that keep their icon only in `Assets.car` (many in `/System/Library/CoreServices`) get a generic app icon, and on macOS 26 most `.icns` files stop at 256 px, so the two largest zoom steps are stretched on Retina. `NSWorkspace` gives the real icon at any size but takes 20 to 300 ms per app, so it has to run off the main thread
+- [ ] A plain folder named `something.app` is treated as an app
 - [ ] Types macOS does not know (meson.build, .cfg) and files without an extension (LICENSE, NEWS): detect them. Either a small mac mapping, or bundle the freedesktop MIME database (shared-mime-info) for name patterns and content sniffing
 - [ ] No thumbnails for images, PDFs and videos
 - [ ] Read-only badge icon is missing (`emblem-unwritable-symbolic`). Yaru and Adwaita call it `emblem-readonly`
 
-### gvfs (decided: port it, later)
+### gvfs (in progress, not committed)
 
-- [ ] Port gvfs. Gives Network, Trash, Recent and more
-- [ ] Until then, Network gives "Could not mount network:///"
+- [x] gvfs 1.58.5 builds on mac with no patches. `macos/scripts/install-gvfs.sh` builds it into the prefix during `ninja install`, pinned to a commit
+- [x] Nautilus starts its own D-Bus session bus (`src/mac/nautilus-mac-session-bus.c`, `macos/data/dbus-session.conf.in`) and stops it on quit. gvfs daemons start on demand and exit with the bus. The D-Bus warnings are gone, and a second launch now joins the running app
+- [x] Network view opens. Connect by address works for `sftp://`, `dav://`, `davs://`, `ftp://`, `afp://` (tested with the `gio` tool against test servers, not through the window)
+- `smb://` (Windows shares) is left out (decided): it needs samba and its large dependency chain
+- [ ] Servers do not show up by themselves: gvfs finds them with avahi, which mac lacks. Rewrite that backend on Apple's `dns_sd.h` (Bonjour)
+- [ ] Saved passwords: gvfs wants libsecret and a Secret Service. Mac has the Keychain instead
+- [x] Trash reads the macOS trash folders (`~/.Trash`, `.Trashes/<uid>` on other drives): `macos/patches/gvfs-1.58.5-macos-trash.patch`, applied by the script. Listing, opening and deleting for good work (tested against a test home folder)
+- [ ] Trash still shows empty until the app has Full Disk Access: macOS blocks `~/.Trash` for every app but Finder, and never asks. Tell the user (later):
+  - Detect it: opening `~/.Trash` fails with "Operation not permitted"
+  - In the Trash view, show a page in place of "Trash is Empty": "Files needs Full Disk Access to show the Trash", with a button "Open System Settings"
+  - The button opens `x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`, where the user switches Files on
+  - macOS only applies it to a newly started app: offer "Quit and Reopen" after
+  - Needs the signed `Files.app` first: the grant is tied to the app's identity, and the gvfs daemons get it through the app that started them (check this)
+- [ ] Trash: no "Restore" and no "Trashed on" date. macOS keeps the original place in `~/.Trash/.DS_Store` (put-back records), which needs a parser, and the date as the file's "date added"
+- [ ] Recent works but is empty until files are opened from Nautilus. Sidebar row is still hidden
+- [ ] If Nautilus crashes, the bus and daemons keep running. The next launch reuses them, nothing stops them
+- [ ] `dbus-daemon` comes from Homebrew, its path is fixed at build time. A standalone `Files.app` has to ship it, and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
+- [ ] gvfs 1.62 for GNOME 51: drop `-Dburn`
 
 ### System integration
 
-- [ ] No D-Bus session on mac: warnings at startup and on every folder change
 - [ ] "Failed to initialize display server connection" at startup (file picker portal, X11/Wayland only)
 - [ ] Window does not always come to the front when started from a terminal
 - [ ] Opened files are not added to the recent list ("no command line for the application")
