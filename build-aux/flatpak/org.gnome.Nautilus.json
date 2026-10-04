@@ -75,6 +75,7 @@
       "buildsystem": "meson",
       "builddir": true,
       "config-opts": [
+        "--libdir=/app/lib",
         "-Dintrospection=false",
         "-Dvapi=false",
         "-Dtools=false",
@@ -117,7 +118,7 @@
         {
           "type": "git",
           "url": "https://gitlab.gnome.org/GNOME/localsearch.git",
-          "branch": "localsearch-3.9"
+          "branch": "main"
         }
       ]
     },
@@ -135,8 +136,7 @@
       "sources": [
         {
           "type": "git",
-          "url": "https://gitlab.gnome.org/GNOME/gnome-desktop.git",
-          "tag": "44.5"
+          "url": "https://gitlab.gnome.org/GNOME/gnome-desktop.git"
         }
       ]
     },
@@ -150,8 +150,7 @@
       "sources": [
         {
           "type": "git",
-          "url": "https://gitlab.gnome.org/GNOME/gnome-autoar.git",
-          "tag": "0.4.5"
+          "url": "https://gitlab.gnome.org/GNOME/gnome-autoar.git"
         }
       ]
     },
@@ -166,13 +165,14 @@
         "-Dintrospection=false",
         "-Dtests=false",
         "-Dvapi=false",
+        "--libdir=/app/lib",
         "--buildtype=debugoptimized"
       ],
       "sources": [
         {
           "type": "git",
           "url": "https://github.com/flatpak/libportal.git",
-          "tag": "0.9.1"
+          "branch": "main"
         }
       ]
     },
@@ -187,8 +187,7 @@
       "sources": [
         {
           "type": "git",
-          "url": "https://gitlab.gnome.org/GNOME/libcloudproviders.git",
-          "tag": "0.3.6"
+          "url": "https://gitlab.gnome.org/GNOME/libcloudproviders.git"
         }
       ]
     },
@@ -210,6 +209,7 @@
         ]
       },
       "config-opts": [
+        "--libdir=/app/lib",
         "-Dprofile=Devel",
         "-Dtests=all"
       ],
