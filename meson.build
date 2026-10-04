@@ -113,8 +113,12 @@ subproject('libgxdp',
 gio = dependency('gio-2.0', version: glib_ver)
 gio_unix = dependency('gio-unix-2.0', version: glib_ver)
 glib = dependency('glib-2.0', version: glib_ver)
-glycin = dependency('glycin-2', version: '>= 2')
-glycin_gtk4 = dependency('glycin-gtk4-2', version: '>= 2')
+if host_machine.system() == 'darwin'
+  subdir('macos/shims/glycin')
+else
+  glycin = dependency('glycin-2', version: '>= 2')
+  glycin_gtk4 = dependency('glycin-gtk4-2', version: '>= 2')
+endif
 gmodule = dependency('gmodule-no-export-2.0', version: glib_ver)
 gnome_autoar = dependency('gnome-autoar-0', version: '>= 0.4.4')
 # The default_options apply when these are built from subprojects/, as on macOS.

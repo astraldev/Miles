@@ -1,0 +1,9 @@
+[wrap-git]
+url = https://gitlab.gnome.org/GNOME/blueprint-compiler.git
+# 0.22.2
+revision = ed35ac74de0c1bb1f5e852410b97edd1f08904c9
+depth = 1
+diff_files = blueprint-compiler-0.22.2-subproject.patch
+
+[provide]
+program_names = blueprint-compiler
