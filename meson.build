@@ -293,7 +293,6 @@ if host_machine.system() == 'darwin'
     join_paths(datadir, 'nautilus', 'icons'),
   )
 
-  # Builds gvfs into the prefix, for network locations.
   meson.add_install_script('macos/scripts/install-gvfs.sh')
 
   configure_file(

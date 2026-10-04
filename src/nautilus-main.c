@@ -52,10 +52,6 @@ main (int   argc,
     gint retval;
     NautilusApplication *application;
 
-#ifdef __APPLE__
-    nautilus_mac_session_bus_start ();
-#endif
-
     /* Initialize gettext support */
     setlocale (LC_ALL, "");
     bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
@@ -71,6 +67,10 @@ main (int   argc,
 
         exit (ENOTSUP);
     }
+
+#ifdef __APPLE__
+    nautilus_mac_session_bus_start ();
+#endif
 
     nautilus_register_resource ();
     /* Run the nautilus application. */

@@ -23,8 +23,10 @@
 #include "nautilus-mac-session-bus.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <glib/gstdio.h>
 #include <signal.h>
+#include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -37,12 +39,17 @@
 /* 0 if the bus was already running. */
 static GPid bus_pid = 0;
 
-/* Lets GIO find the gvfs modules. */
+static char *original_gio_modules = NULL;
+static gboolean set_runtime_dir = FALSE;
+static gboolean set_bus_address = FALSE;
+
 static void
 add_gio_modules (void)
 {
     const char *modules = g_getenv ("GIO_EXTRA_MODULES");
     g_autofree char *with_gvfs = NULL;
+
+    original_gio_modules = g_strdup (modules);
 
     if (modules == NULL || *modules == '\0')
     {
@@ -55,19 +62,18 @@ add_gio_modules (void)
     g_setenv ("GIO_EXTRA_MODULES", with_gvfs, TRUE);
 }
 
-/* Returns: (nullable) (transfer full): a private folder with a short path, for sockets. */
+/* Not in /tmp, which macOS sweeps. */
 static char *
 create_runtime_dir (void)
 {
-    g_autofree char *path = g_strdup_printf ("/tmp/nautilus-%u", (guint) getuid ());
+    g_autofree char *path = g_build_filename (g_get_user_cache_dir (), "nautilus", NULL);
     GStatBuf info;
 
-    if (g_mkdir (path, 0700) != 0 && errno != EEXIST)
+    if (g_mkdir_with_parents (path, 0700) != 0)
     {
         return NULL;
     }
 
-    /* Another user could have made it first. */
     if (g_lstat (path, &info) != 0 ||
         !S_ISDIR (info.st_mode) ||
         info.st_uid != getuid () ||
@@ -139,6 +145,14 @@ spawn_bus (const char *bus_address,
             return TRUE;
         }
 
+        if (waitpid (bus_pid, NULL, WNOHANG) == bus_pid)
+        {
+            g_warning ("The session bus exited as it started");
+            bus_pid = 0;
+
+            return FALSE;
+        }
+
         g_usleep (10 * G_TIME_SPAN_MILLISECOND);
     }
 
@@ -148,7 +162,7 @@ spawn_bus (const char *bus_address,
     return FALSE;
 }
 
-/* Call first in main(): GIO reads these variables once. */
+/* Call in main() before anything uses GIO, which reads these variables once. */
 void
 nautilus_mac_session_bus_start (void)
 {
@@ -156,6 +170,9 @@ nautilus_mac_session_bus_start (void)
     const char *runtime_dir;
     g_autofree char *socket_path = NULL;
     g_autofree char *bus_address = NULL;
+    g_autofree char *lock_path = NULL;
+    gboolean is_running;
+    int lock_fd;
 
     add_gio_modules ();
 
@@ -177,26 +194,66 @@ nautilus_mac_session_bus_start (void)
 
         runtime_dir = created_runtime_dir;
         g_setenv ("XDG_RUNTIME_DIR", runtime_dir, TRUE);
+        set_runtime_dir = TRUE;
     }
 
     socket_path = g_build_filename (runtime_dir, "bus", NULL);
     bus_address = g_strconcat ("unix:path=", socket_path, NULL);
+    lock_path = g_build_filename (runtime_dir, "bus.lock", NULL);
 
-    /* Another Nautilus may have started it. */
-    if (!bus_is_running (socket_path))
+    /* Two Nautilus starting together must not both start a bus. */
+    lock_fd = g_open (lock_path, O_CREAT | O_RDWR | O_CLOEXEC, 0600);
+    if (lock_fd >= 0)
     {
-        g_unlink (socket_path);
-
-        if (!spawn_bus (bus_address, socket_path))
-        {
-            return;
-        }
+        flock (lock_fd, LOCK_EX);
     }
 
-    g_setenv ("DBUS_SESSION_BUS_ADDRESS", bus_address, TRUE);
+    is_running = bus_is_running (socket_path);
+    if (!is_running)
+    {
+        g_unlink (socket_path);
+        is_running = spawn_bus (bus_address, socket_path);
+    }
+
+    if (lock_fd >= 0)
+    {
+        close (lock_fd);
+    }
+
+    if (is_running)
+    {
+        g_setenv ("DBUS_SESSION_BUS_ADDRESS", bus_address, TRUE);
+        set_bus_address = TRUE;
+    }
 }
 
-/* Stops the bus if this process started it. */
+char **
+nautilus_mac_session_bus_get_launch_environ (void)
+{
+    char **envp = g_get_environ ();
+
+    if (original_gio_modules != NULL)
+    {
+        envp = g_environ_setenv (envp, "GIO_EXTRA_MODULES", original_gio_modules, TRUE);
+    }
+    else
+    {
+        envp = g_environ_unsetenv (envp, "GIO_EXTRA_MODULES");
+    }
+
+    if (set_runtime_dir)
+    {
+        envp = g_environ_unsetenv (envp, "XDG_RUNTIME_DIR");
+    }
+
+    if (set_bus_address)
+    {
+        envp = g_environ_unsetenv (envp, "DBUS_SESSION_BUS_ADDRESS");
+    }
+
+    return envp;
+}
+
 void
 nautilus_mac_session_bus_stop (void)
 {

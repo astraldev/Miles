@@ -475,6 +475,7 @@ hover_timer (gpointer user_data)
 
     if (file == priv->directory_as_file ||
         !nautilus_file_is_directory (file) ||
+        nautilus_file_is_mac_app (file) ||
         !g_settings_get_boolean (nautilus_preferences,
                                  NAUTILUS_PREFERENCES_OPEN_FOLDER_ON_DND_HOVER))
     {
@@ -602,7 +603,8 @@ on_item_drag_enter (GtkDropTarget *target,
 
     dest_file = nautilus_file_ref (nautilus_view_item_get_file (item));
 
-    if (!nautilus_file_is_archive (dest_file) && !nautilus_file_is_directory (dest_file))
+    if ((!nautilus_file_is_archive (dest_file) && !nautilus_file_is_directory (dest_file)) ||
+        nautilus_file_is_mac_app (dest_file))
     {
         gtk_drop_target_reject (target);
         return 0;

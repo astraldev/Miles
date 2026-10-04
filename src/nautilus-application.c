@@ -1196,6 +1196,12 @@ nautilus_application_startup (GApplication *app)
 
 #ifdef __APPLE__
     set_macos_icon_theme ();
+
+    /* Losing Nautilus's own bus only costs gvfs. */
+    if (g_application_get_dbus_connection (app) != NULL)
+    {
+        g_dbus_connection_set_exit_on_close (g_application_get_dbus_connection (app), FALSE);
+    }
 #endif
 
     /* initialize preferences and create the global GSettings objects */

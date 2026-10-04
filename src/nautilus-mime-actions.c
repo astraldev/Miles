@@ -28,6 +28,9 @@
 #include <glib/gstdio.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#include "mac/nautilus-mac-session-bus.h"
+#endif
 #include "nautilus-application.h"
 #include "nautilus-enums.h"
 #include "nautilus-file.h"
@@ -1682,17 +1685,20 @@ activate_files_internal (ActivateParameters *parameters)
 
         g_debug ("Launching file path %s", quoted_path);
 
+#ifdef __APPLE__
         if (nautilus_file_is_mac_app (file))
         {
             const char *argv[] = { "/usr/bin/open", executable_path, NULL };
+            g_auto (GStrv) envp = nautilus_mac_session_bus_get_launch_environ ();
             g_autoptr (GError) error = NULL;
 
-            if (!g_spawn_async (NULL, (char **) argv, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, &error))
+            if (!g_spawn_async (NULL, (char **) argv, envp, G_SPAWN_DEFAULT, NULL, NULL, NULL, &error))
             {
                 g_warning ("Could not open the app %s: %s", executable_path, error->message);
             }
             continue;
         }
+#endif
 
         nautilus_launch_application_from_command (display, quoted_path, FALSE, NULL);
     }

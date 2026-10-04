@@ -1676,7 +1676,6 @@ nautilus_file_can_trash (NautilusFile *file)
     return file->details->can_trash;
 }
 
-/* Returns: whether @file is a macOS app. */
 gboolean
 nautilus_file_is_mac_app (NautilusFile *file)
 {
@@ -2767,7 +2766,6 @@ update_info_internal (NautilusFile *file,
 
     icon = g_file_info_get_icon (info);
 #ifdef __APPLE__
-    /* An app shows its own icon. */
     name = update_name ? g_file_info_get_name (info) : file->details->name;
     if (file_type == G_FILE_TYPE_DIRECTORY && name != NULL && g_str_has_suffix (name, ".app"))
     {
@@ -4500,7 +4498,6 @@ get_default_file_icon (void)
     return fallback_icon;
 }
 
-/* For a macOS app whose own icon cannot be read. */
 static GIcon *
 get_default_app_icon (void)
 {

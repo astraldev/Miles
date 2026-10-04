@@ -21,7 +21,8 @@
 
 G_BEGIN_DECLS
 
-void nautilus_mac_session_bus_start (void);
-void nautilus_mac_session_bus_stop  (void);
+void    nautilus_mac_session_bus_start              (void);
+void    nautilus_mac_session_bus_stop               (void);
+char ** nautilus_mac_session_bus_get_launch_environ (void);
 
 G_END_DECLS

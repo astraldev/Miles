@@ -40,7 +40,6 @@ if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$installed" ]; then
     exit 0
 fi
 
-# Next to Nautilus's build, so it is reused.
 work_dir=${MESON_BUILD_ROOT:-${TMPDIR:-/tmp}}/gvfs
 src_dir=$work_dir/src
 build_dir=$work_dir/build
@@ -55,7 +54,8 @@ if [ "$(git -C "$src_dir" rev-parse HEAD 2>/dev/null)" != "$GVFS_COMMIT" ]; then
     git -C "$src_dir" checkout --quiet FETCH_HEAD
 fi
 
-git -C "$src_dir" checkout --quiet -- .
+git -C "$src_dir" reset --quiet --hard
+git -C "$src_dir" clean --quiet -fd
 for patch in "$patches_dir"/gvfs-*.patch; do
     git -C "$src_dir" apply "$patch"
 done

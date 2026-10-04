@@ -15,8 +15,6 @@
  *
  */
 
-/* The icon of a macOS app. */
-
 #include <config.h>
 #include "nautilus-mac-app-icon.h"
 
@@ -40,7 +38,6 @@ G_DEFINE_FINAL_TYPE_WITH_CODE (NautilusMacAppIcon, nautilus_mac_app_icon, G_TYPE
                                G_IMPLEMENT_INTERFACE (G_TYPE_LOADABLE_ICON,
                                                       nautilus_mac_app_icon_loadable_icon_iface_init))
 
-/* Returns: (nullable): where the app keeps its icon. */
 static CFURLRef
 copy_icon_url (const char *path)
 {
@@ -91,7 +88,6 @@ copy_icon_url (const char *path)
                                                     strlen (icon_path), false);
 }
 
-/* Returns: (nullable): the icon set in Finder. */
 static CFDataRef
 copy_custom_icon_data (const char *path)
 {
@@ -115,7 +111,8 @@ copy_custom_icon_data (const char *path)
 
     memcpy (&icon_length, fork + offset, 4);
     icon_length = GUINT32_FROM_BE (icon_length);
-    if ((guint64) offset + 4 + icon_length > fork_length ||
+    if (icon_length < 8 ||
+        (guint64) offset + 4 + icon_length > fork_length ||
         memcmp (fork + offset + 4, "icns", 4) != 0)
     {
         return NULL;
@@ -148,7 +145,6 @@ get_image_width (CGImageSourceRef source,
     return width;
 }
 
-/* Returns: the smallest image that covers @size, scaled down to it. */
 static CGImageRef
 create_image_for_size (CGImageSourceRef source,
                        int              size)
@@ -202,7 +198,6 @@ create_image_for_size (CGImageSourceRef source,
     return image;
 }
 
-/* Returns: (nullable) (transfer full): the icon as a PNG. */
 static GBytes *
 load_png (const char *path,
           int         size)
@@ -219,17 +214,23 @@ load_png (const char *path,
     {
         source = CGImageSourceCreateWithData (custom_icon, NULL);
     }
-    else
+    if (source != NULL)
     {
+        image = create_image_for_size (source, size);
+    }
+    if (image == NULL)
+    {
+        g_clear_pointer (&source, CFRelease);
+
         icon_url = copy_icon_url (path);
         if (icon_url != NULL)
         {
             source = CGImageSourceCreateWithURL (icon_url, NULL);
         }
-    }
-    if (source != NULL)
-    {
-        image = create_image_for_size (source, size);
+        if (source != NULL)
+        {
+            image = create_image_for_size (source, size);
+        }
     }
     if (image != NULL)
     {
@@ -338,7 +339,6 @@ nautilus_mac_app_icon_init (NautilusMacAppIcon *self)
 {
 }
 
-/* Returns: (nullable) (transfer full): the icon of the app at @location. */
 GIcon *
 nautilus_mac_app_icon_new (GFile *location)
 {
