@@ -8,12 +8,11 @@ diff --git a/libportal/notification.c b/libportal/notification.c
 index 1cd67b2..0bbde91 100644
 --- a/libportal/notification.c
 +++ b/libportal/notification.c
-@@ -35,6 +35,25 @@
+@@ -35,6 +35,24 @@
  #include "notification.h"
  #include "portal-private.h"
- 
+
 +#ifndef __linux__
-+/* memfd_create() is Linux-only; fall back to an unlinked temporary file. */
 +#define MFD_ALLOW_SEALING 0
 +
 +static int

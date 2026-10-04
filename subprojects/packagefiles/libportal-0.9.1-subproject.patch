@@ -10,6 +10,5 @@ new file mode 100644
 index 0000000..ca41cd4
 --- /dev/null
 +++ b/libportal-gtk4/portal-gtk4.h
-@@ -0,0 +1,2 @@
-+/* The installed location of this header. In the source tree it is in libportal/. */
+@@ -0,0 +1 @@
 +#include <libportal/portal-gtk4.h>
