@@ -1,12 +1,34 @@
 # Nautilus on mac: todo
 
-Base: upstream Nautilus 49.6, branch `mac-development`.
+Base: upstream Nautilus 51.0.1, branch `mac-development`. The port as it was on 49.6 is kept on `mac-gnome-49`.
 Where mac-only files go:
 
 - `src/mac/`: code
 - `macos/bundle/`: what goes into `Files.app` (Info.plist, entitlements)
 - `macos/scripts/`: scripts the build runs
+- `macos/patches/`: patches for what the scripts build (gvfs)
+- `macos/shims/`: stand-ins for libraries that are not built on mac (glycin)
 - `subprojects/`: dependencies the build pulls (`*.wrap`) and their patches (`packagefiles/`)
+
+To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler needs PyGObject, the system Python lacks it):
+
+    PATH="/opt/homebrew/bin:$PATH" meson setup build --prefix="$PWD/.deps/prefix" \
+      -Dextensions=false -Dintrospection=false -Ddocs=false \
+      -Dselinux=disabled -Dcloudproviders=disabled -Dtests=none
+
+## GNOME 51
+
+- [x] Merged upstream 51.0.1 (48 conflicts, 14 in files the port changed). Builds, starts, browses, searches
+- [x] glycin (Rust): replaced by a stand-in on gdk-pixbuf, `macos/shims/glycin/`. Only used for the picture a user picks as a custom icon
+- [x] blueprint-compiler: pulled as a wrap with a patch, nothing to install
+- [x] libgxdp: upstream's wrap, one unused include dropped from `nautilus-portal.c`
+- [x] Spotlight provider moved to 51's provider base class (not committed). It lost its own thread hand-over code, about 100 lines
+- [x] File type filter: 51 matches types in one function, which now goes to the port's UTI matching on mac
+- [ ] Lost in the merge: an app whose icon cannot be read gets the generic file icon again, not a generic app icon. 51 no longer tells the caller that an icon is a fallback
+- [x] gvfs updated to 1.62.0, the version that goes with 51. The trash patch was redone for it, and a second patch replaces `explicit_bzero`, which mac lacks. `mac-gnome-49` keeps 1.58.5
+- [ ] Extensions are still off. The image one needs more glycin functions in the stand-in
+- [ ] Look at 51 on screen: sidebar (rewritten upstream), fixed folders and their divider, app icons, permission page, Network, Trash
+- [ ] The memory audit did not cover the files changed by the merge
 
 ## Done
 
@@ -73,13 +95,13 @@ Where mac-only files go:
 
 ### gvfs (in progress, not committed)
 
-- [x] gvfs 1.58.5 builds on mac with no patches. `macos/scripts/install-gvfs.sh` builds it into the prefix during `ninja install`, pinned to a commit
+- [x] `macos/scripts/install-gvfs.sh` builds gvfs into the prefix during `ninja install`, pinned to a commit, with the patches in `macos/patches/`
 - [x] Nautilus starts its own D-Bus session bus (`src/mac/nautilus-mac-session-bus.c`, `macos/data/dbus-session.conf.in`) and stops it on quit. gvfs daemons start on demand and exit with the bus. The D-Bus warnings are gone, and a second launch now joins the running app
 - [x] Network view opens. Connect by address works for `sftp://`, `dav://`, `davs://`, `ftp://`, `afp://` (tested with the `gio` tool against test servers, not through the window)
 - `smb://` (Windows shares) is left out (decided): it needs samba and its large dependency chain
 - [ ] Servers do not show up by themselves: gvfs finds them with avahi, which mac lacks. Rewrite that backend on Apple's `dns_sd.h` (Bonjour)
 - [ ] Saved passwords: gvfs wants libsecret and a Secret Service. Mac has the Keychain instead
-- [x] Trash reads the macOS trash folders (`~/.Trash`, `.Trashes/<uid>` on other drives): `macos/patches/gvfs-1.58.5-macos-trash.patch`, applied by the script. Listing, opening and deleting for good work (tested against a test home folder)
+- [x] Trash reads the macOS trash folders (`~/.Trash`, `.Trashes/<uid>` on other drives): `macos/patches/gvfs-1.62.0-macos-trash.patch`, applied by the script. Listing, opening and deleting for good work (tested against a test home folder)
 - [ ] Trash still shows empty until the app has Full Disk Access: macOS blocks `~/.Trash` for every app but Finder, and never asks
 - [ ] A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/mac/nautilus-mac-privacy.c`, not committed). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest. Needs a look on screen. Left:
   - The view does not notice the change: the user has to reload, and for Full Disk Access restart the app. Offer "Quit and Reopen"
@@ -91,7 +113,6 @@ Where mac-only files go:
 - [ ] Scripts and "open in terminal" started from Nautilus still get its private bus in their environment
 - [ ] If Nautilus crashes, the bus and daemons keep running. The next launch reuses them, nothing stops them
 - [ ] `dbus-daemon` comes from Homebrew, its path is fixed at build time. A standalone `Files.app` has to ship it, and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
-- [ ] gvfs 1.62 for GNOME 51: drop `-Dburn`
 
 ### System integration
 
@@ -112,9 +133,9 @@ Where mac-only files go:
 - [ ] Wire `Info.plist.in` and the entitlements into the build to produce `Files.app`
 - [ ] App icon (`.icns`)
 - [ ] Homebrew tap formula, including the two patched dependencies
-- [ ] `mac-release` branch and release tags (`49.6-mac.1`)
+- [ ] `mac-release` branch and release tags (`51.0.1-mac.1`)
 - [ ] Signing and notarization
-- [ ] Push `mac-development` (8 local commits not pushed)
+- [ ] Push `mac-development` and `mac-gnome-49`
 
 ### Known and accepted
 
@@ -125,9 +146,5 @@ Where mac-only files go:
 
 ### Later
 
-- [ ] Send the generic fixes to GNOME (`strrchr`, unused includes)
-- [ ] Merge upstream 51.0.1. Trial merge: 46 conflicts, 10 in files the port changed. New dependencies, both tried on this Mac (patches kept in `.deps/gnome51-research/`):
-  - libgxdp: upstream's own wrap builds unpatched. One unused include in `nautilus-portal.c` breaks, one-line fix
-  - glycin 2.2.1 (image loading, Rust): builds as a wrap with a 72-line patch, about 3 minutes, needs cargo and downloads 285 crates. Loads PNG and JPEG, not SVG or ICNS. Or a 417-line stand-in on gdk-pixbuf, no Rust
-  - `blueprint-compiler` and, for glycin, `vala` are in Homebrew but not installed
-  - gvfs 1.62
+- [ ] Send the generic fixes to GNOME (`strrchr`, unused includes, the unused `gxdp-dbus.h` include in `nautilus-portal.c`)
+- [ ] Real glycin in place of the stand-in, if Rust in the build is ever acceptable. A 72-line patch that makes glycin 2.2.1 build as a wrap is kept in `.deps/gnome51-research/`. It loads PNG and JPEG on mac, not SVG
