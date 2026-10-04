@@ -31,6 +31,7 @@ Where mac-only files go:
 - [ ] libportal and gnome-desktop are pulled and patched by the build itself: `subprojects/*.wrap` pinned to commits, patches in `subprojects/packagefiles/`. `meson setup` on a clean clone now needs no manual steps
 - [ ] App bundle files: `macos/bundle/Info.plist.in`, `macos/bundle/nautilus.entitlements`. Not wired into the build yet
 - [ ] Research: a search that does not need Spotlight (see Search)
+- [ ] Grid zoom steps are even now: 48, 72, 112, 168, 256, each about 1.5 times the one before (upstream: 48, 64, 96, 168, 256). Needs a look on screen
 
 ## Left
 
@@ -100,6 +101,7 @@ Where mac-only files go:
 - Dragging one of the six fixed sidebar folders onto "New bookmark" adds a second row for it
 - If installing the icon theme is interrupted halfway, the next install repairs it
 - Running the app before `ninja install` stops at startup, because the bundled icon theme is not there yet
+- Building with a `datadir` outside the install prefix puts the icon theme in the wrong place
 
 ### Later
 
