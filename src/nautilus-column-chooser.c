@@ -62,6 +62,8 @@ enum
     NUM_PROPERTIES
 };
 
+static GParamSpec *properties[NUM_PROPERTIES];
+
 enum
 {
     CHANGED,
@@ -69,7 +71,7 @@ enum
 };
 static guint signals[LAST_SIGNAL];
 
-G_DEFINE_TYPE (NautilusColumnChooser, nautilus_column_chooser, ADW_TYPE_DIALOG);
+G_DEFINE_FINAL_TYPE (NautilusColumnChooser, nautilus_column_chooser, ADW_TYPE_DIALOG);
 
 static GStrv
 get_column_names (NautilusColumnChooser *chooser,
@@ -205,7 +207,6 @@ on_row_drag_prepare (GtkDragSource *source,
                      gpointer       user_data)
 {
     GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (source));
-    g_autoptr (GdkPaintable) paintable = gtk_widget_paintable_new (widget);
     NautilusColumn *column = user_data;
     NautilusColumnChooser *chooser;
 
@@ -216,8 +217,18 @@ on_row_drag_prepare (GtkDragSource *source,
     }
 
     chooser->drag_column = column;
-    gtk_drag_source_set_icon (source, paintable, 0, 0);
+
     return gdk_content_provider_new_typed (NAUTILUS_TYPE_COLUMN, user_data);
+}
+
+static void
+drag_begin_cb (GtkDragSource *source,
+               GdkDrag       *drag)
+{
+    /* Use a dummy widget so that GTK doesn't automatically use a generic
+     * placeholder icon. */
+    gtk_drag_icon_set_child (GTK_DRAG_ICON (gtk_drag_icon_get_for_drag (drag)),
+                             gtk_box_new (GTK_ORIENTATION_VERTICAL, 0));
 }
 
 static gboolean
@@ -370,6 +381,7 @@ add_list_box_row (GObject  *item,
     controller = GTK_EVENT_CONTROLLER (gtk_drag_source_new ());
     gtk_drag_source_set_actions (GTK_DRAG_SOURCE (controller), GDK_ACTION_MOVE);
     g_signal_connect (controller, "prepare", G_CALLBACK (on_row_drag_prepare), column);
+    g_signal_connect (controller, "drag-begin", G_CALLBACK (drag_begin_cb), NULL);
     g_signal_connect (controller, "drag-cancel", G_CALLBACK (on_row_drag_cancel), chooser);
     gtk_widget_add_controller (row, controller);
 
@@ -524,8 +536,6 @@ nautilus_column_chooser_constructed (GObject *object)
 {
     NautilusColumnChooser *chooser;
     const char *name = NULL;
-    g_auto (GStrv) file_visible_columns = NULL;
-    g_auto (GStrv) file_column_order = NULL;
     gboolean has_custom_columns;
 
     G_OBJECT_CLASS (nautilus_column_chooser_parent_class)->constructed (object);
@@ -537,10 +547,12 @@ nautilus_column_chooser_constructed (GObject *object)
 
     populate_list (chooser);
 
-    file_visible_columns = nautilus_file_get_metadata_list (chooser->file,
-                                                            NAUTILUS_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS);
-    file_column_order = nautilus_file_get_metadata_list (chooser->file,
-                                                         NAUTILUS_METADATA_KEY_LIST_VIEW_COLUMN_ORDER);
+    const GStrv file_visible_columns =
+        nautilus_file_get_metadata_list (chooser->file,
+                                         NAUTILUS_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS);
+    const GStrv file_column_order =
+        nautilus_file_get_metadata_list (chooser->file,
+                                         NAUTILUS_METADATA_KEY_LIST_VIEW_COLUMN_ORDER);
 
     has_custom_columns = ((file_visible_columns != NULL && file_visible_columns[0] != NULL) ||
                           (file_column_order != NULL && file_column_order[0] != NULL) ||
@@ -605,12 +617,13 @@ nautilus_column_chooser_class_init (NautilusColumnChooserClass *chooser_class)
                            G_TYPE_NONE,
                            2, G_TYPE_STRV, G_TYPE_STRV);
 
-    g_object_class_install_property (oclass,
-                                     PROP_FILE,
-                                     g_param_spec_object ("file", NULL, NULL,
-                                                          NAUTILUS_TYPE_FILE,
-                                                          G_PARAM_CONSTRUCT_ONLY |
-                                                          G_PARAM_WRITABLE));
+    properties[PROP_FILE] =
+        g_param_spec_object ("file", NULL, NULL,
+                             NAUTILUS_TYPE_FILE,
+                             G_PARAM_CONSTRUCT_ONLY |
+                             G_PARAM_WRITABLE);
+
+    g_object_class_install_properties (oclass, G_N_ELEMENTS (properties), properties);
 }
 
 static void

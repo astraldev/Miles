@@ -18,7 +18,7 @@ struct _NautilusViewItem
     GtkWidget *item_ui;
 };
 
-G_DEFINE_TYPE (NautilusViewItem, nautilus_view_item, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (NautilusViewItem, nautilus_view_item, G_TYPE_OBJECT)
 
 enum
 {
@@ -119,13 +119,13 @@ nautilus_view_item_set_property (GObject      *object,
 
         case PROP_IS_CUT:
         {
-            self->is_cut = g_value_get_boolean (value);
+            nautilus_view_item_set_cut (self, g_value_get_boolean (value));
         }
         break;
 
         case PROP_DRAG_ACCEPT:
         {
-            self->drag_accept = g_value_get_boolean (value);
+            nautilus_view_item_set_drag_accept (self, g_value_get_boolean (value));
         }
         break;
 
@@ -197,7 +197,12 @@ nautilus_view_item_set_cut (NautilusViewItem *self,
 {
     g_return_if_fail (NAUTILUS_IS_VIEW_ITEM (self));
 
-    g_object_set (self, "is-cut", is_cut, NULL);
+    if (self->is_cut != is_cut)
+    {
+        self->is_cut = is_cut;
+
+        g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_IS_CUT]);
+    }
 }
 
 void
@@ -206,83 +211,11 @@ nautilus_view_item_set_drag_accept (NautilusViewItem *self,
 {
     g_return_if_fail (NAUTILUS_IS_VIEW_ITEM (self));
 
-    g_object_set (self, "drag-accept", drag_accept, NULL);
-}
-
-gint priorization_timeout = 0;
-
-static void
-free_weak_ref (gpointer data)
-{
-    GWeakRef *weak_ref = data;
-    g_weak_ref_clear (weak_ref);
-    g_free (weak_ref);
-}
-
-static GPtrArray *files_to_prioritize = NULL;
-
-static GPtrArray *
-get_priority_array (void)
-{
-    if (files_to_prioritize == NULL)
+    if (self->drag_accept != drag_accept)
     {
-        files_to_prioritize = g_ptr_array_new_with_free_func (free_weak_ref);
-    }
+        self->drag_accept = drag_accept;
 
-    return files_to_prioritize;
-}
-
-static void
-prioritize_idle_callback (gpointer data)
-{
-    g_autoptr (GPtrArray) priority_files = g_steal_pointer (&files_to_prioritize);
-
-    priorization_timeout = 0;
-
-    for (gint i = priority_files->len - 1; i >= 0; i--)
-    {
-        g_autoptr (NautilusViewItem) item = g_weak_ref_get ((GWeakRef *) priority_files->pdata[i]);
-
-        if (item != NULL)
-        {
-            NautilusFile *file = nautilus_view_item_get_file (item);
-
-            nautilus_file_prioritize (file);
-        }
-    }
-}
-
-void
-nautilus_view_item_prioritize (NautilusViewItem *self,
-                               gboolean          prioritize)
-{
-    GPtrArray *priority_files = get_priority_array ();
-
-    if (prioritize)
-    {
-        GWeakRef *weak_ref = g_new0 (GWeakRef, 1);
-
-        g_weak_ref_init (weak_ref, self);
-        g_ptr_array_add (priority_files, weak_ref);
-
-        if (priorization_timeout == 0)
-        {
-            /* Allow handling files in batches by adding a short delay */
-            priorization_timeout = g_timeout_add_once (5, prioritize_idle_callback, NULL);
-        }
-    }
-    else
-    {
-        for (guint i = 0; i < priority_files->len; i++)
-        {
-            g_autoptr (NautilusViewItem) reffed_item = g_weak_ref_get ((GWeakRef *) priority_files->pdata[i]);
-
-            if (reffed_item != NULL && reffed_item == self)
-            {
-                g_ptr_array_remove_index_fast (priority_files, i);
-                break;
-            }
-        }
+        g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_DRAG_ACCEPT]);
     }
 }
 

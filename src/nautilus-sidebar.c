@@ -32,7 +32,7 @@
 #include "nautilus-file-operations.h"
 #include "nautilus-file-utilities.h"
 #include "nautilus-global-preferences.h"
-#include "nautilus-properties-window.h"
+#include "nautilus-properties.h"
 #include "nautilus-scheme.h"
 #include "nautilus-sidebar-row.h"
 #include "nautilus-trash-monitor.h"
@@ -235,7 +235,7 @@ static GMountOperation * get_mount_operation (NautilusSidebar *sidebar);
 static GMountOperation * get_unmount_operation (NautilusSidebar *sidebar);
 
 
-G_DEFINE_TYPE (NautilusSidebar, nautilus_sidebar, GTK_TYPE_WIDGET);
+G_DEFINE_FINAL_TYPE (NautilusSidebar, nautilus_sidebar, GTK_TYPE_WIDGET);
 
 static void
 call_open_location (NautilusSidebar    *self,
@@ -256,7 +256,7 @@ call_open_location (NautilusSidebar    *self,
     if (open_flags & (NAUTILUS_OPEN_FLAG_NEW_WINDOW | NAUTILUS_OPEN_FLAG_NEW_TAB))
     {
         nautilus_application_open_location_full (NAUTILUS_APPLICATION (g_application_get_default ()),
-                                                 location, open_flags, NULL, NULL, NULL, NULL);
+                                                 location, open_flags, NULL, NULL);
     }
     else
     {
@@ -286,10 +286,9 @@ show_error_message (NautilusSidebar *self,
                     const char      *primary,
                     const char      *secondary)
 {
-    show_dialog (primary,
-                 secondary,
-                 GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self))),
-                 GTK_MESSAGE_ERROR);
+    nautilus_show_ok_dialog (primary,
+                             secondary,
+                             GTK_WIDGET (self));
 }
 
 static void
@@ -1059,7 +1058,7 @@ update_places (NautilusSidebar *sidebar)
     {
         GtkWidget *row;
 
-        g_autoptr (GFile) location = nautilus_bookmark_get_location (l->data);
+        GFile *location = nautilus_bookmark_get_location (l->data);
         g_autofree char *mount_uri = nautilus_bookmark_get_uri (l->data);
 
         gboolean is_native = g_file_is_native (location);
@@ -1174,7 +1173,7 @@ nautilus_sidebar_set_show_trash (NautilusSidebar *sidebar,
     update_places (sidebar);
 }
 
-static gboolean
+static void
 hover_timer (gpointer user_data)
 {
     NautilusSidebar *sidebar = user_data;
@@ -1204,8 +1203,6 @@ hover_timer (gpointer user_data)
             call_open_location (sidebar, location, NULL, 0);
         }
     }
-
-    return G_SOURCE_REMOVE;
 }
 
 static gboolean
@@ -1229,7 +1226,7 @@ check_valid_drop_target (NautilusSidebar    *sidebar,
 
     g_object_get (row,
                   "place-type", &place_type,
-                  "section_type", &section_type,
+                  "section-type", &section_type,
                   "uri", &uri,
                   "file", &dest_file,
                   NULL);
@@ -1392,7 +1389,7 @@ drag_motion_callback (GtkDropTarget   *target,
     {
         g_clear_handle_id (&sidebar->hover_timer_id, g_source_remove);
         g_set_weak_pointer (&sidebar->hover_row, row);
-        sidebar->hover_timer_id = g_timeout_add (HOVER_TIMEOUT, hover_timer, sidebar);
+        sidebar->hover_timer_id = g_timeout_add_once (HOVER_TIMEOUT, hover_timer, sidebar);
         sidebar->hover_start_point.x = x;
         sidebar->hover_start_point.y = y;
     }
@@ -1521,17 +1518,13 @@ reorder_bookmarks (NautilusSidebar    *sidebar,
                    NautilusSidebarRow *row,
                    int                 new_position)
 {
-    char *uri;
-    GFile *file;
-    guint old_position;
+    g_autoptr (NautilusFile) file = NULL;
 
-    g_object_get (row, "uri", &uri, NULL);
-    file = g_file_new_for_uri (uri);
-    nautilus_bookmark_list_item_with_location (sidebar->bookmark_list, file, &old_position);
-    nautilus_bookmark_list_move_item (sidebar->bookmark_list, old_position, new_position);
+    g_object_get (row, "file", &file, NULL);
 
-    g_object_unref (file);
-    g_free (uri);
+    g_autoptr (GFile) location = nautilus_file_get_location (file);
+
+    nautilus_bookmark_list_move_item (sidebar->bookmark_list, location, new_position);
 }
 
 /* Creates bookmarks for the specified files at the given position in the bookmarks list */
@@ -1558,8 +1551,7 @@ drop_files_as_bookmarks (NautilusSidebar *sidebar,
                  g_file_info_get_file_type (info) == G_FILE_TYPE_SHORTCUT ||
                  g_file_info_get_file_type (info) == G_FILE_TYPE_SYMBOLIC_LINK))
             {
-                g_autoptr (NautilusBookmark) bookmark = nautilus_bookmark_new (f, NULL);
-                nautilus_bookmark_list_insert_item (sidebar->bookmark_list, bookmark, position++);
+                nautilus_bookmark_list_add (sidebar->bookmark_list, f, position++);
             }
 
             g_object_unref (info);
@@ -1976,32 +1968,24 @@ static void
 do_rename (GtkButton       *button,
            NautilusSidebar *sidebar)
 {
-    char *new_text;
-    GFile *file;
-    g_autoptr (NautilusBookmark) bookmark = NULL;
-
-    new_text = g_strdup (gtk_editable_get_text (GTK_EDITABLE (sidebar->rename_entry)));
-
-    file = g_file_new_for_uri (sidebar->rename_uri);
-    bookmark = nautilus_bookmark_list_item_with_location (sidebar->bookmark_list, file, NULL);
-    if (!bookmark)
-    {
-        g_warning ("Tried to rename non-existent bookmark of %s", sidebar->rename_uri);
-    }
-    else
-    {
-        nautilus_bookmark_set_name (g_steal_pointer (&bookmark), new_text);
-    }
+    g_autofree char *uri = g_steal_pointer (&sidebar->rename_uri);
+    g_autofree char *new_text = g_strdup (gtk_editable_get_text (GTK_EDITABLE (sidebar->rename_entry)));
+    g_autoptr (GFile) file = g_file_new_for_uri (uri);
+    NautilusBookmark *bookmark = nautilus_bookmark_list_get_bookmark (sidebar->bookmark_list,
+                                                                      file);
 
     if (sidebar->rename_popover)
     {
         gtk_popover_popdown (GTK_POPOVER (sidebar->rename_popover));
     }
 
-    g_object_unref (file);
-    g_free (new_text);
+    if (bookmark == NULL)
+    {
+        g_warning ("Tried to rename non-existent bookmark of %s", sidebar->rename_uri);
+        return;
+    }
 
-    g_clear_pointer (&sidebar->rename_uri, g_free);
+    nautilus_bookmark_set_name (bookmark, new_text);
 }
 
 static void
@@ -2218,11 +2202,13 @@ properties_cb (GSimpleAction *action,
     GList *list;
     NautilusFile *file;
     g_autofree gchar *uri = NULL;
+    g_autoptr (GFile) location = NULL;
 
     g_object_get (sidebar->context_row, "uri", &uri, NULL);
     file = nautilus_file_get_by_uri (uri);
     list = g_list_append (NULL, file);
-    nautilus_properties_window_present (list, GTK_WIDGET (sidebar), NULL, NULL, NULL);
+    location = nautilus_file_get_location (file);
+    nautilus_properties_present_dialog (list, GTK_WIDGET (sidebar), location);
 
     nautilus_file_list_free (list);
 }
@@ -2237,24 +2223,40 @@ empty_trash_cb (GSimpleAction *action,
 }
 
 static void
+action_history_trash_settings (GSimpleAction *action,
+                               GVariant      *parameter,
+                               gpointer       data)
+{
+    NautilusSidebar *self = data;
+    GtkWindow *window = GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self)));
+    const gchar *parameters = "('launch-panel', [<('privacy', [<'usage'>])>], @a{sv} {})";
+
+    nautilus_dbus_launcher_call (nautilus_dbus_launcher_get (),
+                                 NAUTILUS_DBUS_LAUNCHER_SETTINGS,
+                                 "Activate",
+                                 g_variant_new_parsed (parameters),
+                                 window);
+}
+
+static void
 remove_bookmark (NautilusSidebarRow *row)
 {
     NautilusSidebarRowType type;
-    char *uri;
+    g_autoptr (NautilusFile) file = NULL;
     NautilusSidebar *sidebar;
 
     g_object_get (row,
                   "sidebar", &sidebar,
                   "place-type", &type,
-                  "uri", &uri,
+                  "file", &file,
                   NULL);
 
     if (type == NAUTILUS_SIDEBAR_ROW_BOOKMARK)
     {
-        nautilus_bookmark_list_delete_items_with_uri (sidebar->bookmark_list, uri);
+        g_autoptr (GFile) location = nautilus_file_get_location (file);
+        nautilus_bookmark_list_remove (sidebar->bookmark_list, location);
     }
 
-    g_free (uri);
     g_object_unref (sidebar);
 }
 
@@ -2324,7 +2326,7 @@ do_unmount (GMount          *mount,
         mount_op = get_unmount_operation (sidebar);
         parent = gtk_mount_operation_get_parent (GTK_MOUNT_OPERATION (mount_op));
         nautilus_file_operations_unmount_mount_full (parent, mount, mount_op,
-                                                     FALSE, TRUE, NULL, NULL);
+                                                     FALSE, NULL, NULL);
         g_object_unref (mount_op);
     }
 }
@@ -2451,7 +2453,7 @@ do_eject (GMount          *mount,
     {
         parent = gtk_mount_operation_get_parent (GTK_MOUNT_OPERATION (mount_op));
         nautilus_file_operations_unmount_mount_full (parent, mount, mount_op,
-                                                     TRUE, TRUE, NULL, NULL);
+                                                     TRUE, NULL, NULL);
     }
     /* This code path is probably never reached since mount always exists,
      * and if it doesn't exists we don't offer a way to eject a volume or
@@ -2809,6 +2811,7 @@ static GActionEntry entries[] =
     { .name = "stop", .activate = stop_shortcut_cb},
     { .name = "properties", .activate = properties_cb},
     { .name = "empty-trash", .activate = empty_trash_cb},
+    { .name = "history-trash-settings", .activate = action_history_trash_settings},
     { .name = "format", .activate = format_cb},
 };
 
@@ -2934,9 +2937,8 @@ create_row_popover (NautilusSidebar    *sidebar,
     gboolean show_stop;
     g_autofree gchar *uri = NULL;
     g_autoptr (GFile) file = NULL;
-    gboolean show_properties;
     g_autoptr (GFile) trash = NULL;
-    gboolean is_trash;
+    gboolean is_trash = FALSE, is_recent = FALSE, show_properties = FALSE;
 #ifdef HAVE_CLOUDPROVIDERS
     CloudProvidersAccount *cloud_provider_account;
 #endif
@@ -2955,12 +2957,8 @@ create_row_popover (NautilusSidebar    *sidebar,
         file = g_file_new_for_uri (uri);
         trash = g_file_new_for_uri (SCHEME_TRASH ":///");
         is_trash = g_file_equal (trash, file);
+        is_recent = g_file_has_uri_scheme (file, SCHEME_RECENT);
         show_properties = (g_file_is_native (file) || is_trash || mount != NULL);
-    }
-    else
-    {
-        show_properties = FALSE;
-        is_trash = FALSE;
     }
 
 #ifdef HAVE_CLOUDPROVIDERS
@@ -3027,15 +3025,27 @@ create_row_popover (NautilusSidebar    *sidebar,
     g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
     g_object_unref (section);
 
+    if (is_recent)
+    {
+        g_autoptr (GMenu) settings_section = g_menu_new ();
+
+        g_menu_insert (settings_section, 0,
+                       _("File History _Settings…"), "row.history-trash-settings");
+
+        g_menu_append_section (menu, NULL, G_MENU_MODEL (settings_section));
+    }
+
     if (is_trash)
     {
-        section = g_menu_new ();
-        item = g_menu_item_new (_("_Empty Trash…"), "row.empty-trash");
-        g_menu_append_item (section, item);
-        g_object_unref (item);
+        g_autoptr (GMenu) settings_section = g_menu_new ();
+        g_autoptr (GMenu) empty_section = g_menu_new ();
 
-        g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
-        g_object_unref (section);
+        g_menu_insert (settings_section, 0, _("Trash _Settings…"), "row.history-trash-settings");
+
+        g_menu_insert (empty_section, 0, _("_Empty Trash…"), "row.empty-trash");
+
+        g_menu_append_section (menu, NULL, G_MENU_MODEL (settings_section));
+        g_menu_append_section (menu, NULL, G_MENU_MODEL (empty_section));
     }
 
     section = g_menu_new ();
@@ -3225,7 +3235,7 @@ on_row_pressed (GtkGestureClick    *gesture,
 
     g_object_get (row,
                   "sidebar", &sidebar,
-                  "section_type", &section_type,
+                  "section-type", &section_type,
                   NULL);
 
     if (section_type == NAUTILUS_SIDEBAR_SECTION_BOOKMARKS)
@@ -3251,7 +3261,7 @@ on_row_released (GtkGestureClick    *gesture,
 
     g_object_get (row,
                   "sidebar", &sidebar,
-                  "section_type", &section_type,
+                  "section-type", &section_type,
                   NULL);
 
     button = gtk_gesture_single_get_current_button (GTK_GESTURE_SINGLE (gesture));
@@ -3538,23 +3548,23 @@ create_volume_monitor (NautilusSidebar *sidebar)
 
     sidebar->volume_monitor = g_volume_monitor_get ();
 
-    g_signal_connect_object (sidebar->volume_monitor, "volume_added",
+    g_signal_connect_object (sidebar->volume_monitor, "volume-added",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "volume_removed",
+    g_signal_connect_object (sidebar->volume_monitor, "volume-removed",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "volume_changed",
+    g_signal_connect_object (sidebar->volume_monitor, "volume-changed",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "mount_added",
+    g_signal_connect_object (sidebar->volume_monitor, "mount-added",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "mount_removed",
+    g_signal_connect_object (sidebar->volume_monitor, "mount-removed",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "mount_changed",
+    g_signal_connect_object (sidebar->volume_monitor, "mount-changed",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "drive_disconnected",
+    g_signal_connect_object (sidebar->volume_monitor, "drive-disconnected",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "drive_connected",
+    g_signal_connect_object (sidebar->volume_monitor, "drive-connected",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
-    g_signal_connect_object (sidebar->volume_monitor, "drive_changed",
+    g_signal_connect_object (sidebar->volume_monitor, "drive-changed",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
 }
 

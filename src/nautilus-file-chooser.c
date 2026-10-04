@@ -17,6 +17,7 @@
 #include "nautilus-directory.h"
 #include "nautilus-enum-types.h"
 #include "nautilus-file.h"
+#include "nautilus-file-utilities.h"
 #include "nautilus-filename-utilities.h"
 #include "nautilus-filename-validator.h"
 #include "nautilus-global-preferences.h"
@@ -32,6 +33,8 @@
 struct _NautilusFileChooser
 {
     AdwWindow parent_instance;
+
+    GActionGroup *chooser_action_group;
 
     NautilusMode mode;
     char *accept_label;
@@ -175,6 +178,12 @@ mode_can_accept_current_directory (NautilusMode  mode,
 }
 
 static gboolean
+file_chooser_has_filename_entry (NautilusFileChooser *self)
+{
+    return (self->mode == NAUTILUS_MODE_SAVE_FILE);
+}
+
+static gboolean
 nautilus_file_chooser_can_accept (NautilusFileChooser *self,
                                   NautilusFileList    *files,
                                   GFile               *location,
@@ -266,9 +275,11 @@ get_file_chooser_activation_location (NautilusFile *file)
 }
 
 static void
-on_accept_button_clicked (NautilusFileChooser *self)
+action_accept (GSimpleAction *action,
+               GVariant      *parameter,
+               gpointer       user_data)
 {
-    NautilusFileList *selection = nautilus_window_slot_get_selection (self->slot);
+    NautilusFileChooser *self = NAUTILUS_FILE_CHOOSER (user_data);
 
     if (self->mode == NAUTILUS_MODE_SAVE_FILE)
     {
@@ -287,6 +298,8 @@ on_accept_button_clicked (NautilusFileChooser *self)
     }
     else
     {
+        NautilusFileList *selection = nautilus_window_slot_get_selection (self->slot);
+
         if (mode_can_accept_files (self->mode, selection))
         {
             g_autolist (GFile) file_locations = g_list_copy_deep (selection,
@@ -301,6 +314,19 @@ on_accept_button_clicked (NautilusFileChooser *self)
 
             emit_accepted (self, &(GList){ .data = location });
         }
+    }
+}
+
+static void
+action_focus_entry (GSimpleAction *action,
+                    GVariant      *parameter,
+                    gpointer       user_data)
+{
+    NautilusFileChooser *self = user_data;
+
+    if (file_chooser_has_filename_entry (self))
+    {
+        open_filename_entry (self);
     }
 }
 
@@ -394,7 +420,8 @@ static void
 on_slot_activate_files (NautilusFileChooser *self,
                         GList               *files)
 {
-    if (mode_can_accept_files (self->mode, files))
+    if (gtk_widget_get_sensitive (self->accept_button) &&
+        mode_can_accept_files (self->mode, files))
     {
         gtk_widget_activate (self->accept_button);
     }
@@ -460,6 +487,16 @@ on_slot_selection_notify (NautilusFileChooser *self)
 {
     g_return_if_fail (self->mode == NAUTILUS_MODE_SAVE_FILE);
 
+    NautilusSelectionSource selection_source
+        = nautilus_window_slot_get_selection_source (self->slot);
+
+    if (!selection_source_is_intentional (selection_source))
+    {
+        /* If the selection is auto, don't override the suggested name with the
+         *  auto-selected file. */
+        return;
+    }
+
     NautilusFileList *selection = nautilus_window_slot_get_selection (self->slot);
 
     if (mode_can_accept_files (self->mode, selection))
@@ -524,12 +561,12 @@ on_click_gesture_pressed (GtkGestureClick *gesture,
     if (nautilus_global_preferences_get_use_extra_buttons () &&
         (button == nautilus_global_preferences_get_back_button ()))
     {
-        nautilus_window_slot_back_or_forward (self->slot, TRUE, 0);
+        nautilus_window_slot_navigate (self->slot, -1);
     }
     else if (nautilus_global_preferences_get_use_extra_buttons () &&
              (button == nautilus_global_preferences_get_forward_button ()))
     {
-        nautilus_window_slot_back_or_forward (self->slot, FALSE, 0);
+        nautilus_window_slot_navigate (self->slot, 1);
     }
 }
 
@@ -723,9 +760,8 @@ nautilus_file_chooser_constructed (GObject *object)
 
     NautilusFileChooser *self = (NautilusFileChooser *) object;
 
-    /* Setup slot.
-     * We hold a reference to control its lifetime with relation to bindings. */
-    self->slot = g_object_ref (nautilus_window_slot_new (self->mode));
+    /* Setup slot. */
+    self->slot = nautilus_window_slot_new (self->mode);
     g_signal_connect_swapped (self->slot, "notify::location", G_CALLBACK (on_location_changed), self);
     adw_bin_set_child (self->slot_container, GTK_WIDGET (self->slot));
     nautilus_window_slot_set_active (self->slot, TRUE);
@@ -777,6 +813,12 @@ nautilus_file_chooser_constructed (GObject *object)
     gtk_window_set_default_size (GTK_WINDOW (self), width, height);
 }
 
+const GActionEntry chooser_action_entries[] =
+{
+    { .name = "accept", .activate = action_accept },
+    { .name = "focus-entry", .activate = action_focus_entry },
+};
+
 static void
 nautilus_file_chooser_init (NautilusFileChooser *self)
 {
@@ -816,6 +858,40 @@ nautilus_file_chooser_init (NautilusFileChooser *self)
     g_signal_connect (factory, "bind", G_CALLBACK (filters_dropdown_bind), self);
     g_signal_connect (factory, "unbind", G_CALLBACK (filters_dropdown_unbind), self);
     gtk_drop_down_set_list_factory (self->filters_dropdown, factory);
+
+    /* Setup Actions */
+    self->chooser_action_group = G_ACTION_GROUP (g_simple_action_group_new ());
+    g_action_map_add_action_entries (G_ACTION_MAP (self->chooser_action_group),
+                                     chooser_action_entries,
+                                     G_N_ELEMENTS (chooser_action_entries),
+                                     self);
+    gtk_widget_insert_action_group (GTK_WIDGET (self),
+                                    "chooser",
+                                    G_ACTION_GROUP (self->chooser_action_group));
+
+    /* Bind "accept" action enabled to nautilus_file_chooser_can_accept(). */
+    GAction *action = g_action_map_lookup_action (G_ACTION_MAP (self->chooser_action_group),
+                                                  "accept");
+    GtkExpression *container_expr, *validator_expr, *slot_expr, **expressions, *closure_expr;
+
+    container_expr = gtk_constant_expression_new (ADW_TYPE_BIN, self->slot_container);
+    validator_expr = gtk_constant_expression_new (NAUTILUS_TYPE_FILENAME_VALIDATOR, self->validator);
+
+    slot_expr = gtk_property_expression_new (ADW_TYPE_BIN, container_expr, "child"),
+    expressions = (GtkExpression *[])
+    {
+        gtk_property_expression_new (NAUTILUS_TYPE_WINDOW_SLOT,
+                                     gtk_expression_ref (slot_expr),
+                                     "selection"),
+        gtk_property_expression_new (NAUTILUS_TYPE_WINDOW_SLOT, slot_expr, "location"),
+        gtk_property_expression_new (NAUTILUS_TYPE_FILENAME_VALIDATOR, validator_expr, "passed"),
+    };
+
+    closure_expr = gtk_cclosure_expression_new (G_TYPE_BOOLEAN, NULL,
+                                                3, expressions,
+                                                G_CALLBACK (nautilus_file_chooser_can_accept),
+                                                NULL, NULL);
+    gtk_expression_bind (closure_expr, action, "enabled", self);
 }
 
 static void
@@ -850,8 +926,6 @@ nautilus_file_chooser_class_init (NautilusFileChooserClass *klass)
     gtk_widget_class_bind_template_child (widget_class, NautilusFileChooser, title_widget);
     gtk_widget_class_bind_template_child (widget_class, NautilusFileChooser, breakpoint);
 
-    gtk_widget_class_bind_template_callback (widget_class, nautilus_file_chooser_can_accept);
-    gtk_widget_class_bind_template_callback (widget_class, on_accept_button_clicked);
     gtk_widget_class_bind_template_callback (widget_class, open_filename_entry);
     gtk_widget_class_bind_template_callback (widget_class, on_filename_undo_button_clicked);
     gtk_widget_class_bind_template_callback (widget_class, on_filename_entry_changed);
@@ -861,6 +935,12 @@ nautilus_file_chooser_class_init (NautilusFileChooserClass *klass)
     gtk_widget_class_bind_template_callback (widget_class, on_validator_will_overwrite_changed);
     gtk_widget_class_bind_template_callback (widget_class, on_file_drop);
     gtk_widget_class_bind_template_callback (widget_class, get_filter_width_chars);
+
+    gtk_widget_class_add_binding_action (widget_class, GDK_KEY_e, GDK_CONTROL_MASK,
+                                         "chooser.focus-entry", NULL);
+    /* This shortcut was provided via a mnemonic by the GTK file chooser */
+    gtk_widget_class_add_binding_action (widget_class, GDK_KEY_n, GDK_ALT_MASK,
+                                         "chooser.focus-entry", NULL);
 
     properties[PROP_MODE] =
         g_param_spec_enum ("mode", NULL, NULL,

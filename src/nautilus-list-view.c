@@ -56,7 +56,7 @@ struct _NautilusListView
     GtkSorter *view_model_sorter;
 };
 
-G_DEFINE_TYPE (NautilusListView, nautilus_list_view, NAUTILUS_TYPE_LIST_BASE)
+G_DEFINE_FINAL_TYPE (NautilusListView, nautilus_list_view, NAUTILUS_TYPE_LIST_BASE)
 
 enum
 {
@@ -841,35 +841,16 @@ setup_name_cell (GtkSignalListItemFactory *factory,
                  gpointer                  user_data)
 {
     NautilusListView *self = NAUTILUS_LIST_VIEW (user_data);
-    NautilusViewCell *cell;
+    NautilusViewCell *cell = nautilus_name_cell_new (NAUTILUS_LIST_BASE (self));
 
-    cell = nautilus_name_cell_new (NAUTILUS_LIST_BASE (self));
     gtk_column_view_cell_set_child (listitem, GTK_WIDGET (cell));
-    setup_cell_common (G_OBJECT (listitem), cell);
-    setup_cell_hover_inner_target (cell, nautilus_name_cell_get_content (NAUTILUS_NAME_CELL (cell)));
+    setup_cell_common (G_OBJECT (listitem),
+                       cell,
+                       nautilus_name_cell_get_content (NAUTILUS_NAME_CELL (cell)));
 
     g_object_bind_property (self, "icon-size",
                             cell, "icon-size",
                             G_BINDING_SYNC_CREATE);
-
-    nautilus_name_cell_set_path (NAUTILUS_NAME_CELL (cell),
-                                 self->path_attribute_q,
-                                 self->file_path_base_location);
-    if (self->search_directory != NULL)
-    {
-        nautilus_name_cell_show_snippet (NAUTILUS_NAME_CELL (cell));
-    }
-
-    if (self->expand_as_a_tree)
-    {
-        GtkTreeExpander *expander;
-
-        expander = nautilus_name_cell_get_expander (NAUTILUS_NAME_CELL (cell));
-        gtk_tree_expander_set_indent_for_icon (expander, TRUE);
-        g_object_bind_property (listitem, "item",
-                                expander, "list-row",
-                                G_BINDING_SYNC_CREATE);
-    }
 }
 
 static void
@@ -899,7 +880,7 @@ on_row_children_changed (GObject    *gobject,
 
     g_signal_connect_object (model, "notify::n-items",
                              G_CALLBACK (on_n_items_notify), expander,
-                             0);
+                             G_CONNECT_DEFAULT);
 }
 
 static void
@@ -907,28 +888,36 @@ bind_name_cell (GtkSignalListItemFactory *factory,
                 GtkColumnViewCell        *listitem,
                 gpointer                  user_data)
 {
-    GtkWidget *cell;
+    GtkWidget *cell = gtk_column_view_cell_get_child (listitem);
     NautilusListView *self = user_data;
-    g_autoptr (NautilusViewItem) item = NULL;
-
-    cell = gtk_column_view_cell_get_child (listitem);
-    item = get_view_item (listitem);
+    g_autoptr (NautilusViewItem) item = get_view_item (listitem);
+    GtkTreeExpander *expander = nautilus_name_cell_get_expander (NAUTILUS_NAME_CELL (cell));
 
     nautilus_view_item_set_item_ui (item, gtk_column_view_cell_get_child (listitem));
+    nautilus_name_cell_set_path (NAUTILUS_NAME_CELL (cell),
+                                 self->path_attribute_q,
+                                 self->file_path_base_location);
+    nautilus_name_cell_set_show_snippet (NAUTILUS_NAME_CELL (cell), self->search_directory != NULL);
+
+    gtk_tree_expander_set_indent_for_icon (expander, self->expand_as_a_tree);
 
     if (self->expand_as_a_tree)
     {
-        GtkTreeExpander *expander = nautilus_name_cell_get_expander (NAUTILUS_NAME_CELL (cell));
         GtkTreeListRow *row = GTK_TREE_LIST_ROW (gtk_column_view_cell_get_item (listitem));
 
+        gtk_tree_expander_set_list_row (expander, row);
         g_signal_connect_object (row,
                                  "notify::expanded",
                                  G_CALLBACK (on_row_expanded_changed),
-                                 self, 0);
+                                 self, G_CONNECT_DEFAULT);
         g_signal_connect_object (row,
                                  "notify::children",
                                  G_CALLBACK (on_row_children_changed),
-                                 expander, 0);
+                                 expander, G_CONNECT_DEFAULT);
+    }
+    else
+    {
+        gtk_tree_expander_set_list_row (expander, NULL);
     }
 }
 
@@ -970,8 +959,7 @@ setup_star_cell (GtkSignalListItemFactory *factory,
 
     cell = nautilus_star_cell_new (NAUTILUS_LIST_BASE (user_data));
     gtk_column_view_cell_set_child (listitem, GTK_WIDGET (cell));
-    setup_cell_common (G_OBJECT (listitem), cell);
-    setup_cell_hover (cell);
+    setup_cell_common (G_OBJECT (listitem), cell, GTK_WIDGET (cell));
 }
 
 static void
@@ -987,8 +975,7 @@ setup_label_cell (GtkSignalListItemFactory *factory,
 
     cell = nautilus_label_cell_new (NAUTILUS_LIST_BASE (user_data), nautilus_column);
     gtk_column_view_cell_set_child (listitem, GTK_WIDGET (cell));
-    setup_cell_common (G_OBJECT (listitem), cell);
-    setup_cell_hover (cell);
+    setup_cell_common (G_OBJECT (listitem), cell, GTK_WIDGET (cell));
 }
 
 static void
@@ -1032,7 +1019,7 @@ setup_view_columns (NautilusListView *self)
         gtk_column_view_column_set_title (view_column, label);
         gtk_column_view_column_set_sorter (view_column, GTK_SORTER (sorter));
 
-        if (!strcmp (name, "name"))
+        if (strcmp (name, "name") == 0)
         {
             g_signal_connect (factory, "setup", G_CALLBACK (setup_name_cell), self);
             g_signal_connect (factory, "bind", G_CALLBACK (bind_name_cell), self);

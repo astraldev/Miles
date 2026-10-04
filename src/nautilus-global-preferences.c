@@ -25,7 +25,6 @@
 
 #include "nautilus-file-utilities.h"
 #include "nautilus-file.h"
-#include <eel/eel-stock-dialogs.h>
 #include <glib/gi18n.h>
 
 GSettings *nautilus_preferences;
@@ -37,8 +36,12 @@ GSettings *gtk_filechooser_preferences;
 GSettings *gnome_lockdown_preferences;
 GSettings *gnome_interface_preferences;
 GSettings *gnome_privacy_preferences;
+GSettings *gnome_user_share_preferences = NULL;
 GSettings *localsearch_preferences;
 
+#define FILE_SHARING_SCHEMA_ID "org.gnome.desktop.file-sharing"
+#define FILE_SHARING_SERVICE_PATH "/org/gnome/settings-daemon/plugins/sharing/gnome-user-share-webdav/"
+#define FILE_SHARING_SERVICE_SCHEMA_ID "org.gnome.settings-daemon.plugins.sharing.service"
 #define UPPER_MOUSE_LIMIT 14
 /* Forward and back buttons on the mouse */
 static gboolean mouse_extra_buttons = TRUE;
@@ -109,6 +112,13 @@ nautilus_global_preferences_init (void)
 #ifdef ENABLE_LOCALSEARCH
     localsearch_preferences = g_settings_new ("org.freedesktop.Tracker3.Miner.Files");
 #endif
+
+    if (check_schema_available (FILE_SHARING_SCHEMA_ID) &&
+        check_schema_available (FILE_SHARING_SERVICE_SCHEMA_ID))
+    {
+        gnome_user_share_preferences = g_settings_new_with_path (FILE_SHARING_SERVICE_SCHEMA_ID,
+                                                                 FILE_SHARING_SERVICE_PATH);
+    }
 
     g_signal_connect_swapped (nautilus_preferences,
                               "changed::" NAUTILUS_PREFERENCES_MOUSE_BACK_BUTTON,

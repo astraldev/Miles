@@ -43,7 +43,9 @@ enum
 
 static guint signals[LAST_SIGNAL];
 
-G_DEFINE_TYPE (NautilusTrashMonitor, nautilus_trash_monitor, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (NautilusTrashMonitor, nautilus_trash_monitor, G_TYPE_OBJECT)
+
+static NautilusTrashMonitor *nautilus_trash_monitor_singleton = NULL;
 
 static void
 nautilus_trash_monitor_finalize (GObject *object)
@@ -136,7 +138,7 @@ trash_query_info_cb (GObject      *source,
 
 static void schedule_update_info (NautilusTrashMonitor *trash_monitor);
 
-static gboolean
+static void
 schedule_update_info_cb (gpointer data)
 {
     NautilusTrashMonitor *trash_monitor = data;
@@ -147,8 +149,6 @@ schedule_update_info_cb (gpointer data)
         trash_monitor->pending = FALSE;
         schedule_update_info (trash_monitor);
     }
-
-    return G_SOURCE_REMOVE;
 }
 
 static void
@@ -172,9 +172,8 @@ schedule_update_info (NautilusTrashMonitor *trash_monitor)
                              G_PRIORITY_DEFAULT, NULL,
                              trash_query_info_cb, g_object_ref (trash_monitor));
 
-    trash_monitor->timeout_id = g_timeout_add_seconds (UPDATE_RATE_SECONDS,
-                                                       schedule_update_info_cb,
-                                                       trash_monitor);
+    trash_monitor->timeout_id =
+        g_timeout_add_seconds_once (UPDATE_RATE_SECONDS, schedule_update_info_cb, trash_monitor);
     g_object_unref (location);
 }
 
@@ -216,16 +215,14 @@ nautilus_trash_monitor_init (NautilusTrashMonitor *trash_monitor)
 NautilusTrashMonitor *
 nautilus_trash_monitor_get (void)
 {
-    static NautilusTrashMonitor *nautilus_trash_monitor = NULL;
-
-    if (nautilus_trash_monitor == NULL)
+    if (nautilus_trash_monitor_singleton == NULL)
     {
         /* not running yet, start it up */
-        nautilus_trash_monitor = NAUTILUS_TRASH_MONITOR
-                                     (g_object_new (NAUTILUS_TYPE_TRASH_MONITOR, NULL));
+        nautilus_trash_monitor_singleton = NAUTILUS_TRASH_MONITOR
+                                               (g_object_new (NAUTILUS_TYPE_TRASH_MONITOR, NULL));
     }
 
-    return nautilus_trash_monitor;
+    return nautilus_trash_monitor_singleton;
 }
 
 gboolean
@@ -257,6 +254,5 @@ nautilus_trash_monitor_get_symbolic_icon (void)
 void
 nautilus_trash_monitor_clear (void)
 {
-    NautilusTrashMonitor *monitor = nautilus_trash_monitor_get ();
-    g_clear_object (&monitor);
+    g_clear_object (&nautilus_trash_monitor_singleton);
 }

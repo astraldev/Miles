@@ -81,7 +81,7 @@ typedef enum {
 	NAUTILUS_FILE_ICON_FLAGS_USE_THUMBNAILS = (1<<0),
 	/* uses the icon of the mount if present */
 	NAUTILUS_FILE_ICON_FLAGS_USE_MOUNT_ICON = (1<<1),
-} NautilusFileIconFlags;
+} G_GNUC_FLAG_ENUM NautilusFileIconFlags;
 
 #define NAUTILUS_THUMBNAIL_MINIMUM_ICON_SIZE 32
 
@@ -95,9 +95,6 @@ typedef void (*NautilusFileOperationCallback) (NautilusFile  *file,
 					       GFile         *result_location,
 					       GError        *error,
 					       gpointer       callback_data);
-
-
-#define NAUTILUS_FILE_ATTRIBUTES_FOR_ICON (NAUTILUS_FILE_ATTRIBUTE_THUMBNAIL_INFO | NAUTILUS_FILE_ATTRIBUTE_THUMBNAIL_BUFFER)
 
 typedef void NautilusFileListHandle;
 
@@ -124,7 +121,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (NautilusFile, nautilus_file_unref)
 /* Monitor the file. */
 void                    nautilus_file_monitor_add                       (NautilusFile                   *file,
 									 gconstpointer                   client,
-									 NautilusFileAttributes          attributes);
+									 NautilusAttributes              attributes);
 void                    nautilus_file_monitor_remove                    (NautilusFile                   *file,
 									 gconstpointer                   client);
 
@@ -135,16 +132,16 @@ NautilusDirectory *     nautilus_file_get_directory                     (Nautilu
  * to other attributes as well.
  */
 void                    nautilus_file_call_when_ready                   (NautilusFile                   *file,
-									 NautilusFileAttributes          attributes,
+									 NautilusAttributes              attributes,
 									 NautilusFileCallback            callback,
 									 gpointer                        callback_data);
 void                    nautilus_file_cancel_call_when_ready            (NautilusFile                   *file,
 									 NautilusFileCallback            callback,
 									 gpointer                        callback_data);
 gboolean                nautilus_file_check_if_ready                    (NautilusFile                   *file,
-									 NautilusFileAttributes          attributes);
+									 NautilusAttributes              attributes);
 void                    nautilus_file_invalidate_attributes             (NautilusFile                   *file,
-									 NautilusFileAttributes          attributes);
+									 NautilusAttributes              attributes);
 void                    nautilus_file_invalidate_all_attributes         (NautilusFile                   *file);
 
 /* Basic attributes for file objects. */
@@ -328,17 +325,11 @@ gboolean                nautilus_file_rename_handle_file_gone           (Nautilu
                                                                          NautilusFileOperationCallback   callback,
                                                                          gpointer                        callback_data);
 
-/* Return true if this file is not confirmed to have ever really
- * existed. This is true when the NautilusFile object has been created, but no I/O
- * has yet confirmed the existence of a file by that name.
- */
-gboolean                nautilus_file_is_not_yet_confirmed              (NautilusFile                   *file);
-
 /* Simple getting and setting top-level metadata. */
 const char *            nautilus_file_get_metadata                      (NautilusFile                   *file,
 									 const char                     *key,
 									 const char                     *default_metadata);
-gchar **                nautilus_file_get_metadata_list                 (NautilusFile                   *file,
+GStrv		            nautilus_file_get_metadata_list                 (NautilusFile                   *file,
 									 const char                     *key);
 void                    nautilus_file_set_metadata                      (NautilusFile                   *file,
 									 const char                     *key,
@@ -406,9 +397,6 @@ int                     nautilus_file_compare_display_name              (Nautilu
 gboolean                nautilus_file_is_hidden_file                    (NautilusFile                   *file);
 gboolean                nautilus_file_should_show                       (NautilusFile                   *file,
 									 gboolean                        show_hidden);
-void                    nautilus_file_prioritize                        (NautilusFile                   *file);
-GList                  *nautilus_file_list_filter_hidden                (GList                          *files,
-									 gboolean                        show_hidden);
 
 
 /* Get the URI that's used when activating the file.
@@ -418,14 +406,6 @@ gboolean                nautilus_file_has_activation_uri                (Nautilu
 char *                  nautilus_file_get_activation_uri                (NautilusFile                   *file);
 GFile *                 nautilus_file_get_activation_location           (NautilusFile                   *file);
 GIcon *                 nautilus_file_get_gicon                         (NautilusFile                   *file,
-									 NautilusFileIconFlags           flags);
-NautilusIconInfo *      nautilus_file_get_icon                          (NautilusFile                   *file,
-									 int                             size,
-									 int                             scale,
-									 NautilusFileIconFlags           flags);
-GdkTexture *            nautilus_file_get_icon_texture                  (NautilusFile                   *file,
-									 int                             size,
-									 int                             scale,
 									 NautilusFileIconFlags           flags);
 GdkPaintable *          nautilus_file_get_icon_paintable                (NautilusFile                   *file,
 									 int                             size,
@@ -437,8 +417,6 @@ GList *                 nautilus_file_get_emblem_icons                  (Nautilu
 /* Whether the file should open inside a view */
 gboolean                nautilus_file_opens_in_view                     (NautilusFile                   *file);
 gboolean                nautilus_file_is_mac_app                        (NautilusFile                   *file);
-/* Thumbnailing handling */
-gboolean                nautilus_file_is_thumbnailing                   (NautilusFile                   *file);
 
 /* Convenience functions for dealing with a list of NautilusFile objects that each have a ref.
  * These are just convenient names for functions that work on lists of GtkObject *.
@@ -447,17 +425,20 @@ void                    nautilus_file_list_free                         (GList  
 GList *                 nautilus_file_list_copy                         (GList                          *file_list);
 GList *			nautilus_file_list_sort_by_display_name		(GList				*file_list);
 void                    nautilus_file_list_call_when_ready              (GList                          *file_list,
-									 NautilusFileAttributes          attributes,
+									 NautilusAttributes              attributes,
 									 NautilusFileListHandle        **handle,
 									 NautilusFileListCallback        callback,
 									 gpointer                        callback_data);
 void                    nautilus_file_list_cancel_call_when_ready       (NautilusFileListHandle         *handle);
 
-GList *                 nautilus_file_list_filter                       (GList                          *files,
-                                                                         GList                         **failed,
+NautilusFileList *      nautilus_file_list_filter                       (NautilusFileList               *file_list,
                                                                          NautilusFileFilterFunc          filter_function,
                                                                          gpointer                        user_data);
+
 gboolean                nautilus_file_list_are_all_folders              (const GList                    *files);
+
+NautilusFileList *
+nautilus_file_list_from_uris (const GStrv uris);
 
 /* Debugging */
 
@@ -500,18 +481,18 @@ typedef struct {
 	/* Virtual functions which MUST be implemented by subclasses */
 	void                  (* monitor_add)            (NautilusFile           *file,
 							  gconstpointer           client,
-							  NautilusFileAttributes  attributes);
+							  NautilusAttributes      attributes);
 	void                  (* monitor_remove)         (NautilusFile           *file,
 							  gconstpointer           client);
 	void                  (* call_when_ready)        (NautilusFile           *file,
-							  NautilusFileAttributes  attributes,
+							  NautilusAttributes      attributes,
 							  NautilusFileCallback    callback,
 							  gpointer                callback_data);
 	void                  (* cancel_call_when_ready) (NautilusFile           *file,
 							  NautilusFileCallback    callback,
 							  gpointer                callback_data);
 	gboolean              (* check_if_ready)         (NautilusFile           *file,
-							  NautilusFileAttributes  attributes);
+							  NautilusAttributes      attributes);
 
         /* Virtual functions which MAY be overridden by subclasses */
 	gboolean              (* get_item_count)         (NautilusFile           *file,

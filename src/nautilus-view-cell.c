@@ -31,8 +31,6 @@ struct _NautilusViewCellPrivate
 
     guint icon_size;
     guint position;
-
-    gboolean called_once;
 };
 
 
@@ -137,7 +135,7 @@ nautilus_view_cell_set_property (GObject      *object,
 static void
 nautilus_view_cell_init (NautilusViewCell *self)
 {
-    gtk_widget_set_name (GTK_WIDGET (self), "NautilusViewCell");
+    gtk_widget_add_css_class (GTK_WIDGET (self), "nautilus-view-cell");
 }
 
 static void
@@ -180,20 +178,6 @@ nautilus_view_cell_class_init (NautilusViewCellClass *klass)
                                                    0, G_MAXUINT, GTK_INVALID_LIST_POSITION,
                                                    G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
     g_object_class_install_properties (object_class, N_PROPS, properties);
-}
-
-gboolean
-nautilus_view_cell_once (NautilusViewCell *self)
-{
-    NautilusViewCellPrivate *priv = nautilus_view_cell_get_instance_private (self);
-
-    if (priv->called_once)
-    {
-        return FALSE;
-    }
-    priv->called_once = TRUE;
-
-    return TRUE;
 }
 
 guint

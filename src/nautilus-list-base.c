@@ -247,6 +247,10 @@ on_item_click_pressed (GtkGestureClick *gesture,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
     guint button;
     GdkModifierType modifiers;
@@ -301,6 +305,10 @@ on_item_click_released (GtkGestureClick *gesture,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
 
     if (priv->activate_on_release)
@@ -327,13 +335,11 @@ on_item_click_stopped (GtkGestureClick *gesture,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
-    NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
 
-    if (self == NULL)
-    {
-        /* The view may already be gone before the cell finalized. */
-        return;
-    }
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
+    NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
 
     rubberband_set_state (self, TRUE);
     priv->activate_on_release = FALSE;
@@ -365,15 +371,15 @@ on_view_click_pressed (GtkGestureClick *gesture,
     gtk_widget_grab_focus (GTK_WIDGET (self));
 
     /* Don't interfere with GtkListBase default selection handling when
-     * holding Ctrl and Shift. */
+     * holding Ctrl and Shift. Also, don't unselect when right clicking. */
     modifiers = gtk_event_controller_get_current_event_state (GTK_EVENT_CONTROLLER (gesture));
+    button = gtk_gesture_single_get_current_button (GTK_GESTURE_SINGLE (gesture));
     selection_mode = (modifiers & (GDK_CONTROL_MASK | GDK_SHIFT_MASK));
-    if (!selection_mode)
+    if (!selection_mode && button != GDK_BUTTON_SECONDARY)
     {
         gtk_selection_model_unselect_all (GTK_SELECTION_MODEL (priv->model));
     }
 
-    button = gtk_gesture_single_get_current_button (GTK_GESTURE_SINGLE (gesture));
     if (button == GDK_BUTTON_SECONDARY)
     {
         g_signal_emit (self, signals[POPUP_BACKGROUND_CONTEXT_MENU], 0, x, y);
@@ -389,6 +395,9 @@ on_item_longpress_pressed (GtkGestureLongPress *gesture,
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
 
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
     open_context_menu_on_press (self, cell, x, y);
     gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
 }
@@ -401,6 +410,13 @@ on_item_drag_prepare (GtkDragSource *source,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    if (self == NULL)
+    {
+        /* Not bound to a listbase. */
+        return NULL;
+    }
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
     g_autoptr (GtkBitset) selection = NULL;
     g_autolist (NautilusFile) selected_files = NULL;
@@ -447,14 +463,16 @@ on_item_drag_prepare (GtkDragSource *source,
     gtk_drag_source_set_actions (source, actions);
 
     scale_factor = gtk_widget_get_scale_factor (GTK_WIDGET (self));
-    paintable = get_paintable_for_drag_selection (selected_files, scale_factor);
+    paintable = get_paintable_for_drag_selection (selected_files,
+                                                  GTK_WIDGET (self),
+                                                  scale_factor);
 
     gtk_drag_source_set_icon (source, paintable, 0, 0);
 
     return gdk_content_provider_new_typed (GDK_TYPE_FILE_LIST, file_list);
 }
 
-static gboolean
+static void
 hover_timer (gpointer user_data)
 {
     NautilusViewCell *cell = user_data;
@@ -468,7 +486,7 @@ hover_timer (gpointer user_data)
     {
         /* If we aren't able to dropped don't change the location. This stops
          * drops onto themselves, and another unnecessary drops. */
-        return G_SOURCE_REMOVE;
+        return;
     }
 
     NautilusFile *file = nautilus_view_item_get_file (item);
@@ -479,7 +497,7 @@ hover_timer (gpointer user_data)
         !g_settings_get_boolean (nautilus_preferences,
                                  NAUTILUS_PREFERENCES_OPEN_FOLDER_ON_DND_HOVER))
     {
-        return G_SOURCE_REMOVE;
+        return;
     }
 
     NautilusViewModel *model = nautilus_list_base_get_model (self);
@@ -487,8 +505,6 @@ hover_timer (gpointer user_data)
 
     gtk_selection_model_select_item (GTK_SELECTION_MODEL (model), i, TRUE);
     nautilus_list_base_activate_selection (self, FALSE);
-
-    return G_SOURCE_REMOVE;
 }
 
 static void
@@ -499,6 +515,10 @@ on_item_drag_hover_enter (GtkDropControllerMotion *controller,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
 
     priv->hover_start_point.x = x;
@@ -511,6 +531,10 @@ on_item_drag_hover_leave (GtkDropControllerMotion *controller,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
 
     g_clear_handle_id (&priv->hover_timer_id, g_source_remove);
@@ -524,6 +548,10 @@ on_item_drag_hover_motion (GtkDropControllerMotion *controller,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
     graphene_point_t start = priv->hover_start_point;
 
@@ -536,7 +564,7 @@ on_item_drag_hover_motion (GtkDropControllerMotion *controller,
     if (gtk_drag_check_threshold (GTK_WIDGET (cell), start.x, start.y, x, y))
     {
         g_clear_handle_id (&priv->hover_timer_id, g_source_remove);
-        priv->hover_timer_id = g_timeout_add (HOVER_TIMEOUT, hover_timer, cell);
+        priv->hover_timer_id = g_timeout_add_once (HOVER_TIMEOUT, hover_timer, cell);
         priv->hover_start_point.x = x;
         priv->hover_start_point.y = y;
     }
@@ -580,6 +608,10 @@ on_item_drag_enter (GtkDropTarget *target,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_val_if_fail (self != NULL, GDK_ACTION_NONE);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
     g_autoptr (NautilusViewItem) item = NULL;
     const GValue *value;
@@ -630,6 +662,10 @@ on_item_drag_value_notify (GObject    *object,
     GtkDropTarget *target = GTK_DROP_TARGET (object);
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_if_fail (self != NULL);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
     const GValue *value;
     g_autoptr (NautilusViewItem) item = NULL;
@@ -654,6 +690,10 @@ on_item_drag_motion (GtkDropTarget *target,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    /* In a UI interaction, assure cell is bound to a listbase. */
+    g_return_val_if_fail (self != NULL, GDK_ACTION_NONE);
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
 
     /* There's a bug in GtkDropTarget where motion overrides enter
@@ -682,6 +722,13 @@ on_item_drop (GtkDropTarget *target,
 {
     NautilusViewCell *cell = user_data;
     NautilusListBase *self = nautilus_view_cell_get_view (cell);
+
+    if (self == NULL)
+    {
+        /* Not bound to a listbase. */
+        return FALSE;
+    }
+
     NautilusListBasePrivate *priv = nautilus_list_base_get_instance_private (self);
     g_autoptr (NautilusViewItem) item = nautilus_view_cell_get_item (cell);
     GdkDragAction actions;
@@ -818,7 +865,8 @@ on_view_drop (GtkDropTarget *target,
 
 void
 setup_cell_common (GObject          *listitem,
-                   NautilusViewCell *cell)
+                   NautilusViewCell *cell,
+                   GtkWidget        *hover_target)
 {
     GtkExpression *expression;
     GtkEventController *controller;
@@ -859,32 +907,12 @@ setup_cell_common (GObject          *listitem,
     g_signal_connect (drop_target, "motion", G_CALLBACK (on_item_drag_motion), cell);
     g_signal_connect (drop_target, "drop", G_CALLBACK (on_item_drop), cell);
     gtk_widget_add_controller (GTK_WIDGET (cell), GTK_EVENT_CONTROLLER (drop_target));
-}
 
-static void
-real_setup_cell_hover (NautilusViewCell *cell,
-                       GtkWidget        *target)
-{
-    GtkEventController *controller = gtk_drop_controller_motion_new ();
-    gtk_widget_add_controller (target, controller);
+    controller = gtk_drop_controller_motion_new ();
+    gtk_widget_add_controller (hover_target, controller);
     g_signal_connect (controller, "enter", G_CALLBACK (on_item_drag_hover_enter), cell);
     g_signal_connect (controller, "leave", G_CALLBACK (on_item_drag_hover_leave), cell);
     g_signal_connect (controller, "motion", G_CALLBACK (on_item_drag_hover_motion), cell);
-}
-
-void
-setup_cell_hover_inner_target (NautilusViewCell *cell,
-                               GtkWidget        *target)
-{
-    g_return_if_fail (gtk_widget_is_ancestor (target, GTK_WIDGET (cell)));
-
-    real_setup_cell_hover (cell, target);
-}
-
-void
-setup_cell_hover (NautilusViewCell *cell)
-{
-    real_setup_cell_hover (cell, GTK_WIDGET (cell));
 }
 
 static void

@@ -27,12 +27,13 @@
 
 #include "nautilus-types.h"
 
-NautilusFileAttributes nautilus_mime_actions_get_required_file_attributes (void);
+NautilusAttributes     nautilus_mime_actions_get_required_attributes      (void);
 
 GAppInfo *             nautilus_mime_get_default_application_for_file     (NautilusFile            *file);
 
 GAppInfo *             nautilus_mime_get_default_application_for_files    (GList                   *files);
 
+gboolean               nautilus_mime_is_video                             (const char              *content_type);
 gboolean               nautilus_mime_file_extracts                        (NautilusFile            *file);
 gboolean               nautilus_mime_file_opens_in_external_app           (NautilusFile            *file);
 gboolean               nautilus_mime_file_launches                        (NautilusFile            *file);
@@ -42,11 +43,4 @@ void                   nautilus_mime_activate_files                       (GtkWi
 									   const char         *launch_directory,
 									   NautilusOpenFlags   flags,
 									   gboolean            user_confirmation);
-void                   nautilus_mime_activate_file                        (GtkWindow               *parent_window,
-									   NautilusWindowSlot *slot_info,
-									   NautilusFile       *file,
-									   const char         *launch_directory,
-									   NautilusOpenFlags   flags);
-guint                  nautilus_mime_types_get_number_of_groups           (void);
-const gchar*           nautilus_mime_types_group_get_name                 (guint                    group_index);
 GPtrArray*             nautilus_mime_types_group_get_mimetypes            (guint                    group_index);

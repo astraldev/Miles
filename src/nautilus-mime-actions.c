@@ -22,7 +22,6 @@
 
 #include "nautilus-mime-actions.h"
 
-#include <eel/eel-stock-dialogs.h>
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
@@ -164,20 +163,15 @@ struct
             "audio/AMR",
             "audio/AMR-WB",
             "audio/basic",
-            "audio/dv",
-            "audio/eac3",
             "audio/flac",
             "audio/m4a",
             "audio/midi",
-            "audio/mp1",
             "audio/mp2",
             "audio/mp3",
             "audio/mp4",
             "audio/mpeg",
             "audio/mpegurl",
-            "audio/mpg",
             "audio/ogg",
-            "audio/opus",
             "audio/prs.sid",
             "audio/scpls",
             "audio/vnd.rn-realaudio",
@@ -193,28 +187,17 @@ struct
             "audio/x-m4b",
             "audio/x-matroska",
             "audio/x-mod",
-            "audio/x-mp1",
             "audio/x-mp2",
             "audio/x-mp3",
             "audio/x-mpg",
             "audio/x-mpeg",
             "audio/x-mpegurl",
-            "audio/x-ms-asf",
             "audio/x-ms-asx",
-            "audio/x-ms-wax",
             "audio/x-ms-wma",
             "audio/x-musepack",
             "audio/x-opus+ogg",
-            "audio/x-pn-aiff",
-            "audio/x-pn-au",
             "audio/x-pn-realaudio",
-            "audio/x-pn-realaudio-plugin",
-            "audio/x-pn-wav",
-            "audio/x-pn-windows-acm",
-            "audio/x-realaudio",
-            "audio/x-real-audio",
             "audio/x-s3m",
-            "audio/x-sbc",
             "audio/x-scpls",
             "audio/x-shorten",
             "audio/x-speex",
@@ -224,7 +207,6 @@ struct
             "audio/x-wavpack",
             "audio/x-vorbis",
             "audio/x-vorbis+ogg",
-            "application/x-flac",
             NULL
         }
     },
@@ -311,8 +293,6 @@ struct
             "application/vnd.ms-wpl",
             "application/vnd.rn-realmedia",
             "application/vnd.rn-realmedia-vbr",
-            "application/x-extension-m4a",
-            "application/x-extension-mp4",
             "application/x-flash-video",
             "application/x-matroska",
             "application/x-netshow-channel",
@@ -320,7 +300,6 @@ struct
             "application/x-shorten",
             "image/vnd.rn-realpix",
             "image/x-pict",
-            "misc/ultravox",
             "text/x-google-video-pointer",
             "video/3gp",
             "video/3gpp",
@@ -346,7 +325,6 @@ struct
             "video/webm",
             "video/x-anim",
             "video/x-avi",
-            "video/x-flc",
             "video/x-fli",
             "video/x-flic",
             "video/x-flv",
@@ -358,7 +336,6 @@ struct
             "video/x-mpeg2",
             "video/x-ms-asf",
             "video/x-ms-asf-plugin",
-            "video/x-ms-asx",
             "video/x-msvideo",
             "video/x-ms-wm",
             "video/x-ms-wmv",
@@ -369,7 +346,6 @@ struct
             "video/x-real-video",
             "video/x-theora",
             "video/x-theora+ogg",
-            "video/x-totem-stream",
             "audio/x-pn-realaudio",
             NULL
         }
@@ -523,26 +499,25 @@ application_launch_parameters_free (ApplicationLaunchParameters *parameters)
 static gboolean
 nautilus_mime_actions_check_if_required_attributes_ready (NautilusFile *file)
 {
-    NautilusFileAttributes attributes;
+    NautilusAttributes attributes;
     gboolean ready;
 
-    attributes = nautilus_mime_actions_get_required_file_attributes ();
+    attributes = nautilus_mime_actions_get_required_attributes ();
     ready = nautilus_file_check_if_ready (file, attributes);
 
     return ready;
 }
 
-NautilusFileAttributes
-nautilus_mime_actions_get_required_file_attributes (void)
+NautilusAttributes
+nautilus_mime_actions_get_required_attributes (void)
 {
-    return NAUTILUS_FILE_ATTRIBUTE_INFO;
+    return NAUTILUS_ATTRIBUTE_INFO;
 }
 
 GAppInfo *
 nautilus_mime_get_default_application_for_file (NautilusFile *file)
 {
     GAppInfo *app;
-    char *uri_scheme;
 
     if (!nautilus_mime_actions_check_if_required_attributes_ready (file))
     {
@@ -554,11 +529,13 @@ nautilus_mime_get_default_application_for_file (NautilusFile *file)
 
     if (app == NULL)
     {
-        uri_scheme = nautilus_file_get_uri_scheme (file);
-        if (uri_scheme != NULL)
+        g_autofree gchar *uri_scheme = nautilus_file_get_uri_scheme (file);
+
+        /* Ignore "file://" scheme handlers as they are entirely meaningless. */
+        if (uri_scheme != NULL &&
+            g_strcmp0 (uri_scheme, "file") != 0)
         {
             app = g_app_info_get_default_for_uri_scheme (uri_scheme);
-            g_free (uri_scheme);
         }
     }
 
@@ -750,19 +727,21 @@ get_activation_action (NautilusFile *file)
 {
     ActivationAction action;
     char *activation_uri;
-    gboolean handles_extract = FALSE;
-    g_autoptr (GAppInfo) app_info = NULL;
-    const gchar *app_id;
 
-    app_info = nautilus_mime_get_default_application_for_file (file);
-    if (app_info != NULL)
+    if (nautilus_file_is_archive (file))
     {
-        app_id = g_app_info_get_id (app_info);
-        handles_extract = g_strcmp0 (app_id, NAUTILUS_DESKTOP_ID) == 0;
-    }
-    if (handles_extract && nautilus_file_is_archive (file))
-    {
-        return ACTIVATION_ACTION_EXTRACT;
+        g_autoptr (GAppInfo) app_info = nautilus_mime_get_default_application_for_file (file);
+
+        if (app_info != NULL)
+        {
+            const gchar *app_id = g_app_info_get_id (app_info);
+            gboolean handles_extract = g_strcmp0 (app_id, NAUTILUS_DESKTOP_ID) == 0;
+
+            if (handles_extract)
+            {
+                return ACTIVATION_ACTION_EXTRACT;
+            }
+        }
     }
 
     activation_uri = nautilus_file_get_activation_uri (file);
@@ -808,6 +787,41 @@ get_activation_action (NautilusFile *file)
     g_free (activation_uri);
 
     return action;
+}
+
+static GHashTable *video_content_types_hash;
+
+static void
+ensure_video_types_hash (void)
+{
+    if (G_LIKELY (video_content_types_hash != NULL))
+    {
+        return;
+    }
+
+    GList *mime_types = g_content_types_get_registered ();
+    video_content_types_hash = g_hash_table_new (g_str_hash, g_str_equal);
+
+    for (GList *l = mime_types; l != NULL; l = l->next)
+    {
+        const char *content_type = l->data;
+        g_autofree char *generic_icon_name = g_content_type_get_generic_icon_name (content_type);
+
+        if (g_str_equal (generic_icon_name, "video-x-generic"))
+        {
+            g_hash_table_add (video_content_types_hash, g_steal_pointer (&l->data));
+        }
+    }
+
+    g_list_free_full (mime_types, g_free);
+}
+
+gboolean
+nautilus_mime_is_video (const char *content_type)
+{
+    ensure_video_types_hash ();
+
+    return g_hash_table_contains (video_content_types_hash, content_type);
 }
 
 gboolean
@@ -973,7 +987,7 @@ activation_parameters_free (ActivateParameters *parameters)
 {
     if (parameters->timed_wait_active)
     {
-        eel_timed_wait_stop (cancel_activate_callback, parameters);
+        nautilus_ui_timed_wait_stop (cancel_activate_callback, parameters);
     }
 
     if (parameters->slot)
@@ -1022,12 +1036,11 @@ static void
 activation_start_timed_cancel (ActivateParameters *parameters)
 {
     parameters->timed_wait_active = TRUE;
-    eel_timed_wait_start_with_duration
-        (DELAY_UNTIL_CANCEL_MSECS,
-        cancel_activate_callback,
-        parameters,
-        parameters->timed_wait_prompt,
-        parameters->parent_window);
+    nautilus_ui_timed_wait_start_full (DELAY_UNTIL_CANCEL_MSECS,
+                                       cancel_activate_callback,
+                                       parameters,
+                                       parameters->timed_wait_prompt,
+                                       parameters->parent_window);
 }
 
 static void
@@ -1035,7 +1048,7 @@ pause_activation_timed_cancel (ActivateParameters *parameters)
 {
     if (parameters->timed_wait_active)
     {
-        eel_timed_wait_stop (cancel_activate_callback, parameters);
+        nautilus_ui_timed_wait_stop (cancel_activate_callback, parameters);
         parameters->timed_wait_active = FALSE;
     }
 }
@@ -1319,10 +1332,9 @@ search_for_application_dbus_call_notify_cb (GDBusProxy   *proxy,
             message = g_strdup_printf ("%s\n%s",
                                        _("There was an internal error trying to search for apps:"),
                                        error->message);
-            show_dialog (_("Unable to search for app"),
-                         message,
-                         parameters_install->parent_window,
-                         GTK_MESSAGE_ERROR);
+            nautilus_show_ok_dialog (_("Unable to search for app"),
+                                     message,
+                                     GTK_WIDGET (parameters_install->parent_window));
             g_free (message);
         }
         else
@@ -1407,8 +1419,8 @@ pk_proxy_appeared_cb (GObject      *source,
 
     if (error != NULL || name_owner == NULL)
     {
-        g_warning ("Couldn't call Modify on the PackageKit interface: %s",
-                   error != NULL ? error->message : "no owner for PackageKit");
+        g_debug ("Couldn't call Modify on the PackageKit interface: %s",
+                 error != NULL ? error->message : "no owner for PackageKit");
         g_clear_error (&error);
 
         /* show an unhelpful dialog */
@@ -1447,14 +1459,8 @@ static void
 application_unhandled_uri (ActivateParameters *parameters,
                            char               *uri)
 {
-    gboolean show_install_mime;
-    NautilusFile *file;
-    ActivateParametersInstall *parameters_install;
-
-    file = nautilus_file_get_by_uri (uri);
-
     /* copy the parts of parameters we are interested in as the orignal will be unref'd */
-    parameters_install = g_new0 (ActivateParametersInstall, 1);
+    ActivateParametersInstall *parameters_install = g_new0 (ActivateParametersInstall, 1);
     parameters_install->slot = parameters->slot;
     g_object_add_weak_pointer (G_OBJECT (parameters_install->slot), (gpointer *) &parameters_install->slot);
     if (parameters->parent_window)
@@ -1463,44 +1469,28 @@ application_unhandled_uri (ActivateParameters *parameters,
         g_object_add_weak_pointer (G_OBJECT (parameters_install->parent_window), (gpointer *) &parameters_install->parent_window);
     }
     parameters_install->activation_directory = g_strdup (parameters->activation_directory);
-    parameters_install->file = file;
+    parameters_install->file = nautilus_file_get_by_uri (uri);
     parameters_install->files = get_file_list_for_launch_locations (parameters->locations);
     parameters_install->flags = parameters->flags;
     parameters_install->user_confirmation = parameters->user_confirmation;
 
-#ifdef ENABLE_PACKAGEKIT
-    /* allow an admin to disable the PackageKit search functionality */
-    show_install_mime = g_settings_get_boolean (nautilus_preferences, NAUTILUS_PREFERENCES_INSTALL_MIME_ACTIVATION);
-#else
-    /* we have no install functionality */
-    show_install_mime = FALSE;
-#endif
-    /* There is no use trying to look for handlers of application/octet-stream */
-    if (g_content_type_is_unknown (nautilus_file_get_mime_type (file)))
+    if (!g_content_type_is_unknown (nautilus_file_get_mime_type (parameters_install->file)))
     {
-        show_install_mime = FALSE;
+        g_dbus_proxy_new_for_bus (G_BUS_TYPE_SESSION,
+                                  G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
+                                  NULL,
+                                  "org.freedesktop.PackageKit",
+                                  "/org/freedesktop/PackageKit",
+                                  "org.freedesktop.PackageKit.Modify2",
+                                  NULL,
+                                  pk_proxy_appeared_cb,
+                                  parameters_install);
     }
-
-    if (!show_install_mime)
+    else
     {
-        goto out;
+        /* Don't look for handlers of unknown types, i.e. application/octet-stream */
+        show_unhandled_type_error (parameters_install);
     }
-
-    g_dbus_proxy_new_for_bus (G_BUS_TYPE_SESSION,
-                              G_DBUS_PROXY_FLAGS_NONE,
-                              NULL,
-                              "org.freedesktop.PackageKit",
-                              "/org/freedesktop/PackageKit",
-                              "org.freedesktop.PackageKit.Modify2",
-                              NULL,
-                              pk_proxy_appeared_cb,
-                              parameters_install);
-
-    return;
-
-out:
-    /* show an unhelpful dialog */
-    show_unhandled_type_error (parameters_install);
 }
 
 static void
@@ -1761,7 +1751,8 @@ activate_files_internal (ActivateParameters *parameters)
             if (parameters->flags & (NAUTILUS_OPEN_FLAG_NEW_WINDOW | NAUTILUS_OPEN_FLAG_NEW_TAB))
             {
                 nautilus_application_open_location_full (NAUTILUS_APPLICATION (g_application_get_default ()),
-                                                         location_with_permissions, parameters->flags, NULL, NULL, parameters->slot, NULL);
+                                                         location_with_permissions, parameters->flags,
+                                                         NULL, NULL);
             }
             else
             {
@@ -1838,10 +1829,9 @@ activation_mount_not_mounted_callback (GObject      *source_object,
              error->code != G_IO_ERROR_FAILED_HANDLED &&
              error->code != G_IO_ERROR_ALREADY_MOUNTED))
         {
-            show_dialog (_("Unable to access location"),
-                         error->message,
-                         parameters->parent_window,
-                         GTK_MESSAGE_ERROR);
+            nautilus_show_ok_dialog (_("Unable to access location"),
+                                     error->message,
+                                     GTK_WIDGET (parameters->parent_window));
         }
 
         if (error->domain != G_IO_ERROR ||
@@ -1913,7 +1903,7 @@ activation_mount_not_mounted (ActivateParameters *parameters)
     files = get_file_list_for_launch_locations (parameters->locations);
     nautilus_file_list_call_when_ready
         (files,
-        nautilus_mime_actions_get_required_file_attributes (),
+        nautilus_mime_actions_get_required_attributes (),
         &parameters->files_handle,
         activate_callback, parameters);
     nautilus_file_list_free (files);
@@ -2044,7 +2034,7 @@ activate_activation_uris_ready_callback (GList    *files_ignore,
     files = get_file_list_for_launch_locations (parameters->locations);
     nautilus_file_list_call_when_ready
         (files,
-        nautilus_mime_actions_get_required_file_attributes (),
+        nautilus_mime_actions_get_required_attributes (),
         &parameters->files_handle,
         activate_callback, parameters);
     nautilus_file_list_free (files);
@@ -2079,7 +2069,7 @@ activate_regular_files (ActivateParameters *parameters)
 
     files = get_file_list_for_launch_locations (parameters->locations);
     nautilus_file_list_call_when_ready
-        (files, nautilus_mime_actions_get_required_file_attributes (),
+        (files, nautilus_mime_actions_get_required_attributes (),
         &parameters->files_handle,
         activate_activation_uris_ready_callback, parameters);
     nautilus_file_list_free (files);
@@ -2137,10 +2127,9 @@ activation_mountable_mounted (NautilusFile *file,
              error->code != G_IO_ERROR_FAILED_HANDLED &&
              error->code != G_IO_ERROR_ALREADY_MOUNTED))
         {
-            show_dialog (_("Unable to access location"),
-                         error->message,
-                         parameters->parent_window,
-                         GTK_MESSAGE_ERROR);
+            nautilus_show_ok_dialog (_("Unable to access location"),
+                                     error->message,
+                                     GTK_WIDGET (parameters->parent_window));
         }
 
         if (error->code == G_IO_ERROR_CANCELLED)
@@ -2228,10 +2217,9 @@ activation_mountable_started (NautilusFile *file,
             (error->code != G_IO_ERROR_CANCELLED &&
              error->code != G_IO_ERROR_FAILED_HANDLED))
         {
-            show_dialog (_("Unable to start location"),
-                         error->message,
-                         parameters->parent_window,
-                         GTK_MESSAGE_ERROR);
+            nautilus_show_ok_dialog (_("Unable to start location"),
+                                     error->message,
+                                     GTK_WIDGET (parameters->parent_window));
         }
 
         if (error->code == G_IO_ERROR_CANCELLED)
@@ -2364,47 +2352,6 @@ nautilus_mime_activate_files (GtkWindow          *parent_window,
     {
         activate_regular_files (parameters);
     }
-}
-
-/**
- * nautilus_mime_activate_file:
- *
- * Activate a file in this view. This might involve switching the displayed
- * location for the current window, or launching an application.
- * @view: FMDirectoryView in question.
- * @file: A NautilusFile representing the file in this view to activate.
- * @use_new_window: Should this item be opened in a new window?
- *
- **/
-
-void
-nautilus_mime_activate_file (GtkWindow          *parent_window,
-                             NautilusWindowSlot *slot,
-                             NautilusFile       *file,
-                             const char         *launch_directory,
-                             NautilusOpenFlags   flags)
-{
-    GList *files;
-
-    g_return_if_fail (NAUTILUS_IS_FILE (file));
-
-    files = g_list_prepend (NULL, file);
-    nautilus_mime_activate_files (parent_window, slot, files, launch_directory, flags, FALSE);
-    g_list_free (files);
-}
-
-guint
-nautilus_mime_types_get_number_of_groups (void)
-{
-    return G_N_ELEMENTS (mimetype_groups);
-}
-
-const gchar *
-nautilus_mime_types_group_get_name (guint group_index)
-{
-    g_return_val_if_fail (group_index < G_N_ELEMENTS (mimetype_groups), NULL);
-
-    return gettext (mimetype_groups[group_index].name);
 }
 
 GPtrArray *

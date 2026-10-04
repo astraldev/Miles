@@ -23,7 +23,7 @@ struct _NautilusNewFolderDialog
     gpointer callback_data;
 };
 
-G_DEFINE_TYPE (NautilusNewFolderDialog, nautilus_new_folder_dialog, ADW_TYPE_DIALOG)
+G_DEFINE_FINAL_TYPE (NautilusNewFolderDialog, nautilus_new_folder_dialog, ADW_TYPE_DIALOG)
 
 static void
 on_feedback_changed (NautilusNewFolderDialog *self)
@@ -73,8 +73,6 @@ nautilus_new_folder_dialog_new (GtkWidget         *parent,
     }
 
     adw_dialog_present (ADW_DIALOG (self), parent);
-
-    gtk_widget_grab_focus (self->name_entry);
 
     return self;
 }

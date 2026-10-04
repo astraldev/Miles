@@ -35,28 +35,31 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (NautilusBookmarkList, nautilus_bookmark_list, NAUTILUS, BOOKMARK_LIST, GObject)
 
-NautilusBookmarkList *  nautilus_bookmark_list_new                 (void);
-void                    nautilus_bookmark_list_append              (NautilusBookmarkList   *bookmarks,
-								    NautilusBookmark *bookmark);
-NautilusBookmark *      nautilus_bookmark_list_item_with_location  (NautilusBookmarkList *bookmarks,
-								    GFile                *location,
-								    guint                *index);
-gboolean                nautilus_bookmark_list_can_bookmark_location (NautilusBookmarkList *list,
-								      GFile                *location);
-GList *                 nautilus_bookmark_list_get_all             (NautilusBookmarkList   *bookmarks);
-gboolean                nautilus_bookmark_list_contains            (NautilusBookmarkList   *bookmarks,
-								    NautilusBookmark *bookmark);
-void                    nautilus_bookmark_list_delete_item_at      (NautilusBookmarkList   *bookmarks,
-								    guint                   index);
-void                    nautilus_bookmark_list_delete_items_with_uri (NautilusBookmarkList *bookmarks,
-								    const char		   *uri);
-void                    nautilus_bookmark_list_insert_item         (NautilusBookmarkList   *bookmarks,
-								    NautilusBookmark *bookmark,
-								    guint                   index);
-guint                   nautilus_bookmark_list_length              (NautilusBookmarkList   *bookmarks);
-NautilusBookmark *      nautilus_bookmark_list_item_at             (NautilusBookmarkList   *bookmarks,
-								    guint                   index);
-void                    nautilus_bookmark_list_move_item           (NautilusBookmarkList *bookmarks,
-								    guint                 index,
-								    guint                 destination);
+NautilusBookmarkList *
+nautilus_bookmark_list_new (void);
+
+gboolean
+nautilus_bookmark_list_contains (NautilusBookmarkList *bookmarks,
+                                 GFile                *location);
+gboolean
+nautilus_bookmark_list_can_bookmark (NautilusBookmarkList *list,
+                                     GFile                *location);
+NautilusBookmark *
+nautilus_bookmark_list_get_bookmark (NautilusBookmarkList *bookmarks,
+                                     GFile                *location);
+GList *
+nautilus_bookmark_list_get_all (NautilusBookmarkList *bookmarks);
+
+void
+nautilus_bookmark_list_add (NautilusBookmarkList *bookmarks,
+                            GFile                *location,
+                            int                   index);
+void
+nautilus_bookmark_list_move_item (NautilusBookmarkList *bookmarks,
+                                  GFile                *location,
+                                  guint                 destination);
+void
+nautilus_bookmark_list_remove (NautilusBookmarkList *bookmarks,
+                               GFile                *location);
+
 G_END_DECLS

@@ -22,12 +22,19 @@
 
 #pragma once
 
+#include "nautilus-enums.h"
+
 #include <gio/gio.h>
 #include <gtk/gtk.h>
 
 #include <config.h>
 
 #define NAUTILUS_DESKTOP_ID APPLICATION_ID ".desktop"
+
+#define IS_ATTRIBUTE_SET(attribute,mask) (attribute & mask) == mask
+
+typedef void (* EmptyCheckCallback) (gpointer callback_data,
+                                     gboolean is_empty);
 
 /* These functions all return something something that needs to be
  * freed with g_free, is not NULL, and is guaranteed to exist.
@@ -40,6 +47,12 @@ gboolean nautilus_is_root_for_scheme                 (GFile      *dir,
 gboolean nautilus_is_home_directory                  (GFile *dir);
 gboolean nautilus_is_home_directory_file             (GFile *dir,
 						      const char *filename);
+
+void
+nautilus_is_directory_empty (GFile              *directory,
+                             EmptyCheckCallback  callback,
+                             gpointer            callback_data);
+
 GMount * nautilus_get_mounted_mount_for_root         (GFile *location);
 
 gboolean nautilus_should_use_templates_directory     (void);
@@ -133,3 +146,20 @@ GList *
 nautilus_location_list_from_file_list (GList *files);
 
 gboolean nautilus_location_is_autofs_mountpoint (GFile *location);
+
+gboolean
+selection_source_is_intentional (NautilusSelectionSource selection_source);
+
+/* Note: Also called for directories */
+typedef void (*IterationFileCallback) (GFileInfo *info,
+                                       GFile     *location,
+                                       gpointer   user_data);
+gboolean
+nautilus_iterate_directory_recursive (GFile                *directory,
+                                      guint                 max_depth,
+                                      const char           *attributes,
+                                      gboolean              local_only,
+                                      GCancellable         *cancellable,
+                                      IterationFileCallback file_callback,
+                                      GAsyncReadyCallback   done_callback,
+                                      gpointer              user_data);

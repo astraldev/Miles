@@ -24,20 +24,37 @@
     "--filesystem=~/.config/dconf:ro",
     "--talk-name=ca.desrt.dconf",
     "--talk-name=org.gnome.NautilusPreviewer",
-    "--talk-name=org.gnome.NautilusPreviewerDevel",
+    "--talk-name=org.gnome.NautilusPreviewer.Devel",
     "--talk-name=org.gnome.DiskUtility",
     "--talk-name=org.gnome.Settings",
     "--talk-name=org.gnome.Console",
     "--talk-name=org.gnome.Mutter.ServiceChannel",
     "--env=DCONF_USER_CONFIG_DIR=.config/dconf",
-    "--add-policy=Tracker3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Audio",
-    "--add-policy=Tracker3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Documents",
-    "--add-policy=Tracker3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:FileSystem",
-    "--add-policy=Tracker3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Pictures",
-    "--add-policy=Tracker3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Music",
-    "--add-policy=Tracker3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Video"
+    "--add-policy=LocalSearch3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Audio",
+    "--add-policy=LocalSearch3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Documents",
+    "--add-policy=LocalSearch3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:FileSystem",
+    "--add-policy=LocalSearch3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Pictures",
+    "--add-policy=LocalSearch3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Music",
+    "--add-policy=LocalSearch3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:Video"
   ],
   "modules": [
+    {
+      "name": "inih",
+      "buildsystem": "meson",
+      "config-opts": [
+        "-Ddefault_library=shared",
+        "-Ddistro_install=true",
+        "-Dwith_INIReader=true",
+        "-Dtests=false"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://github.com/benhoyt/inih/archive/refs/tags/r62.tar.gz",
+          "sha256": "9c15fa751bb8093d042dae1b9f125eb45198c32c6704cd5481ccde460d4f8151"
+        }
+      ]
+    },
     {
       "name": "exiv2",
       "config-opts": [
@@ -49,7 +66,7 @@
         {
           "type": "git",
           "url": "https://github.com/Exiv2/exiv2.git",
-          "branch": "0.27-maintenance"
+          "branch": "0.28.x"
         }
       ]
     },
@@ -67,7 +84,7 @@
         {
           "type": "git",
           "url": "https://gitlab.gnome.org/GNOME/gexiv2.git",
-          "tag": "gexiv2-0.14.2"
+          "tag": "0.16.0"
         }
       ]
     },
@@ -75,12 +92,8 @@
       "name": "localsearch",
       "buildsystem": "meson",
       "cleanup": [
-        "/etc",
-        "/libexec/localsearch-3",
-        "/share/dbus-1/services/org.freedesktop.Tracker3.Miner.Files.service",
-        "/share/dbus-1/services/org.freedesktop.Tracker3.Miner.Files.Control.service",
-        "/share/dbus-1/services/org.freedesktop.LocalSearch3.service",
-        "/share/dbus-1/services/org.freedesktop.LocalSearch3.Control.service"
+        "/bin",
+        "/etc"
       ],
       "config-opts": [
         "-Dfunctional_tests=false",
@@ -116,7 +129,8 @@
         "-Ddesktop_docs=false",
         "-Dlegacy_library=false",
         "-Dsystemd=disabled",
-        "-Dudev=disabled"
+        "-Dudev=disabled",
+        "-Dqr=disabled"
       ],
       "sources": [
         {
@@ -131,7 +145,6 @@
       "buildsystem": "meson",
       "builddir": true,
       "config-opts": [
-        "-Dgtk=false",
         "-Dintrospection=disabled"
       ],
       "sources": [
@@ -155,7 +168,7 @@
         "-Dvapi=false",
         "--buildtype=debugoptimized"
       ],
-      "sources" : [
+      "sources": [
         {
           "type": "git",
           "url": "https://github.com/flatpak/libportal.git",
@@ -168,10 +181,10 @@
       "buildsystem": "meson",
       "builddir": true,
       "config-opts": [
-      	"-Dintrospection=false",
-      	"-Dvapigen=false"
+        "-Dintrospection=false",
+        "-Dvapigen=false"
       ],
-      "sources" : [
+      "sources": [
         {
           "type": "git",
           "url": "https://gitlab.gnome.org/GNOME/libcloudproviders.git",
@@ -193,7 +206,7 @@
           "--talk-name=org.gtk.vfs.*",
           "--talk-name=org.gtk.MountOperationHandler",
           "--filesystem=xdg-run/gvfsd",
-          "--add-policy=Tracker3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:FileSystem"
+          "--add-policy=LocalSearch3.dbus:org.freedesktop.Tracker3.Miner.Files=tracker:FileSystem"
         ]
       },
       "config-opts": [
@@ -205,6 +218,12 @@
           "type": "git",
           "url": "https://gitlab.gnome.org/GNOME/nautilus.git",
           "branch": "main"
+        },
+        {
+          "type": "archive",
+          "url": "https://gitlab.gnome.org/GNOME/libgxdp/-/archive/df896e3412b749947bc6f62a91a1aac8e6b6d19b/libgxdp-df896e3412b749947bc6f62a91a1aac8e6b6d19b.tar.gz",
+          "sha256": "501f39e913c21c951ff8926f0056f846c2c738a66cce06d5b3637c9110f5a92d",
+          "dest": "subprojects/libgxdp"
         }
       ]
     }

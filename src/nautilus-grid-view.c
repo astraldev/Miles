@@ -32,7 +32,7 @@ struct _NautilusGridView
     gboolean reversed;
 };
 
-G_DEFINE_TYPE (NautilusGridView, nautilus_grid_view, NAUTILUS_TYPE_LIST_BASE)
+G_DEFINE_FINAL_TYPE (NautilusGridView, nautilus_grid_view, NAUTILUS_TYPE_LIST_BASE)
 
 #define get_view_item(li) \
         (NAUTILUS_VIEW_ITEM (gtk_tree_list_row_get_item (GTK_TREE_LIST_ROW (gtk_list_item_get_item (li)))))
@@ -413,26 +413,20 @@ bind_cell (GtkSignalListItemFactory *factory,
            GtkListItem              *listitem,
            gpointer                  user_data)
 {
-    GtkWidget *cell;
-    g_autoptr (NautilusViewItem) item = NULL;
+    g_autoptr (NautilusViewItem) item = get_view_item (listitem);
 
-    cell = gtk_list_item_get_child (listitem);
-    item = get_view_item (listitem);
     g_return_if_fail (item != NULL);
+
+    GtkWidget *cell = gtk_list_item_get_child (listitem);
+    GtkWidget *parent = gtk_widget_get_parent (cell);
 
     nautilus_view_item_set_item_ui (item, cell);
 
-    if (nautilus_view_cell_once (NAUTILUS_VIEW_CELL (cell)))
-    {
-        GtkWidget *parent;
-
-        /* At the time of ::setup emission, the item ui has got no parent yet,
-         * that's why we need to complete the widget setup process here, on the
-         * first time ::bind is emitted. */
-        parent = gtk_widget_get_parent (cell);
-        gtk_widget_set_halign (parent, GTK_ALIGN_CENTER);
-        gtk_widget_set_valign (parent, GTK_ALIGN_START);
-    }
+    /* At the time of ::setup emission, the item ui has got no parent yet,
+     * that's why we need to complete the widget setup process here, when
+     * ::bind is emitted. */
+    gtk_widget_set_halign (parent, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign (parent, GTK_ALIGN_START);
 }
 
 static void
@@ -462,8 +456,7 @@ setup_cell (GtkSignalListItemFactory *factory,
 
     cell = nautilus_grid_cell_new (NAUTILUS_LIST_BASE (self));
     gtk_list_item_set_child (listitem, GTK_WIDGET (cell));
-    setup_cell_common (G_OBJECT (listitem), NAUTILUS_VIEW_CELL (cell));
-    setup_cell_hover (NAUTILUS_VIEW_CELL (cell));
+    setup_cell_common (G_OBJECT (listitem), NAUTILUS_VIEW_CELL (cell), GTK_WIDGET (cell));
 
     g_object_bind_property (self, "icon-size",
                             cell, "icon-size",

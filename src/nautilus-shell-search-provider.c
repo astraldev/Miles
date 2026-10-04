@@ -68,7 +68,7 @@ struct _NautilusShellSearchProvider
     GHashTable *metas_cache;
 };
 
-G_DEFINE_TYPE (NautilusShellSearchProvider, nautilus_shell_search_provider, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (NautilusShellSearchProvider, nautilus_shell_search_provider, G_TYPE_OBJECT)
 
 static void
 pending_search_free (PendingSearch *search)
@@ -105,18 +105,14 @@ cancel_current_search (NautilusShellSearchProvider *self)
 {
     if (self->current_search != NULL)
     {
-        NautilusSearchProvider *engine;
-
         g_debug ("*** Cancel current search");
 
-        engine = NAUTILUS_SEARCH_PROVIDER (self->current_search->engine);
         /* The finish signal may be emitted during the call to nautilus_search_provider_stop
          * which causes shell_search_provider to free the engine. Increase
          * the ref count to prevent use after free issues.
          */
-        g_object_ref (engine);
-        nautilus_search_provider_stop (engine);
-        g_object_unref (engine);
+        g_autoptr (NautilusSearchEngine) engine = g_object_ref (self->current_search->engine);
+        nautilus_search_engine_stop (engine);
     }
 }
 
@@ -134,20 +130,18 @@ cancel_current_search_ignoring_partial_results (NautilusShellSearchProvider *sel
 
 static void
 search_hits_added_cb (NautilusSearchEngine *engine,
-                      GPtrArray            *transferred_hits,
+                      GPtrArray            *hits,
                       gpointer              user_data)
 {
-    g_autoptr (GPtrArray) hits = transferred_hits;
     PendingSearch *search = user_data;
     const gchar *hit_uri;
     g_autoptr (GDateTime) now = g_date_time_new_now_local ();
 
     g_debug ("*** Search engine hits added");
 
-    while (hits->len > 0)
+    for (guint i = 0; i < hits->len; i += 1)
     {
-        guint index = hits->len - 1;
-        NautilusSearchHit *hit = hits->pdata[index];
+        NautilusSearchHit *hit = hits->pdata[i];
 
         nautilus_search_hit_compute_scores (hit, now, NULL);
         hit_uri = nautilus_search_hit_get_uri (hit);
@@ -155,7 +149,7 @@ search_hits_added_cb (NautilusSearchEngine *engine,
 
         g_hash_table_replace (search->hits,
                               g_strdup (hit_uri),
-                              g_ptr_array_steal_index (hits, index));
+                              g_object_ref (g_ptr_array_index (hits, i)));
     }
 }
 
@@ -185,11 +179,8 @@ search_hit_compare_relevance (gconstpointer a,
 }
 
 static void
-search_finished_cb (NautilusSearchEngine         *engine,
-                    NautilusSearchProviderStatus  status,
-                    gpointer                      user_data)
+search_finished_cb (PendingSearch *search)
 {
-    PendingSearch *search = user_data;
     g_autoptr (GPtrArray) hits = NULL;
     NautilusSearchHit *hit;
     GVariantBuilder builder;
@@ -212,19 +203,6 @@ search_finished_cb (NautilusSearchEngine         *engine,
 
     pending_search_finish (search, search->invocation,
                            g_variant_new ("(as)", &builder));
-}
-
-static void
-search_error_cb (NautilusSearchEngine *engine,
-                 const gchar          *error_message,
-                 gpointer              user_data)
-{
-    NautilusShellSearchProvider *self = user_data;
-    PendingSearch *search = self->current_search;
-
-    g_debug ("*** Search engine search error");
-    pending_search_finish (search, search->invocation,
-                           g_variant_new ("(as)", NULL));
 }
 
 typedef struct
@@ -458,10 +436,8 @@ execute_search (NautilusShellSearchProvider  *self,
 
     g_signal_connect (pending_search->engine, "hits-added",
                       G_CALLBACK (search_hits_added_cb), pending_search);
-    g_signal_connect (pending_search->engine, "finished",
-                      G_CALLBACK (search_finished_cb), pending_search);
-    g_signal_connect (pending_search->engine, "error",
-                      G_CALLBACK (search_error_cb), pending_search);
+    g_signal_connect_swapped (pending_search->engine, "search-finished",
+                              G_CALLBACK (search_finished_cb), pending_search);
 
     self->current_search = pending_search;
     g_application_hold (g_application_get_default ());
@@ -470,8 +446,7 @@ execute_search (NautilusShellSearchProvider  *self,
 
     /* start searching */
     g_debug ("*** Search engine search started");
-    nautilus_search_provider_start (NAUTILUS_SEARCH_PROVIDER (pending_search->engine),
-                                    query);
+    nautilus_search_engine_start (pending_search->engine, query);
 }
 
 static gboolean
@@ -574,12 +549,6 @@ result_list_attributes_ready_cb (GList    *file_list,
                                  gpointer  user_data)
 {
     ResultMetasData *data = user_data;
-
-    /* Get scale of monitor 0, which is assumed to be the one that shows the shell */
-    g_autoptr (GdkMonitor) shell_monitor =
-        g_list_model_get_item (gdk_display_get_monitors (gdk_display_get_default ()), 0);
-    int icon_scale = gdk_monitor_get_scale_factor (shell_monitor);
-
     NautilusBookmarkList *bookmarks = nautilus_application_get_bookmarks (NAUTILUS_APPLICATION (g_application_get_default ()));
 
     for (GList *l = file_list; l != NULL; l = l->next)
@@ -589,14 +558,13 @@ result_list_attributes_ready_cb (GList    *file_list,
         g_auto (GVariantBuilder) meta = G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
         g_autofree char *uri = nautilus_file_get_uri (file);
-        NautilusBookmark *bookmark = nautilus_bookmark_list_item_with_location (bookmarks,
-                                                                                file_location,
-                                                                                NULL);
+        NautilusBookmark *bookmark = nautilus_bookmark_list_get_bookmark (bookmarks,
+                                                                          file_location);
         const char *display_name = (bookmark != NULL)
                                    ? nautilus_bookmark_get_name (bookmark)
                                    : nautilus_file_get_display_name (file);
 
-        g_autofree gchar *path = g_file_get_path (file_location);
+        const gchar *path = g_file_peek_path (file_location);
         g_autofree gchar *description = (path != NULL ? g_path_get_dirname (path) : NULL);
 
         g_variant_builder_add (&meta, "{sv}",
@@ -618,16 +586,10 @@ result_list_attributes_ready_cb (GList    *file_list,
         {
             gicon = nautilus_bookmark_get_icon (bookmark);
         }
-        else
-        {
-            gicon = nautilus_file_get_gicon (file, 0);
-        }
 
         if (gicon == NULL)
         {
-            gicon = G_ICON (nautilus_file_get_icon_texture (file, 128,
-                                                            icon_scale,
-                                                            NAUTILUS_FILE_ICON_FLAGS_USE_THUMBNAILS));
+            gicon = nautilus_file_get_gicon (file, 0);
         }
 
         g_autoptr (GVariant) icon_variant = g_icon_serialize (gicon);
@@ -684,7 +646,7 @@ handle_get_result_metas (NautilusShellSearchProvider2  *skeleton,
     }
 
     nautilus_file_list_call_when_ready (missing_files,
-                                        NAUTILUS_FILE_ATTRIBUTES_FOR_ICON,
+                                        NAUTILUS_ATTRIBUTE_THUMBNAIL_BUFFER,
                                         &data->handle,
                                         result_list_attributes_ready_cb,
                                         data);
@@ -705,9 +667,10 @@ show_uri_callback (GObject      *source_object,
                    GAsyncResult *result,
                    gpointer      user_data)
 {
+    GtkFileLauncher *launcher = GTK_FILE_LAUNCHER (source_object);
     ShowURIData *data = user_data;
 
-    if (!gtk_show_uri_full_finish (NULL, result, NULL))
+    if (!gtk_file_launcher_launch_finish (launcher, result, NULL))
     {
         g_application_open (g_application_get_default (), &data->file, 1, "");
     }
@@ -726,14 +689,16 @@ handle_activate_result (NautilusShellSearchProvider2  *skeleton,
                         guint32                        timestamp,
                         gpointer                       user_data)
 {
+    g_autoptr (GFile) file = g_file_new_for_uri (result);
+    g_autoptr (GtkFileLauncher) launcher = gtk_file_launcher_new (file);
     ShowURIData *data;
 
     data = g_new (ShowURIData, 1);
-    data->file = g_file_new_for_uri (result);
+    data->file = g_steal_pointer (&file);
     data->skeleton = skeleton;
     data->invocation = invocation;
 
-    gtk_show_uri_full (NULL, result, timestamp, NULL, show_uri_callback, data);
+    gtk_file_launcher_launch (launcher, NULL, NULL, show_uri_callback, data);
 
     return TRUE;
 }

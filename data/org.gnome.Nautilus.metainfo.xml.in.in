@@ -27,9 +27,28 @@
   <url type="vcs-browser">https://gitlab.gnome.org/GNOME/nautilus</url>
   <launchable type="desktop-id">@appid@.desktop</launchable>
   <releases>
-    <!--NEXT_RELEASE_PLACEHOLDER-->
-    <release version="49.6" type="stable" date="2026-04-11"/>
-    <release version="49.5" type="stable" date="2026-03-16"/>
+    <release version="51.0.1" type="stable" date="2026-09-15">
+      <description>
+        <ul>
+          <li>Tab overview button in narrow mode</li>
+          <li>Smoother navigation by delayed clearing</li>
+          <li>Show count badge when while dragging multiple files</li>
+          <li>Open locations from other apps in new tabs</li>
+          <li>Add an empty document menu entry in case of empty templates directory</li>
+          <li>Selection handling improvements</li>
+          <li>Correctly raise the window when other apps call “Open location”</li>
+          <li>Type-to-search support in app chooser dialog</li>
+          <li>Accessibility enhancement, e.g. for filename entry feedback</li>
+        </ul>
+      </description>
+    </release>
+    <release version="51~rc" type="development" date="2026-08-29"/>
+    <release version="51~beta" type="development" date="2026-08-01"/>
+    <release version="51~alpha" type="development" date="2026-06-28"/>
+    <release version="50.0" type="stable" date="2026-03-14"/>
+    <release version="50~rc" type="development" date="2026-03-01"/>
+    <release version="50~beta" type="development" date="2026-02-01"/>
+    <release version="50~alpha" type="development" date="2026-01-07"/>
     <release version="49.4" type="stable" date="2026-02-02"/>
     <release version="49.3" type="stable" date="2026-01-07"/>
     <release version="49.2" type="stable" date="2025-11-23"/>
@@ -47,7 +66,6 @@
     <dbus type="user">org.freedesktop.FileManager1</dbus>
     <dbus type="user">org.freedesktop.impl.portal.Request</dbus>
     <dbus type="user">org.freedesktop.impl.portal.FileChooser</dbus>
-    <dbus type="user">org.gnome.Nautilus.FileOperations</dbus>
     <dbus type="user">org.gnome.Nautilus.FileOperations2</dbus>
     <dbus type="user">org.gnome.Shell.SearchProvider2</dbus>
   </provides>
@@ -80,13 +98,11 @@
     <kudo>Notifications</kudo>
     <kudo>SearchProvider</kudo>
   </kudos>
-  <recommends>
-    <control>keyboard</control>
-    <control>pointing</control>
-  </recommends>
   <supports>
     <control>touch</control>
     <control>tablet</control>
+    <control>keyboard</control>
+    <control>pointing</control>
     <internet>offline-only</internet>
   </supports>
   <requires>

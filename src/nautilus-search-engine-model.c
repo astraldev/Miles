@@ -37,24 +37,16 @@
 
 struct _NautilusSearchEngineModel
 {
-    GObject parent;
+    NautilusSearchProvider parent_instance;
 
-    NautilusQuery *query;
-
-    GPtrArray *hits;
     NautilusDirectory *directory;
 
-    gboolean query_pending;
     guint finished_id;
 };
 
-static void nautilus_search_provider_init (NautilusSearchProviderInterface *iface);
-
-G_DEFINE_TYPE_WITH_CODE (NautilusSearchEngineModel,
-                         nautilus_search_engine_model,
-                         G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (NAUTILUS_TYPE_SEARCH_PROVIDER,
-                                                nautilus_search_provider_init))
+G_DEFINE_FINAL_TYPE (NautilusSearchEngineModel,
+                     nautilus_search_engine_model,
+                     NAUTILUS_TYPE_SEARCH_PROVIDER)
 
 static void
 finalize (GObject *object)
@@ -63,8 +55,6 @@ finalize (GObject *object)
 
     model = NAUTILUS_SEARCH_ENGINE_MODEL (object);
 
-    g_clear_pointer (&model->hits, g_ptr_array_unref);
-
     if (model->finished_id != 0)
     {
         g_source_remove (model->finished_id);
@@ -72,7 +62,6 @@ finalize (GObject *object)
     }
 
     g_clear_object (&model->directory);
-    g_clear_object (&model->query);
 
     G_OBJECT_CLASS (nautilus_search_engine_model_parent_class)->finalize (object);
 }
@@ -80,24 +69,11 @@ finalize (GObject *object)
 static gboolean
 search_finished (NautilusSearchEngineModel *model)
 {
-    g_autoptr (GPtrArray) hits = g_steal_pointer (&model->hits);
     model->finished_id = 0;
 
-    if (hits != NULL && hits->len > 0)
-    {
-        g_debug ("Model engine hits added");
-        nautilus_search_provider_hits_added (NAUTILUS_SEARCH_PROVIDER (model),
-                                             g_steal_pointer (&hits));
-    }
+    nautilus_search_provider_finished (NAUTILUS_SEARCH_PROVIDER (model));
 
-    model->query_pending = FALSE;
-
-    g_debug ("Model engine finished");
-    nautilus_search_provider_finished (NAUTILUS_SEARCH_PROVIDER (model),
-                                       NAUTILUS_SEARCH_PROVIDER_STATUS_NORMAL);
-    g_object_unref (model);
-
-    return FALSE;
+    return G_SOURCE_REMOVE;
 }
 
 static void
@@ -117,10 +93,8 @@ model_directory_ready_cb (NautilusDirectory *directory,
                           gpointer           user_data)
 {
     NautilusSearchEngineModel *model = user_data;
-    g_autoptr (GPtrArray) mime_types = NULL;
     gchar *uri;
     GList *files, *l;
-    GPtrArray *hits = g_ptr_array_new_with_free_func (g_object_unref);
     NautilusFile *file;
     gdouble match;
     gboolean found;
@@ -128,9 +102,9 @@ model_directory_ready_cb (NautilusDirectory *directory,
     GDateTime *initial_date;
     GDateTime *end_date;
     GPtrArray *date_range;
+    NautilusQuery *query = nautilus_search_provider_get_query (model);
 
     files = nautilus_directory_get_file_list (directory);
-    mime_types = nautilus_query_get_mime_types (model->query);
 
     for (l = files; l != NULL; l = l->next)
     {
@@ -141,7 +115,7 @@ model_directory_ready_cb (NautilusDirectory *directory,
 
         file = l->data;
 
-        match = nautilus_query_matches_string (model->query,
+        match = nautilus_query_matches_string (query,
                                                nautilus_file_get_display_name (file));
         found = (match > -1);
         if (!found)
@@ -149,12 +123,9 @@ model_directory_ready_cb (NautilusDirectory *directory,
             continue;
         }
 
-        if (mime_types->len > 0)
-        {
-            found = nautilus_query_matches_content_type (model->query,
-                                                         nautilus_file_get_mime_type (file));
-        }
-        if (!found)
+        const char *mime_type = nautilus_file_get_mime_type (file);
+
+        if (!nautilus_query_matches_mime_type (query, mime_type))
         {
             continue;
         }
@@ -163,13 +134,13 @@ model_directory_ready_cb (NautilusDirectory *directory,
         atime = g_date_time_new_from_unix_local (nautilus_file_get_atime (file));
         ctime = g_date_time_new_from_unix_local (nautilus_file_get_btime (file));
 
-        date_range = nautilus_query_get_date_range (model->query);
+        date_range = nautilus_query_get_date_range (query);
         if (found && date_range != NULL)
         {
             NautilusSearchTimeType type;
             GDateTime *target_date;
 
-            type = nautilus_query_get_search_type (model->query);
+            type = nautilus_query_get_search_type (query);
             initial_date = g_ptr_array_index (date_range, 0);
             end_date = g_ptr_array_index (date_range, 1);
 
@@ -214,86 +185,73 @@ model_directory_ready_cb (NautilusDirectory *directory,
             nautilus_search_hit_set_access_time (hit, atime);
             nautilus_search_hit_set_creation_time (hit, ctime);
 
-            g_ptr_array_add (hits, hit);
+            nautilus_search_provider_add_hit (model, hit);
 
             g_free (uri);
         }
     }
 
     nautilus_file_list_free (files);
-    model->hits = hits;
 
     search_finished (model);
 }
 
-static gboolean
-search_engine_model_start (NautilusSearchProvider *provider,
-                           NautilusQuery          *query)
+static const char *
+get_name (NautilusSearchProvider *provider)
 {
+    return "model";
+}
+
+static gboolean
+should_search (NautilusSearchProvider *provider,
+               NautilusQuery          *query)
+{
+    g_autoptr (GFile) location = nautilus_query_get_location (query);
+    g_autoptr (NautilusDirectory) directory = nautilus_directory_get (location);
+
+    return directory != NULL;
+}
+
+static void
+start_search (NautilusSearchProvider *provider)
+{
+    NautilusQuery *query = nautilus_search_provider_get_query (provider);
     NautilusSearchEngineModel *model;
 
     model = NAUTILUS_SEARCH_ENGINE_MODEL (provider);
 
-    g_set_object (&model->query, query);
-
-    g_autoptr (GFile) query_location = nautilus_query_get_location (model->query);
+    g_autoptr (GFile) query_location = nautilus_query_get_location (query);
     g_autoptr (NautilusDirectory) directory = nautilus_directory_get (query_location);
     g_set_object (&model->directory, directory);
 
-    if (model->query_pending)
-    {
-        return FALSE;
-    }
-    if (model->directory == NULL)
-    {
-        return FALSE;
-    }
-
-    g_debug ("Model engine start");
-
-    g_object_ref (model);
-    model->query_pending = TRUE;
-
     nautilus_directory_call_when_ready (model->directory,
-                                        NAUTILUS_FILE_ATTRIBUTE_INFO,
-                                        TRUE, model_directory_ready_cb, model);
-
-    return TRUE;
+                                        NAUTILUS_ATTRIBUTE_INFO | NAUTILUS_ATTRIBUTE_FILE_LIST,
+                                        model_directory_ready_cb, model);
 }
 
 static void
-nautilus_search_engine_model_stop (NautilusSearchProvider *provider)
+search_engine_model_stop (NautilusSearchProvider *provider)
 {
-    NautilusSearchEngineModel *model;
+    NautilusSearchEngineModel *self = NAUTILUS_SEARCH_ENGINE_MODEL (provider);
 
-    model = NAUTILUS_SEARCH_ENGINE_MODEL (provider);
+    nautilus_directory_cancel_callback (self->directory,
+                                        model_directory_ready_cb, self);
+    search_finished_idle (self);
 
-    if (model->query_pending)
-    {
-        g_debug ("Model engine stop");
-
-        nautilus_directory_cancel_callback (model->directory,
-                                            model_directory_ready_cb, model);
-        search_finished_idle (model);
-    }
-
-    g_clear_object (&model->directory);
-}
-
-static void
-nautilus_search_provider_init (NautilusSearchProviderInterface *iface)
-{
-    iface->start = search_engine_model_start;
-    iface->stop = nautilus_search_engine_model_stop;
+    g_clear_object (&self->directory);
 }
 
 static void
 nautilus_search_engine_model_class_init (NautilusSearchEngineModelClass *class)
 {
-    GObjectClass *gobject_class;
+    GObjectClass *gobject_class = G_OBJECT_CLASS (class);
+    NautilusSearchProviderClass *search_provider_class = NAUTILUS_SEARCH_PROVIDER_CLASS (class);
 
-    gobject_class = G_OBJECT_CLASS (class);
     gobject_class->finalize = finalize;
+    search_provider_class->get_name = get_name;
+    search_provider_class->should_search = should_search;
+    search_provider_class->start_search = start_search;
+    search_provider_class->stop_search = search_engine_model_stop;
 }
 
 static void

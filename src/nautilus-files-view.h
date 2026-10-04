@@ -46,7 +46,8 @@ void                nautilus_files_view_change                           (Nautil
 const char *
 nautilus_files_view_get_toggle_icon_name (NautilusFilesView *self);
 const char *
-nautilus_files_view_get_toggle_tooltip (NautilusFilesView *self);
+nautilus_files_view_get_toggle_tooltip (NautilusFilesView  *self,
+                                        const char        **description);
 
 GFile *
 nautilus_files_view_get_location (NautilusFilesView *self);
@@ -62,9 +63,12 @@ nautilus_files_view_set_search_query (NautilusFilesView *self,
 
 NautilusFileList *
 nautilus_files_view_get_selection (NautilusFilesView *self);
+NautilusSelectionSource
+nautilus_files_view_get_selection_source (NautilusFilesView *self);
 void
-nautilus_files_view_set_selection (NautilusFilesView *self,
-                                   NautilusFileList  *selection);
+nautilus_files_view_set_selection (NautilusFilesView       *self,
+                                   NautilusFileList        *selection,
+                                   NautilusSelectionSource  selection_source);
 
 gboolean
 nautilus_files_view_is_loading (NautilusFilesView *self);
@@ -113,15 +117,12 @@ void              nautilus_files_view_preview_selection_event    (NautilusFilesV
                                                                   GtkDirectionType        direction);
 void              nautilus_files_view_stop_loading               (NautilusFilesView      *view);
 
-NautilusToolbarMenuSections *
-nautilus_files_view_get_toolbar_menu_sections (NautilusFilesView *self);
-
-void              nautilus_files_view_update_context_menus       (NautilusFilesView      *view);
-void              nautilus_files_view_update_toolbar_menus       (NautilusFilesView      *view);
-void              nautilus_files_view_update_actions_state       (NautilusFilesView      *view);
-
 /* testing-only */
 NautilusViewModel *
 nautilus_files_view_get_private_model (NautilusFilesView *self);
+GActionGroup *
+nautilus_files_view_get_private_action_group (NautilusFilesView *self);
+NautilusListBase *
+nautilus_files_view_get_private_list_base (NautilusFilesView *self);
 
 G_END_DECLS

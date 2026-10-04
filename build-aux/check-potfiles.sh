@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-srcdirs="eel extensions src libnautilus-extension"
-uidirs="src/resources/ui src/gtk"
+menu_dirs="src/resources/menu"
+srcdirs="extensions src libnautilus-extension"
 desktopdirs="data"
 
-# find source files that contain gettext keywords
-files=$(grep -lR --include='*.c' '\(gettext\|[^I_)]_\)(' $srcdirs)
+# Blueprint and C source files that contain gettext keywords
+files=$(grep -lR --include='*.blp' --include='*.c' '\(gettext\|[^I_)]_\)(' $srcdirs)
 
-# find ui files that contain translatable string
-files="$files "$(grep -lRi --include='*.ui' 'translatable="[ty1]' $uidirs)
+# Menu files
+files="$files "$(grep -lRi --include='*.ui' 'translatable="[ty1]' $menu_dirs)
 
 # find .desktop files
 files="$files "$(find $desktopdirs -name '*.desktop*')
@@ -27,7 +27,7 @@ fi
 
 cat >&2 <<EOT
 
-The following files are missing from po/POTFILES.po:
+The following files are missing from po/POTFILES.in:
 
 EOT
 for f in $missing; do

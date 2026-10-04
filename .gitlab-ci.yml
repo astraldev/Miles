@@ -1,39 +1,15 @@
 include:
-  - project: "GNOME/citemplates"
-    file: "flatpak/flatpak_ci_initiative.yml"
-  - project: "Infrastructure/freedesktop-ci-templates"
-    file: "templates/fedora.yml"
-  - component: gitlab.gnome.org/GNOME/citemplates/release-service@master
-    inputs:
-      job-stage: release
-      dist-job-name: "flatpak@x86_64"
-      tarball-artifact-path: "${TARBALL_ARTIFACT_PATH}"
+    - project: "GNOME/citemplates"
+      file: "flatpak/flatpak_ci_initiative.yml"
+    - project: "Infrastructure/freedesktop-ci-templates"
+      file: "templates/fedora.yml"
+    - component: gitlab.gnome.org/GNOME/citemplates/release-service@master
+      inputs:
+          job-stage: release
+          dist-job-name: "flatpak@x86_64"
+          tarball-artifact-path: "${TARBALL_ARTIFACT_PATH}"
 
 variables:
-    DEPENDENCIES:
-        git
-        gcc
-        gdb
-        meson
-        libasan
-        uncrustify
-        gcovr
-        xwayland-run
-        mutter
-        glibc-devel
-        glib2-devel
-        gtk4-devel
-        libadwaita-devel
-        libselinux-devel
-        gettext
-        libgexiv2-devel
-        localsearch
-        dbus-daemon
-        gnome-desktop4-devel
-        gnome-autoar-devel
-        libportal-devel
-        libportal-gtk4-devel
-        libcloudproviders-devel
     GIT_SUBMODULE_STRATEGY: normal
     MESON_BUILD_DIR: _build
     CI_REGISTRY_IMAGE: registry.gitlab.gnome.org/gnome/nautilus
@@ -62,49 +38,115 @@ stages:
         - when: always
 
 workflow:
-  rules:
-    # Run merge request pipelines, for main or release branches, for manually
-    # triggered pipelines (source "web"), and tags, but not for translation updates
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" ||
-           $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED ||
-           $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH ||
-           $CI_COMMIT_BRANCH =~ /^gnome-.*$/ ||
-           $CI_PIPELINE_SOURCE == "web") &&
-          $CI_COMMIT_TITLE !~ /^Update.*translation$/
+    rules:
+        # Run merge request pipelines, for main or release branches, for
+        # manually triggered pipelines (source "web"), and tags, but not for
+        # translation updates
+        - if: ($CI_PIPELINE_SOURCE == "merge_request_event" ||
+               $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED ||
+               $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH ||
+               $CI_COMMIT_BRANCH =~ /^gnome-.*$/ ||
+               $CI_PIPELINE_SOURCE == "web") &&
+              $CI_COMMIT_TITLE !~ /^Update.*translation$/
 
-.nautilus.fedora:
+.fedora:
     variables:
         FDO_DISTRIBUTION_VERSION: rawhide
-        FDO_DISTRIBUTION_TAG: '2025-06-30.1'
+        BASE_TAG: '2026-05-21.0'
         FDO_DISTRIBUTION_COMPRESSION_FORMAT: zstd:chunked
+        FDO_DISTRIBUTION_PACKAGES:
+            git
+            gcc
+            gdb
+            meson
+            uncrustify
+            gcovr
+            glibc-devel
+            glib2-devel
+            glycin-devel
+            glycin-gtk4-devel
+            gtk4-devel
+            libadwaita-devel
+            libselinux-devel
+            gettext
+            libgexiv2-devel
+            localsearch
+            blueprint-compiler
+            gnome-desktop4-devel
+            gnome-autoar-devel
+            libportal-devel
+            libportal-gtk4-devel
+            libcloudproviders-devel
+            xwayland-run
+            mutter
+            dbus-daemon
+            dbus-x11
+            glycin-thumbnailer
+            libasan
+            glibc-langpack-en
+
+.fedora-x86_64:
+    extends:
+        - .fedora
+    variables:
+        FDO_DISTRIBUTION_TAG: "x86_64-$BASE_TAG"
+        FDO_UPSTREAM_REPO: gnome/nautilus
     needs:
-      - job: "update image"
-        optional: true
+        - job: "update-fedora-image@x86_64"
+          optional: true
+
+.fedora-arm64:
+    extends:
+        - .fedora
+    tags:
+        - aarch64
+    variables:
+        FDO_DISTRIBUTION_TAG: "aarch64-$BASE_TAG"
+        FDO_UPSTREAM_REPO: gnome/nautilus
+    needs:
+        - job: "update-fedora-image@arm64"
+          optional: true
 
 
-flatpak@x86_64:
-    extends: ['.flatpak@x86_64', '.vars-devel']
-
-flatpak@aarch64:
-    when: manual
+update-fedora-image@x86_64:
+    extends:
+        - .fdo.container-build@fedora
+        - .fedora-x86_64
+    stage: image
+    needs: []
+    variables:
+        GIT_STRATEGY: none
+        FDO_DISTRIBUTION_EXEC: ".gitlab/image-script.sh"
+        CFLAGS: "-fno-omit-frame-pointer"
     rules:
-        - if: $CI_PROJECT_NAMESPACE == "GNOME" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-          when: always
-        - allow_failure: true
-    extends: ['.flatpak@aarch64', '.vars-devel']
+        - changes:
+            - .gitlab-ci.yml
+            - .gitlab/**/*
+        - if: $CI_PROJECT_NAMESPACE != "GNOME"
+          when: never
 
-nightly@x86_64:
-    extends: '.publish_nightly'
-    needs: ['flatpak@x86_64']
+update-fedora-image@arm64:
+    extends:
+        - .fdo.container-build@fedora
+        - .fedora-arm64
+    stage: image
+    needs: []
+    variables:
+        GIT_STRATEGY: none
+        FDO_DISTRIBUTION_EXEC: ".gitlab/image-script.sh"
+        CFLAGS: "-fno-omit-frame-pointer"
+    rules:
+        - changes:
+            - .gitlab-ci.yml
+            - .gitlab/**/*
+        - if: $CI_PROJECT_NAMESPACE != "GNOME"
+          when: never
 
-nightly@aarch64:
-    extends: '.publish_nightly'
-    needs: ['flatpak@aarch64']
 
 potfile:
     extends:
         - .fdo.distribution-image@fedora
-        - .nautilus.fedora
+        - .fedora-x86_64
     stage: review
     script:
         - build-aux/check-potfiles.sh
@@ -112,7 +154,7 @@ potfile:
 style check:
     extends:
         - .fdo.distribution-image@fedora
-        - .nautilus.fedora
+        - .fedora-x86_64
     stage: review
     artifacts:
         name: 'Style check artifacts'
@@ -127,48 +169,93 @@ style check:
     rules:
         - if: $CI_COMMIT_BRANCH !~ /^gnome-.*$/
 
-update image:
+gobject-linter:
+    stage: review
+    image:
+        name: "ghcr.io/bilelmoussaoui/gobject-linter:latest"
+        entrypoint: [""]
+    script:
+        - gobject-linter -c build-aux/gobject-linter.toml --format gitlab-codequality src/ > gobject-linter-codequality.json
+    artifacts:
+        expire_in: 14 days
+        reports:
+            codequality: gobject-linter-codequality.json
+
+
+fedora_rawhide@x86_64:
     extends:
-    - .fdo.container-build@fedora
-    - .nautilus.fedora
-    stage: image
-    needs: []
-    variables:
-        GIT_STRATEGY: none
-        FDO_DISTRIBUTION_PACKAGES: $DEPENDENCIES
-        FDO_DISTRIBUTION_EXEC: ".gitlab/image-script.sh"
-        CFLAGS: "-fno-omit-frame-pointer"
+        - .fdo.distribution-image@fedora
+        - .fedora-x86_64
+        - .vars-devel
+    stage: test
+    script:
+        - meson setup -Dextensions=false -Db_coverage=true -Dtests=all $MESON_BUILD_DIR
+        - meson compile -C $MESON_BUILD_DIR
+        # Run the tests inside an XWayland server inside a headless Wayland compositor.
+        # FIXME: Use wlheadless-run again, which broke during an image update
+        - xwfb-run -c mutter -- meson test --suite display --suite displayless --print-errorlogs -C $MESON_BUILD_DIR
+    artifacts:
+        paths:
+            - $MESON_BUILD_DIR
+        reports:
+            junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml
+
+fedora_rawhide@arm64:
+    extends:
+        - .fdo.distribution-image@fedora
+        - .fedora-arm64
+        - .vars-devel
+    stage: test
+    when: manual
     rules:
-        - changes:
-            - .gitlab-ci.yml
-            - .gitlab/**/*
-        - if: $CI_PROJECT_NAMESPACE != "GNOME"
-          when: never
+        - if: $CI_PROJECT_NAMESPACE == "GNOME" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+          when: always
+        - allow_failure: true
+    script:
+        - meson setup -Dextensions=false -Db_coverage=true -Dtests=all $MESON_BUILD_DIR
+        - meson compile -C $MESON_BUILD_DIR
+        # Run the tests inside an XWayland server inside a headless Wayland compositor.
+        # FIXME: Use wlheadless-run again, which broke during an image update
+        - xwfb-run -c mutter -- meson test --suite display --suite displayless --print-errorlogs -C $MESON_BUILD_DIR
+    artifacts:
+        paths:
+            - $MESON_BUILD_DIR
+        reports:
+            junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml
+
+flatpak@x86_64:
+    extends: ['.flatpak@x86_64', '.vars-devel']
+
+flatpak@aarch64:
+    when: manual
+    rules:
+        - if: $CI_PROJECT_NAMESPACE == "GNOME" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+          when: always
+        - allow_failure: true
+    extends: ['.flatpak@aarch64', '.vars-devel']
+
 
 asan:
     extends:
         - .fdo.distribution-image@fedora
-        - .nautilus.fedora
+        - .fedora-x86_64
     variables:
         CFLAGS: "-fno-omit-frame-pointer"
-        LSAN_OPTIONS: suppressions=$CI_PROJECT_DIR/build-aux/leak-suppress.txt
     stage: analyze
     rules:
         - when: manual
           allow_failure: true
     script:
-        # This line is needed for mutter to not err while starting XWayland,
-        # which we currently can't disable.
-        - mkdir -m 1777 /tmp/.X11-unix
         - meson setup -Db_sanitize=address -Dextensions=false -Dintrospection=false -Dtests=all $MESON_BUILD_DIR
         - meson compile -C $MESON_BUILD_DIR
-        # Run the tests inside a headless wayland compositor.
-        - wlheadless-run -c mutter -- meson test --suite display --suite displayless -C $MESON_BUILD_DIR
+        # Run the tests inside an XWayland server inside a headless Wayland compositor.
+        # FIXME: Use wlheadless-run again, which broke during an image update
+        - xwfb-run -c mutter -- meson test --suite display --suite displayless --print-errorlogs -C $MESON_BUILD_DIR
     artifacts:
         name: 'Address Sanitizer-built test results'
         when: on_failure
         paths:
-          - $MESON_BUILD_DIR/meson-logs/testlog.txt
+            - $MESON_BUILD_DIR/meson-logs/testlog.txt
         reports:
             junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml
         expire_in: 7 days
@@ -176,25 +263,20 @@ asan:
 coverage:
     extends:
         - .fdo.distribution-image@fedora
-        - .nautilus.fedora
+        - .fedora-x86_64
     stage: analyze
+    needs:
+        - job: fedora_rawhide@x86_64
+          artifacts: true
     rules:
         - allow_failure: true
     script:
-        # This line is needed for mutter to not err while starting XWayland,
-        # which we currently can't disable.
-        - mkdir -m 1777 /tmp/.X11-unix
-        - meson setup -Dextensions=false -Db_coverage=true -Dtests=all $MESON_BUILD_DIR
-        - meson compile -C $MESON_BUILD_DIR
-        # Run the tests inside a headless wayland compositor, and ignore errors
-        # from the return code.
-        - wlheadless-run -c mutter -- meson test --suite display --suite displayless -C $MESON_BUILD_DIR || true
         - ninja coverage -C $MESON_BUILD_DIR
     artifacts:
         expose_as: 'Coverage'
         paths:
-          - $MESON_BUILD_DIR/meson-logs/coveragereport/index.html
-          - $MESON_BUILD_DIR/meson-logs/coveragereport
+            - $MESON_BUILD_DIR/meson-logs/coveragereport/index.html
+            - $MESON_BUILD_DIR/meson-logs/coveragereport
         reports:
             coverage_report:
                 coverage_format: cobertura
@@ -202,10 +284,19 @@ coverage:
         expire_in: 2 weeks
     coverage: '/^\s*lines:\s+([\d.]+\%)\s*/'
 
+
+nightly@x86_64:
+    extends: '.publish_nightly'
+    needs: ['flatpak@x86_64']
+
+nightly@aarch64:
+    extends: '.publish_nightly'
+    needs: ['flatpak@aarch64']
+
 pages:
     extends:
         - .fdo.distribution-image@fedora
-        - .nautilus.fedora
+        - .fedora-x86_64
     stage: deploy
     rules:
         - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PROJECT_NAMESPACE == "GNOME"

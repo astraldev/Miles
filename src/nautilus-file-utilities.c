@@ -243,6 +243,69 @@ nautilus_is_root_for_scheme (GFile      *dir,
             !g_file_has_parent (dir, NULL));
 }
 
+typedef struct
+{
+    EmptyCheckCallback callback;
+    gpointer callback_data;
+} EmptyCheck;
+
+static void
+directory_file_info_callback (GObject      *source_object,
+                              GAsyncResult *res,
+                              gpointer      user_data)
+{
+    g_autofree EmptyCheck *data = user_data;
+    GFileEnumerator *enumerator = G_FILE_ENUMERATOR (source_object);
+    g_autoptr (GError) error = NULL;
+    g_autolist (GFile) files = g_file_enumerator_next_files_finish (enumerator,
+                                                                    res, &error);
+    /* Consider directory empty when no files can be listed */
+    gboolean is_empty = (error != NULL || files == NULL);
+
+    data->callback (data->callback_data, is_empty);
+}
+
+static void
+directory_empty_check_callback (GFile        *directory,
+                                GAsyncResult *res,
+                                gpointer      user_data)
+{
+    g_autoptr (GError) error = NULL;
+    g_autoptr (GFileEnumerator) enumerator = g_file_enumerate_children_finish (directory,
+                                                                               res, &error);
+
+    if (error != NULL)
+    {
+        g_autofree EmptyCheck *data = user_data;
+
+        /* Consider non-existing directories empty */
+        data->callback (data->callback_data, TRUE);
+    }
+    else
+    {
+        g_file_enumerator_next_files_async (enumerator,
+                                            1, /* one item is enough for empty test */
+                                            G_PRIORITY_DEFAULT,
+                                            NULL,
+                                            directory_file_info_callback,
+                                            user_data);
+    }
+}
+
+void
+nautilus_is_directory_empty (GFile              *directory,
+                             EmptyCheckCallback  callback,
+                             gpointer            callback_data)
+{
+    EmptyCheck *data = g_new0 (EmptyCheck, 1);
+    data->callback = callback;
+    data->callback_data = callback_data;
+
+    g_file_enumerate_children_async (directory, G_FILE_ATTRIBUTE_STANDARD_NAME, 0,
+                                     G_PRIORITY_DEFAULT, NULL,
+                                     (GAsyncReadyCallback) directory_empty_check_callback, data);
+}
+
 GMount *
 nautilus_get_mounted_mount_for_root (GFile *location)
 {
@@ -318,7 +381,7 @@ nautilus_find_existing_uri_in_hierarchy (GFile *location)
 
         info = g_file_query_info (location,
                                   G_FILE_ATTRIBUTE_STANDARD_NAME,
-                                  0, NULL, NULL);
+                                  G_FILE_QUERY_INFO_NONE, NULL, NULL);
         if (info != NULL)
         {
             return location;
@@ -357,6 +420,7 @@ special_directory_get_icon (GUserDirectory directory,
     ICON_CASE (DOWNLOAD);
     ICON_CASE (MUSIC);
     ICON_CASE (PICTURES);
+    ICON_CASE (PROJECTS);
     ICON_CASE (PUBLIC_SHARE);
     ICON_CASE (TEMPLATES);
     ICON_CASE (VIDEOS);
@@ -584,10 +648,9 @@ nautilus_restore_files_from_trash (GList     *files,
         g_autofree char *message = g_strdup_printf (_("Could not determine original location of “%s” "),
                                                     nautilus_file_get_display_name (file));
 
-        show_dialog (message,
-                     _("The item cannot be restored from trash"),
-                     parent_window,
-                     GTK_MESSAGE_WARNING);
+        nautilus_show_ok_dialog (message,
+                                 _("The item cannot be restored from trash"),
+                                 GTK_WIDGET (parent_window));
     }
 
     if (original_dirs_hash != NULL)
@@ -951,7 +1014,6 @@ nautilus_get_common_filename_prefix_from_filenames (const char * const *filename
 glong
 nautilus_get_max_child_name_length_for_location (GFile *location)
 {
-    g_autofree gchar *path = NULL;
     glong name_max;
     glong path_max;
     glong max_child_name_length;
@@ -964,7 +1026,7 @@ nautilus_get_max_child_name_length_for_location (GFile *location)
         return -1;
     }
 
-    path = g_file_get_path (location);
+    const gchar *path = g_file_peek_path (location);
 
     g_return_val_if_fail (path != NULL, -1);
 
@@ -1055,7 +1117,7 @@ check_schema_available (const gchar *schema_id)
 
     if (nautilus_application_is_sandboxed ())
     {
-        return TRUE;
+        return FALSE;
     }
 
     source = g_settings_schema_source_get_default ();
@@ -1141,3 +1203,188 @@ nautilus_location_is_autofs_mountpoint (GFile *location)
     return (buf.f_type == AUTOFS_SUPER_MAGIC);
 #endif
 }
+
+gboolean
+selection_source_is_intentional (NautilusSelectionSource selection_source)
+{
+    return selection_source == NAUTILUS_SELECTION_SOURCE_MANUAL ||
+           selection_source == NAUTILUS_SELECTION_SOURCE_AFTER_SEARCH;
+}
+
+/*** begin NautilusRecursiveDirectoryIterator ***/
+
+typedef struct
+{
+    GFile *directory;
+    GHashTable *visited;
+    char *attributes;
+    guint max_depth;
+    gboolean local_only;
+
+    GCancellable *cancellable;
+    IterationFileCallback file_callback;
+    gpointer user_data;
+} NautilusRecursiveDirectoryIterator;
+
+static NautilusRecursiveDirectoryIterator *
+nautilus_recursive_directory_iterator_new (GFile                 *directory,
+                                           guint                  max_depth,
+                                           gboolean               local_only,
+                                           const char            *attributes,
+                                           GCancellable          *cancellable,
+                                           IterationFileCallback  file_callback,
+                                           gpointer               user_data)
+{
+    NautilusRecursiveDirectoryIterator *self = g_new0 (NautilusRecursiveDirectoryIterator, 1);
+
+    self->directory = g_object_ref (directory);
+    self->visited = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    self->attributes = g_strdup (attributes != NULL
+                                 ? attributes : G_FILE_ATTRIBUTE_STANDARD_NAME);
+    self->max_depth = max_depth;
+    self->local_only = local_only;
+    self->cancellable = (cancellable != NULL) ? g_object_ref (cancellable) : NULL;
+    self->file_callback = file_callback;
+    self->user_data = user_data;
+
+    return self;
+}
+
+static void
+nautilus_recursive_directory_iterator_free (NautilusRecursiveDirectoryIterator *self)
+{
+    g_clear_object (&self->directory);
+    g_hash_table_unref (self->visited);
+    g_free (self->attributes);
+    g_clear_object (&self->cancellable);
+    g_free (self);
+}
+
+static gboolean
+is_remote (GFile *location)
+{
+    g_autoptr (GFileInfo) file_system_info =
+        g_file_query_filesystem_info (location, G_FILE_ATTRIBUTE_FILESYSTEM_REMOTE, NULL, NULL);
+
+    return file_system_info != NULL &&
+           g_file_info_get_attribute_boolean (file_system_info, G_FILE_ATTRIBUTE_FILESYSTEM_REMOTE);
+}
+
+static void
+recursive_directory_iterator_thread (GTask        *task,
+                                     GObject      *source_object,
+                                     gpointer      task_data,
+                                     GCancellable *cancellable)
+{
+    NautilusRecursiveDirectoryIterator *self = task_data;
+    g_autoqueue (GFile) pending_directories = g_queue_new ();
+
+    g_queue_push_tail (pending_directories, g_object_ref (self->directory));
+
+    for (guint depth = 0;
+         depth <= self->max_depth && g_queue_get_length (pending_directories) > 0;
+         depth++)
+    {
+        /* Breadth-first iteration, all stored directories are for next depth level */
+        g_autoqueue (GFile) directories_at_depth = g_steal_pointer (&pending_directories);
+
+        pending_directories = g_queue_new ();
+
+        while (!g_queue_is_empty (directories_at_depth))
+        {
+            g_autoptr (GFile) directory = g_queue_pop_head (directories_at_depth);
+            g_autoptr (GError) error = NULL;
+            g_autoptr (GFileEnumerator) enumerator =
+                g_file_enumerate_children (directory,
+                                           self->attributes,
+                                           G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                           self->cancellable,
+                                           &error);
+            GFileInfo *info = NULL;
+            GFile *location = NULL;
+
+            if (error != NULL)
+            {
+                g_warning ("Error enumerating directory '%s': %s",
+                           g_file_get_path (directory), error->message);
+                continue;
+            }
+
+            while (g_file_enumerator_iterate (enumerator, &info, &location, self->cancellable, &error) && info != NULL)
+            {
+                if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY &&
+                    (!self->local_only || !is_remote (location)))
+                {
+                    const char *id = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_ID_FILE);
+
+                    if (id != NULL)
+                    {
+                        if (g_hash_table_contains (self->visited, id))
+                        {
+                            /* Already visited, don't call callback a second time */
+                            continue;
+                        }
+                        else
+                        {
+                            g_hash_table_add (self->visited, g_strdup (id));
+                        }
+                    }
+
+                    g_queue_push_tail (pending_directories, g_object_ref (location));
+                }
+
+                self->file_callback (info, location, self->user_data);
+            }
+
+            if (g_cancellable_is_cancelled (self->cancellable))
+            {
+                g_task_return_boolean (task, FALSE);
+                return;
+            }
+
+            if (error != NULL)
+            {
+                g_warning ("Error iterating directory '%s': %s",
+                           g_file_get_path (directory), error->message);
+            }
+        }
+    }
+
+    g_task_return_boolean (task, TRUE);
+}
+
+/**
+ * Asynchronously iterates a directory recursively, calling @file_callback
+ * for each encountered file. Calls @done_callback when iterating finished.
+ */
+gboolean
+nautilus_iterate_directory_recursive (GFile                 *directory,
+                                      guint                  max_depth,
+                                      const char            *attributes,
+                                      gboolean               local_only,
+                                      GCancellable          *cancellable,
+                                      IterationFileCallback  file_callback,
+                                      GAsyncReadyCallback    done_callback,
+                                      gpointer               user_data)
+{
+    g_return_val_if_fail (G_IS_FILE (directory), FALSE);
+    g_return_val_if_fail (file_callback != NULL, FALSE);
+
+    g_autoptr (GError) error = NULL;
+    NautilusRecursiveDirectoryIterator *self =
+        nautilus_recursive_directory_iterator_new (directory,
+                                                   max_depth,
+                                                   local_only,
+                                                   attributes,
+                                                   cancellable,
+                                                   file_callback,
+                                                   user_data);
+    g_autoptr (GTask) task = g_task_new (NULL, cancellable, done_callback, user_data);
+
+    g_task_set_task_data (task, self, (GDestroyNotify) nautilus_recursive_directory_iterator_free);
+    g_task_run_in_thread (task, (GTaskThreadFunc) recursive_directory_iterator_thread);
+
+    return TRUE;
+}
+
+/*** end NautilusRecursiveDirectoryIterator ***/

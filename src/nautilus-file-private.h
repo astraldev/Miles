@@ -111,11 +111,9 @@ struct NautilusFilePrivate
 
 	/* Emblems provided by extensions */
 	GList *extension_emblems;
-	GList *pending_extension_emblems;
 
 	/* Attributes provided by extensions */
 	GHashTable *extension_attributes;
-	GHashTable *pending_extension_attributes;
 
 	GHashTable *metadata;
 
@@ -155,8 +153,6 @@ struct NautilusFilePrivate
         guint thumbnail_info_is_up_to_date  : 1;
 	guint thumbnail_is_up_to_date       : 1;
 	guint thumbnailing_failed           : 1;
-	
-	guint is_thumbnailing               : 1;
 
 	guint is_symlink                    : 1;
 	guint is_mountpoint                 : 1;
@@ -213,9 +209,6 @@ typedef struct {
 
 NautilusFile *nautilus_file_new_from_info                  (NautilusDirectory      *directory,
 							    GFileInfo              *info);
-NautilusFile *nautilus_file_new_from_filename              (NautilusDirectory *directory,
-                                                            const char        *filename,
-                                                            gboolean           self_owned);
 void          nautilus_file_emit_changed                   (NautilusFile           *file);
 void          nautilus_file_mark_unmounted                 (NautilusFile           *file);
 void          nautilus_file_mark_gone                      (NautilusFile           *file);
@@ -255,18 +248,14 @@ void          nautilus_file_set_mount                      (NautilusFile        
  * I/O or kicking off new I/O.
  */
 void                   nautilus_file_invalidate_attributes_internal     (NautilusFile           *file,
-									 NautilusFileAttributes  file_attributes);
-NautilusFileAttributes nautilus_file_get_all_attributes                 (void);
+									 NautilusAttributes      attributes);
+NautilusAttributes     nautilus_file_get_all_attributes                 (void);
 gboolean               nautilus_file_is_self_owned                      (NautilusFile           *file);
 void                   nautilus_file_invalidate_count                   (NautilusFile           *file);
 gboolean               nautilus_file_rename_in_progress                 (NautilusFile           *file);
 void                   nautilus_file_invalidate_extension_info_internal (NautilusFile           *file);
-void                   nautilus_file_info_providers_done                (NautilusFile           *file);
-
 
 /* Thumbnailing: */
-void          nautilus_file_set_is_thumbnailing            (NautilusFile           *file,
-							    gboolean                is_thumbnailing);
 gboolean          nautilus_file_set_thumbnail              (NautilusFile           *file,
                                                             GdkPixbuf              *pixbuf);
 

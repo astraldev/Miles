@@ -39,9 +39,6 @@ char      * nautilus_capitalize_str                 (const char    *string);
 
 void        nautilus_gmenu_set_from_model           (GMenu             *target_menu,
                                                      GMenuModel        *source_model);
-gint        nautilus_g_menu_model_find_by_string    (GMenuModel        *model,
-                                                     const gchar       *attribute,
-                                                     const gchar       *string);
 
 void        nautilus_g_menu_model_set_for_mode      (GMenuModel        *model,
                                                      NautilusMode       mode);
@@ -49,10 +46,10 @@ void        nautilus_g_menu_model_set_for_mode      (GMenuModel        *model,
 void        nautilus_g_menu_model_set_for_view      (GMenuModel        *model,
                                                      const char        *view_name);
 
-void        nautilus_g_menu_replace_string_in_item  (GMenu             *menu,
-                                                     gint               i,
+void        nautilus_menu_item_change_attribute     (GMenuModel        *menu_model,
+                                                     const gchar       *item_name,
                                                      const gchar       *attribute,
-                                                     const gchar       *string);
+                                                     const gchar       *new_value);
 
 void        nautilus_ui_frame_video                 (GtkSnapshot       *snapshot,
                                                      gdouble            width,
@@ -60,20 +57,39 @@ void        nautilus_ui_frame_video                 (GtkSnapshot       *snapshot
 void        nautilus_ui_draw_icon_dashed_border     (GtkSnapshot     *snapshot,
                                                      graphene_rect_t *rect,
                                                      GdkRGBA          color);
-void        nautilus_ui_draw_symbolic_icon          (GtkSnapshot           *snapshot,
-                                                     const gchar           *icon_name,
+void        nautilus_ui_draw_svg                    (GtkSnapshot           *snapshot,
+                                                     GtkSvg                *svg,
                                                      const graphene_rect_t *rect,
-                                                     GdkRGBA                color,
-                                                     int                    scale);
+                                                     GdkRGBA                color);
+GdkPaintable *
+nautilus_ui_draw_stacked_icons (GQueue    *icons,
+                                uint       size,
+                                GtkWidget *widget,
+                                guint      n_items);
 
 gboolean    nautilus_date_time_is_between_dates     (GDateTime         *date,
                                                      GDateTime         *initial_date,
                                                      GDateTime         *end_date);
 
-AdwMessageDialog * show_dialog                      (const gchar       *primary_text,
-                                                     const gchar       *secondary_text,
-                                                     GtkWindow         *parent,
-                                                     GtkMessageType     type);
+void
+nautilus_show_ok_dialog (const char *heading,
+                         const char *body,
+                         GtkWidget  *parent);
+
+typedef void (* TimedWaitCancelCallback) (gpointer callback_data);
+
+/* Dialog for cancelling something that normally is fast enough not to need a dialog. */
+void        nautilus_ui_timed_wait_start            (TimedWaitCancelCallback  cancel_callback,
+                                                     gpointer                 callback_data,
+                                                     const char              *wait_message,
+                                                     GtkWindow               *parent_window);
+void        nautilus_ui_timed_wait_start_full       (int                      duration,
+                                                     TimedWaitCancelCallback  cancel_callback,
+                                                     gpointer                 callback_data,
+                                                     const char              *wait_message,
+                                                     GtkWindow               *parent_window);
+void        nautilus_ui_timed_wait_stop             (TimedWaitCancelCallback  cancel_callback,
+                                                     gpointer                 callback_data);
 
 void        show_unmount_progress_cb                (GMountOperation   *op,
                                                      const gchar       *message,

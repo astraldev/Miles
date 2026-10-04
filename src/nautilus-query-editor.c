@@ -36,7 +36,6 @@
 #include "nautilus-scheme.h"
 #include "nautilus-search-directory.h"
 #include "nautilus-search-popover.h"
-#include "nautilus-mime-actions.h"
 #include "nautilus-localsearch-utilities.h"
 #include "nautilus-ui-utilities.h"
 
@@ -80,11 +79,13 @@ enum
     LAST_PROP
 };
 
+static GParamSpec *properties[LAST_PROP];
+
 static guint signals[LAST_SIGNAL];
 
 static void nautilus_query_editor_changed (NautilusQueryEditor *editor);
 
-G_DEFINE_TYPE (NautilusQueryEditor, nautilus_query_editor, GTK_TYPE_WIDGET);
+G_DEFINE_FINAL_TYPE (NautilusQueryEditor, nautilus_query_editor, GTK_TYPE_WIDGET);
 
 static void
 update_filter_button (NautilusQueryEditor *self)
@@ -106,20 +107,102 @@ update_fts_sensitivity (NautilusQueryEditor *editor)
                                                nautilus_query_can_search_content (editor->query));
 }
 
-static void
-find_enclosing_mount_cb (GObject      *source_object,
-                         GAsyncResult *res,
-                         gpointer      user_data)
+typedef struct
 {
-    NautilusQueryEditor *editor;
-    g_autoptr (GMount) mount = NULL;
+    gboolean is_remote_ready;
+    gboolean is_remote;
+    gboolean is_external_ready;
+    gboolean is_external;
+    NautilusQueryEditor *self;
+} SearchInfoData;
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (SearchInfoData, g_rc_box_release)
+
+static void
+real_update_search_information (SearchInfoData *search_info_data)
+{
+    g_autoptr (SearchInfoData) search_info = search_info_data;
+
+    if (!search_info_data->is_external_ready ||
+        !search_info_data->is_remote_ready)
+    {
+        return;
+    }
+
+    NautilusQueryEditor *editor = search_info->self;
+    gboolean is_remote = search_info->is_remote;
+    gboolean is_external = search_info->is_external;
+
+    /* Subfolders are disabled */
+    if (!nautilus_query_recursive (editor->query))
+    {
+        adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
+                                         _("Search may be slow and will not include "
+                                           "subfolders or file contents")
+                                         );
+    }
+    else
+    {
+        adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
+                                         _("Search may be slow and will not include "
+                                           "file contents")
+                                         );
+    }
+
+    if (is_remote)
+    {
+        adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
+                                   _("Remote Location"));
+        gtk_widget_set_visible (editor->search_info_button, TRUE);
+    }
+    else if (is_external)
+    {
+        adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
+                                   _("External Drive"));
+        gtk_widget_set_visible (editor->search_info_button, TRUE);
+    }
+    else if (!nautilus_localsearch_directory_is_tracked (editor->location))
+    {
+        adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
+                                   _("Folder Not in Search Locations"));
+        gtk_widget_set_visible (editor->search_info_button, TRUE);
+        gtk_widget_set_visible (editor->search_settings_button, TRUE);
+    }
+    else if (nautilus_localsearch_directory_is_single (editor->location))
+    {
+        adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
+                                   _("Limited Search in this Folder"));
+        gtk_widget_set_visible (editor->search_info_button, TRUE);
+        gtk_widget_set_visible (editor->search_settings_button, TRUE);
+
+
+        /* Subfolders are disabled */
+        if (!nautilus_query_recursive (editor->query))
+        {
+            adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
+                                             _("Some subfolders will not be included "
+                                               "in search results")
+                                             );
+        }
+        else
+        {
+            adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
+                                             _("Search will be slower and will not include "
+                                               "file contents for some folders")
+                                             );
+        }
+    }
+}
+
+static void
+query_filesystem_info_cb (GObject      *source_object,
+                          GAsyncResult *res,
+                          gpointer      user_data)
+{
+    g_autoptr (SearchInfoData) search_info_data = user_data;
     g_autoptr (GError) error = NULL;
-    g_autoptr (GVolume) volume = NULL;
-
-    editor = user_data;
-
-    mount = g_file_find_enclosing_mount_finish (G_FILE (source_object),
-                                                res, &error);
+    g_autoptr (GFileInfo) info = g_file_query_filesystem_info_finish (G_FILE (source_object),
+                                                                      res, &error);
 
     if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
     {
@@ -127,77 +210,43 @@ find_enclosing_mount_cb (GObject      *source_object,
         return;
     }
 
-    g_autofree gchar *uri_scheme = g_file_get_uri_scheme (editor->location);
+    if (info != NULL &&
+        g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_FILESYSTEM_REMOTE))
+    {
+        search_info_data->is_remote =
+            g_file_info_get_attribute_boolean (info, G_FILE_ATTRIBUTE_FILESYSTEM_REMOTE);
+    }
+
+    search_info_data->is_remote_ready = TRUE;
+    real_update_search_information (g_steal_pointer (&search_info_data));
+}
+
+static void
+find_enclosing_mount_cb (GObject      *source_object,
+                         GAsyncResult *res,
+                         gpointer      user_data)
+{
+    g_autoptr (SearchInfoData) search_info_data = user_data;
+    g_autoptr (GMount) mount = NULL;
+    g_autoptr (GError) error = NULL;
+
+    mount = g_file_find_enclosing_mount_finish (G_FILE (source_object), res, &error);
+
+    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    {
+        /* The operation was cancelled and the editor was already freed, bailout. */
+        return;
+    }
 
     if (mount != NULL)
     {
-        volume = g_mount_get_volume (mount);
+        g_autoptr (GVolume) volume = g_mount_get_volume (mount);
+
+        search_info_data->is_external = volume != NULL && is_external_volume (volume);
     }
 
-    if (!nautilus_scheme_is_internal (uri_scheme))
-    {
-        g_autoptr (NautilusFile) file = nautilus_file_get (editor->location);
-
-        /* Subfolders are disabled */
-        if (!nautilus_query_recursive (editor->query))
-        {
-            adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
-                                             _("Search may be slow and will not include "
-                                               "subfolders or file contents")
-                                             );
-        }
-        else
-        {
-            adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
-                                             _("Search may be slow and will not include "
-                                               "file contents")
-                                             );
-        }
-
-        if (nautilus_file_is_remote (file))
-        {
-            adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
-                                       _("Remote Location"));
-            gtk_widget_set_visible (editor->search_info_button, TRUE);
-        }
-        else if (volume != NULL && is_external_volume (volume))
-        {
-            adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
-                                       _("External Drive"));
-            gtk_widget_set_visible (editor->search_info_button, TRUE);
-        }
-        else if (!nautilus_localsearch_directory_is_tracked (editor->location))
-        {
-            adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
-                                       _("Folder Not in Search Locations"));
-            gtk_widget_set_visible (editor->search_info_button, TRUE);
-            gtk_widget_set_visible (editor->search_settings_button, TRUE);
-        }
-        else if (nautilus_localsearch_directory_is_single (editor->location))
-        {
-            adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
-                                       _("Subfolders Not in Search Locations"));
-            gtk_widget_set_visible (editor->search_info_button, TRUE);
-            gtk_widget_set_visible (editor->search_settings_button, TRUE);
-
-
-            /* Subfolders are disabled */
-            if (!nautilus_query_recursive (editor->query))
-            {
-                adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
-                                                 _("Some subfolders will not be included "
-                                                   "in search results")
-                                                 );
-            }
-            else
-            {
-                adw_status_page_set_description (ADW_STATUS_PAGE (editor->status_page),
-                                                 _("Search will be slower and will not include "
-                                                   "file contents for some folders")
-                                                 );
-            }
-        }
-    }
+    search_info_data->is_external_ready = TRUE;
+    real_update_search_information (g_steal_pointer (&search_info_data));
 }
 
 static void
@@ -206,14 +255,33 @@ update_search_information (NautilusQueryEditor *editor)
     gtk_widget_set_visible (editor->search_settings_button, FALSE);
     gtk_widget_set_visible (editor->search_info_button, FALSE);
 
-    if (editor->location != NULL)
+    if (editor->location == NULL)
     {
-        g_file_find_enclosing_mount_async (editor->location,
-                                           G_PRIORITY_DEFAULT,
-                                           editor->cancellable,
-                                           find_enclosing_mount_cb,
-                                           editor);
+        return;
     }
+
+    g_autofree gchar *uri_scheme = g_file_get_uri_scheme (editor->location);
+
+    if (nautilus_scheme_is_internal (uri_scheme))
+    {
+        return;
+    }
+
+    g_autoptr (SearchInfoData) search_info = g_rc_box_new0 (SearchInfoData);
+
+    search_info->self = editor;
+
+    g_file_query_filesystem_info_async (editor->location,
+                                        G_FILE_ATTRIBUTE_FILESYSTEM_REMOTE,
+                                        G_PRIORITY_DEFAULT,
+                                        editor->cancellable,
+                                        query_filesystem_info_cb,
+                                        g_rc_box_acquire (search_info));
+    g_file_find_enclosing_mount_async (editor->location,
+                                       G_PRIORITY_DEFAULT,
+                                       editor->cancellable,
+                                       find_enclosing_mount_cb,
+                                       g_steal_pointer (&search_info));
 }
 
 static void
@@ -407,7 +475,7 @@ nautilus_query_editor_class_init (NautilusQueryEditorClass *class)
     gtk_widget_class_add_shortcut (widget_class, shortcut);
 
     gtk_widget_class_add_binding_signal (widget_class,
-                                         GDK_KEY_Escape, 0, "cancel",
+                                         GDK_KEY_Escape, GDK_NO_MODIFIER_MASK, "cancel",
                                          NULL);
 
     /**
@@ -416,11 +484,9 @@ nautilus_query_editor_class_init (NautilusQueryEditorClass *class)
      * Binding target for the slot's location. To be applied to the existing
      * query, or when creating a new one.
      */
-    g_object_class_install_property (gobject_class,
-                                     PROP_LOCATION,
-                                     g_param_spec_object ("location", NULL, NULL,
-                                                          G_TYPE_FILE,
-                                                          G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
+    properties[PROP_LOCATION] = g_param_spec_object ("location", NULL, NULL,
+                                                     G_TYPE_FILE,
+                                                     G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS);
 
     /**
      * NautilusQueryEditor::query:
@@ -428,13 +494,13 @@ nautilus_query_editor_class_init (NautilusQueryEditorClass *class)
      * The current query of the query editor. It it always synchronized
      * with the filter popover's query.
      */
-    g_object_class_install_property (gobject_class,
-                                     PROP_QUERY,
-                                     g_param_spec_object ("query",
-                                                          "Query of the search",
-                                                          "The query that the editor is handling",
-                                                          NAUTILUS_TYPE_QUERY,
-                                                          G_PARAM_READWRITE));
+    properties[PROP_QUERY] = g_param_spec_object ("query",
+                                                  "Query of the search",
+                                                  "The query that the editor is handling",
+                                                  NAUTILUS_TYPE_QUERY,
+                                                  G_PARAM_READWRITE);
+
+    g_object_class_install_properties (gobject_class, G_N_ELEMENTS (properties), properties);
 
     gtk_widget_class_set_layout_manager_type (widget_class, GTK_TYPE_BOX_LAYOUT);
     gtk_widget_class_set_css_name (widget_class, "entry");
@@ -517,30 +583,13 @@ search_popover_date_range_changed_cb (NautilusQueryEditor *editor,
 
 static void
 search_popover_mime_type_changed_cb (NautilusQueryEditor *editor,
-                                     gint                 mimetype_group,
-                                     const gchar         *mimetype)
+                                     GPtrArray           *mimetypes)
 {
-    g_autoptr (GPtrArray) mimetypes = NULL;
-
     if (editor->query == NULL)
     {
         create_query (editor);
     }
 
-    /* group 0 is anything */
-    if (mimetype_group == 0)
-    {
-        mimetypes = nautilus_mime_types_group_get_mimetypes (mimetype_group);
-    }
-    else if (mimetype_group > 0)
-    {
-        mimetypes = nautilus_mime_types_group_get_mimetypes (mimetype_group);
-    }
-    else
-    {
-        mimetypes = g_ptr_array_new_full (1, g_free);
-        g_ptr_array_add (mimetypes, g_strdup (mimetype));
-    }
     nautilus_query_set_mime_types (editor->query, mimetypes);
 
     update_filter_button (editor);
@@ -604,7 +653,7 @@ nautilus_query_editor_init (NautilusQueryEditor *editor)
     gboolean rtl = (gtk_widget_get_direction (GTK_WIDGET (editor)) == GTK_TEXT_DIR_RTL);
     GtkEventController *controller;
 
-    gtk_widget_set_name (GTK_WIDGET (editor), "NautilusQueryEditor");
+    gtk_widget_add_css_class (GTK_WIDGET (editor), "nautilus-query-editor");
     gtk_widget_add_css_class (GTK_WIDGET (editor), "search");
 
     g_signal_connect (nautilus_preferences,
@@ -753,7 +802,7 @@ nautilus_query_editor_set_location (NautilusQueryEditor *editor,
 
     if (should_notify)
     {
-        g_object_notify (G_OBJECT (editor), "location");
+        g_object_notify_by_pspec (G_OBJECT (editor), properties[PROP_LOCATION]);
     }
 }
 
@@ -801,7 +850,7 @@ nautilus_query_editor_set_query (NautilusQueryEditor *self,
         }
         update_fts_sensitivity (self);
 
-        g_object_notify (G_OBJECT (self), "query");
+        g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_QUERY]);
     }
 
     self->change_frozen = FALSE;

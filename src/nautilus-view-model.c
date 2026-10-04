@@ -60,21 +60,6 @@ get_directory_store (NautilusViewModel *self,
     return store;
 }
 
-static inline GtkTreeListRow *
-get_child_row (NautilusViewModel *self,
-               GtkTreeListRow    *parent,
-               guint              position)
-{
-    if (parent != NULL)
-    {
-        return gtk_tree_list_row_get_child_row (parent, position);
-    }
-    else
-    {
-        return gtk_tree_list_model_get_child_row (self->tree_model, position);
-    }
-}
-
 static GType
 nautilus_view_model_get_item_type (GListModel *list)
 {
@@ -202,13 +187,13 @@ nautilus_view_model_selection_model_init (GtkSelectionModelInterface *iface)
     iface->unselect_all = nautilus_view_model_unselect_all;
 }
 
-G_DEFINE_TYPE_WITH_CODE (NautilusViewModel, nautilus_view_model, G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL,
-                                                nautilus_view_model_list_model_init)
-                         G_IMPLEMENT_INTERFACE (GTK_TYPE_SECTION_MODEL,
-                                                nautilus_view_model_section_model_init)
-                         G_IMPLEMENT_INTERFACE (GTK_TYPE_SELECTION_MODEL,
-                                                nautilus_view_model_selection_model_init))
+G_DEFINE_FINAL_TYPE_WITH_CODE (NautilusViewModel, nautilus_view_model, G_TYPE_OBJECT,
+                               G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL,
+                                                      nautilus_view_model_list_model_init)
+                               G_IMPLEMENT_INTERFACE (GTK_TYPE_SECTION_MODEL,
+                                                      nautilus_view_model_section_model_init)
+                               G_IMPLEMENT_INTERFACE (GTK_TYPE_SELECTION_MODEL,
+                                                      nautilus_view_model_selection_model_init))
 
 enum
 {
@@ -621,20 +606,6 @@ nautilus_view_model_remove_all_items (NautilusViewModel *self)
     g_list_store_remove_all (G_LIST_STORE (gtk_filter_list_model_get_model (self->root_filter_model)));
     g_hash_table_remove_all (self->map_files_to_model);
     g_hash_table_remove_all (self->directory_reverse_map);
-}
-
-void
-nautilus_view_model_add_item (NautilusViewModel *self,
-                              NautilusViewItem  *item)
-{
-    NautilusFile *file;
-    g_autoptr (NautilusFile) parent = NULL;
-
-    file = nautilus_view_item_get_file (item);
-    parent = nautilus_file_get_parent (file);
-
-    g_list_store_append (get_directory_store (self, parent), item);
-    g_hash_table_insert (self->map_files_to_model, file, item);
 }
 
 static void

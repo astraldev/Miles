@@ -24,7 +24,7 @@
 #include "nautilus-application.h"
 #include "nautilus-file.h"
 #include "nautilus-freedesktop-generated.h"
-#include "nautilus-properties-window.h"
+#include "nautilus-properties.h"
 
 #include <gio/gio.h>
 
@@ -39,7 +39,7 @@ struct _NautilusFreedesktopDBus
     NautilusFreedesktopFileManager1 *skeleton;
 };
 
-G_DEFINE_TYPE (NautilusFreedesktopDBus, nautilus_freedesktop_dbus, G_TYPE_OBJECT);
+G_DEFINE_FINAL_TYPE (NautilusFreedesktopDBus, nautilus_freedesktop_dbus, G_TYPE_OBJECT);
 
 static gboolean
 skeleton_handle_show_items_cb (NautilusFreedesktopFileManager1 *object,
@@ -100,12 +100,6 @@ skeleton_handle_show_folders_cb (NautilusFreedesktopFileManager1 *object,
     return TRUE;
 }
 
-static void
-properties_window_on_finished (gpointer user_data)
-{
-    g_application_release (g_application_get_default ());
-}
-
 static gboolean
 skeleton_handle_show_item_properties_cb (NautilusFreedesktopFileManager1 *object,
                                          GDBusMethodInvocation           *invocation,
@@ -113,23 +107,13 @@ skeleton_handle_show_item_properties_cb (NautilusFreedesktopFileManager1 *object
                                          const gchar                     *startup_id,
                                          gpointer                         data)
 {
-    GList *files;
-    int i;
+    GApplication *application = g_application_get_default ();
+    g_autolist (NautilusFile) files = nautilus_file_list_from_uris ((GStrv) uris);
+    GtkWindow *window = nautilus_properties_present_window (files, startup_id);
 
-    files = NULL;
-
-    for (i = 0; uris[i] != NULL; i++)
-    {
-        files = g_list_prepend (files, nautilus_file_get_by_uri (uris[i]));
-    }
-
-    files = g_list_reverse (files);
-
-    g_application_hold (g_application_get_default ());
-    nautilus_properties_window_present (files, NULL, startup_id,
-                                        properties_window_on_finished, NULL);
-
-    nautilus_file_list_free (files);
+    g_application_hold (application);
+    g_signal_connect_swapped (window, "destroyed",
+                              G_CALLBACK (g_application_release), application);
 
     nautilus_freedesktop_file_manager1_complete_show_item_properties (object, invocation);
     return TRUE;

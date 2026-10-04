@@ -41,23 +41,8 @@ typedef gboolean (* NautilusWindowGoToCallback) (NautilusWindow *window,
                                                  GError *error,
                                                  gpointer user_data);
 
-/* window geometry */
-/* Min values are very small, and a Nautilus window at this tiny size is *almost*
- * completely unusable. However, if all the extra bits (sidebar, location bar, etc)
- * are turned off, you can see an icon or two at this size. See bug 5946.
- */
-
-#define NAUTILUS_WINDOW_MIN_WIDTH		200
-#define NAUTILUS_WINDOW_MIN_HEIGHT		200
-#define NAUTILUS_WINDOW_DEFAULT_WIDTH		890
-#define NAUTILUS_WINDOW_DEFAULT_HEIGHT		550
-
-typedef enum
-{
-    NAUTILUS_NAVIGATION_DIRECTION_NONE,
-    NAUTILUS_NAVIGATION_DIRECTION_BACK,
-    NAUTILUS_NAVIGATION_DIRECTION_FORWARD
-} NautilusNavigationDirection;
+#define NAUTILUS_NAVIGATION_DIRECTION_BACK -1
+#define NAUTILUS_NAVIGATION_DIRECTION_FORWARD 1
 
 NautilusWindow * nautilus_window_new                  (void);
 void             nautilus_window_close                (NautilusWindow    *window);
@@ -65,16 +50,17 @@ void             nautilus_window_close                (NautilusWindow    *window
 void nautilus_window_open_location_full               (NautilusWindow     *window,
                                                        GFile              *location,
                                                        NautilusOpenFlags   flags,
-                                                       NautilusFileList   *selection,
-                                                       NautilusWindowSlot *target_slot);
+                                                       NautilusFileList   *selection);
 
 void             nautilus_window_new_tab              (NautilusWindow    *window);
-NautilusWindowSlot * nautilus_window_get_active_slot       (NautilusWindow *window);
-void                 nautilus_window_set_active_slot       (NautilusWindow    *window,
-                                                            NautilusWindowSlot *slot);
-GList *              nautilus_window_get_slots             (NautilusWindow *window);
-void                 nautilus_window_slot_close            (NautilusWindow *window,
-                                                            NautilusWindowSlot *slot);
+
+gboolean
+nautilus_window_has_open_location (NautilusWindow *self,
+                                   GFile          *location);
+GFile *
+nautilus_window_get_active_location (NautilusWindow *self);
+GList *
+nautilus_window_get_locations (NautilusWindow *self);
 
 void     nautilus_window_show_about_dialog    (NautilusWindow *window);
 
@@ -86,7 +72,7 @@ void nautilus_window_show_operation_notification (NautilusWindow *window,
 void nautilus_window_search (NautilusWindow *window,
                              NautilusQuery  *query);
 
-void nautilus_window_back_or_forward_in_new_tab (NautilusWindow              *window,
-                                                 NautilusNavigationDirection  back);
+void nautilus_window_back_or_forward_in_new_tab (NautilusWindow *window,
+                                                 int             distance);
 
 G_END_DECLS

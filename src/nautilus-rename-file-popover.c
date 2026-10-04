@@ -35,9 +35,9 @@ struct _NautilusRenameFilePopover
     gulong file_changed_handler_id;
 };
 
-G_DEFINE_TYPE (NautilusRenameFilePopover,
-               nautilus_rename_file_popover,
-               GTK_TYPE_POPOVER);
+G_DEFINE_FINAL_TYPE (NautilusRenameFilePopover,
+                     nautilus_rename_file_popover,
+                     GTK_TYPE_POPOVER);
 
 static void
 disconnect_signal_handlers (NautilusRenameFilePopover *self)
@@ -225,7 +225,15 @@ nautilus_rename_file_popover_show_for_file (NautilusRenameFilePopover *self,
 
     edit_name = nautilus_file_get_edit_name (self->target_file);
 
+    g_signal_handlers_block_by_func (self->name_entry,
+                                     nautilus_filename_validator_validate,
+                                     self->validator);
+
     gtk_editable_set_text (GTK_EDITABLE (self->name_entry), edit_name);
+
+    g_signal_handlers_unblock_by_func (self->name_entry,
+                                       nautilus_filename_validator_validate,
+                                       self->validator);
 
     gtk_popover_set_pointing_to (GTK_POPOVER (self), pointing_to);
     gtk_popover_popup (GTK_POPOVER (self));

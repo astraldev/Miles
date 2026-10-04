@@ -10,11 +10,11 @@ fi
 
 if [ ! -x "$BUILD_AUX/lineup-parameters" ];
 then
-    echo "Script lineup-parameters does not exists."
+    echo "Script lineup-parameters does not exist."
     exit 1
 fi
 
-for DIR in "$BUILD_AUX/../"{src,test,libnautilus-extension,eel,extensions}
+for DIR in "$BUILD_AUX/../"{src,test,libnautilus-extension,extensions}
 do
     for FILE in $(find "$DIR" -name "*.c")
     do

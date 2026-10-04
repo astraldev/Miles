@@ -108,8 +108,7 @@ typedef struct
 	gboolean (* contains_file)       (NautilusDirectory         *directory,
 					  NautilusFile              *file);
 	void     (* call_when_ready)     (NautilusDirectory         *directory,
-					  NautilusFileAttributes     file_attributes,
-					  gboolean                   wait_for_file_list,
+					  NautilusAttributes         attributes,
 					  NautilusDirectoryCallback  callback,
 					  gpointer                   callback_data);
 	void     (* cancel_callback)     (NautilusDirectory         *directory,
@@ -118,7 +117,7 @@ typedef struct
 	void     (* file_monitor_add)    (NautilusDirectory          *directory,
 					  gconstpointer              client,
 					  gboolean                   monitor_hidden_files,
-					  NautilusFileAttributes     monitor_attributes,
+					  NautilusAttributes         monitor_attributes,
 					  NautilusDirectoryCallback  initial_files_callback,
 					  gpointer                   callback_data);
 	void     (* file_monitor_remove) (NautilusDirectory         *directory,
@@ -143,9 +142,7 @@ typedef struct
 
         /* Subclasses can use this to create custom files when asked by the user
          * or the nautilus cache. */
-        NautilusFile * (* new_file_from_filename) (NautilusDirectory *directory,
-                                                   const char        *filename,
-                                                   gboolean           self_owned);
+        NautilusFile * (* new_as_file) (NautilusDirectory *directory);
         /* Subclasses can say if they handle the location provided or should the
          * nautilus file class handle it.
          */
@@ -190,8 +187,7 @@ NautilusFile *     nautilus_directory_get_corresponding_file   (NautilusDirector
  * The file attribute and metadata keys are for files in the directory.
  */
 void               nautilus_directory_call_when_ready          (NautilusDirectory         *directory,
-								NautilusFileAttributes     file_attributes,
-								gboolean                   wait_for_all_files,
+								NautilusAttributes         attributes,
 								NautilusDirectoryCallback  callback,
 								gpointer                   callback_data);
 void               nautilus_directory_cancel_callback          (NautilusDirectory         *directory,
@@ -203,7 +199,7 @@ void               nautilus_directory_cancel_callback          (NautilusDirector
 void               nautilus_directory_file_monitor_add         (NautilusDirectory         *directory,
 								gconstpointer              client,
 								gboolean                   monitor_hidden_files,
-								NautilusFileAttributes     attributes,
+								NautilusAttributes         attributes,
 								NautilusDirectoryCallback  initial_files_callback,
 								gpointer                   callback_data);
 void               nautilus_directory_file_monitor_remove      (NautilusDirectory         *directory,
@@ -247,6 +243,4 @@ gboolean           nautilus_directory_is_editable              (NautilusDirector
 
 void               nautilus_directory_dump                     (NautilusDirectory         *directory);
 
-NautilusFile *     nautilus_directory_new_file_from_filename   (NautilusDirectory *directory,
-                                                                const char        *filename,
-                                                                gboolean           self_owned);
+NautilusFile *     nautilus_directory_new_as_file              (NautilusDirectory *directory);

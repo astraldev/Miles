@@ -31,7 +31,7 @@
 
 #include <string.h>
 #include <gio/gio.h>
-#include <libtracker-sparql/tracker-sparql.h>
+#include <tinysparql.h>
 
 typedef enum
 {
@@ -44,119 +44,47 @@ typedef enum
     SEARCH_FEATURE_MTIME = 1 << 5,
     SEARCH_FEATURE_CTIME = 1 << 6,
     SEARCH_FEATURE_LOCATION = 1 << 7,
-} SearchFeatures;
+} G_GNUC_FLAG_ENUM SearchFeatures;
 
 struct _NautilusSearchEngineLocalsearch
 {
-    GObject parent_instance;
+    NautilusSearchProvider parent_instance;
 
     TrackerSparqlConnection *connection;
-    NautilusQuery *query;
     GHashTable *statements;
 
-    gboolean query_pending;
-    GQueue *hits_pending;
-
+    GTimeZone *tz;
     gboolean fts_enabled;
-
-    GCancellable *cancellable;
 };
 
-static void nautilus_search_provider_init (NautilusSearchProviderInterface *iface);
-
-G_DEFINE_TYPE_WITH_CODE (NautilusSearchEngineLocalsearch,
-                         nautilus_search_engine_localsearch,
-                         G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (NAUTILUS_TYPE_SEARCH_PROVIDER,
-                                                nautilus_search_provider_init))
+G_DEFINE_FINAL_TYPE (NautilusSearchEngineLocalsearch,
+                     nautilus_search_engine_localsearch,
+                     NAUTILUS_TYPE_SEARCH_PROVIDER)
 
 static void
 finalize (GObject *object)
 {
     NautilusSearchEngineLocalsearch *self = NAUTILUS_SEARCH_ENGINE_LOCALSEARCH (object);
 
-    if (self->cancellable)
-    {
-        g_cancellable_cancel (self->cancellable);
-        g_clear_object (&self->cancellable);
-    }
-
-    g_clear_object (&self->query);
-    g_queue_free_full (self->hits_pending, g_object_unref);
     g_clear_pointer (&self->statements, g_hash_table_unref);
     /* This is a singleton, no need to unref. */
     self->connection = NULL;
 
+    g_clear_pointer (&self->tz, g_time_zone_unref);
+
     G_OBJECT_CLASS (nautilus_search_engine_localsearch_parent_class)->finalize (object);
-}
-
-#define BATCH_SIZE 100
-
-static void
-check_pending_hits (NautilusSearchEngineLocalsearch *self,
-                    gboolean                         force_send)
-{
-    if (!force_send &&
-        g_queue_get_length (self->hits_pending) < BATCH_SIZE)
-    {
-        return;
-    }
-
-    NautilusSearchHit *hit;
-    g_autoptr (GPtrArray) hits = g_ptr_array_new_with_free_func (g_object_unref);
-
-    g_debug ("Localsearch engine add hits");
-
-    while ((hit = g_queue_pop_head (self->hits_pending)))
-    {
-        g_ptr_array_add (hits, hit);
-    }
-
-    if (hits->len > 0)
-    {
-        nautilus_search_provider_hits_added (NAUTILUS_SEARCH_PROVIDER (self),
-                                             g_steal_pointer (&hits));
-    }
 }
 
 static void
 search_finished (NautilusSearchEngineLocalsearch *self,
                  GError                          *error)
 {
-    g_debug ("Tracker engine finished");
-
-    if (error == NULL)
+    if (error != NULL && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
     {
-        check_pending_hits (self, TRUE);
-    }
-    else
-    {
-        g_queue_foreach (self->hits_pending, (GFunc) g_object_unref, NULL);
-        g_queue_clear (self->hits_pending);
+        g_warning ("Localsearch search engine error %s", error->message);
     }
 
-    self->query_pending = FALSE;
-
-    if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-    {
-        g_debug ("Tracker engine error %s", error->message);
-        nautilus_search_provider_error (NAUTILUS_SEARCH_PROVIDER (self), error->message);
-    }
-    else
-    {
-        nautilus_search_provider_finished (NAUTILUS_SEARCH_PROVIDER (self),
-                                           NAUTILUS_SEARCH_PROVIDER_STATUS_NORMAL);
-        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-        {
-            g_debug ("Tracker engine finished and cancelled");
-        }
-        else
-        {
-            g_debug ("Tracker engine finished correctly");
-        }
-    }
-
-    g_object_unref (self);
+    nautilus_search_provider_finished (NAUTILUS_SEARCH_PROVIDER (self));
 }
 
 static void cursor_callback (GObject      *object,
@@ -168,7 +96,7 @@ cursor_next (NautilusSearchEngineLocalsearch *self,
              TrackerSparqlCursor             *cursor)
 {
     tracker_sparql_cursor_next_async (cursor,
-                                      self->cancellable,
+                                      nautilus_search_provider_get_cancellable (self),
                                       cursor_callback,
                                       self);
 }
@@ -187,7 +115,6 @@ cursor_callback (GObject      *object,
     const char *atime_str;
     const char *ctime_str;
     const gchar *snippet;
-    g_autoptr (GTimeZone) tz = NULL;
     gdouble rank, match;
     gboolean success;
     gchar *basename;
@@ -215,7 +142,7 @@ cursor_callback (GObject      *object,
     basename = g_path_get_basename (uri);
 
     hit = nautilus_search_hit_new (uri);
-    match = nautilus_query_matches_string (self->query, basename);
+    match = nautilus_query_matches_string (nautilus_search_provider_get_query (self), basename);
     nautilus_search_hit_set_fts_rank (hit, rank + match);
     g_free (basename);
 
@@ -236,16 +163,9 @@ cursor_callback (GObject      *object,
         }
     }
 
-    if (mtime_str != NULL ||
-        atime_str != NULL ||
-        ctime_str != NULL)
-    {
-        tz = g_time_zone_new_local ();
-    }
-
     if (mtime_str != NULL)
     {
-        g_autoptr (GDateTime) date = g_date_time_new_from_iso8601 (mtime_str, tz);
+        g_autoptr (GDateTime) date = g_date_time_new_from_iso8601 (mtime_str, self->tz);
 
         if (date == NULL)
         {
@@ -256,7 +176,7 @@ cursor_callback (GObject      *object,
 
     if (atime_str != NULL)
     {
-        g_autoptr (GDateTime) date = g_date_time_new_from_iso8601 (atime_str, tz);
+        g_autoptr (GDateTime) date = g_date_time_new_from_iso8601 (atime_str, self->tz);
 
         if (date == NULL)
         {
@@ -267,7 +187,7 @@ cursor_callback (GObject      *object,
 
     if (ctime_str != NULL)
     {
-        g_autoptr (GDateTime) date = g_date_time_new_from_iso8601 (ctime_str, tz);
+        g_autoptr (GDateTime) date = g_date_time_new_from_iso8601 (ctime_str, self->tz);
 
         if (date == NULL)
         {
@@ -276,8 +196,7 @@ cursor_callback (GObject      *object,
         nautilus_search_hit_set_creation_time (hit, date);
     }
 
-    g_queue_push_head (self->hits_pending, hit);
-    check_pending_hits (self, FALSE);
+    nautilus_search_provider_add_hit (self, hit);
 
     /* Get next */
     cursor_next (self, cursor);
@@ -452,43 +371,38 @@ create_statement (NautilusSearchProvider *provider,
     return stmt;
 }
 
+static const char *
+get_name (NautilusSearchProvider *provider)
+{
+    return "localsearch";
+}
+
 static gboolean
-search_engine_localsearch_start (NautilusSearchProvider *provider,
-                                 NautilusQuery          *query)
+should_search (NautilusSearchProvider *provider,
+               NautilusQuery          *query)
+{
+    NautilusSearchEngineLocalsearch *self = (NautilusSearchEngineLocalsearch *) provider;
+
+    return self->connection != NULL;
+}
+
+static void
+start_search (NautilusSearchProvider *provider)
 {
     NautilusSearchEngineLocalsearch *self = NAUTILUS_SEARCH_ENGINE_LOCALSEARCH (provider);
     g_autofree gchar *query_text = NULL;
-    g_autoptr (GPtrArray) mimetypes = NULL;
     g_autoptr (GPtrArray) date_range = NULL;
     NautilusSearchTimeType type;
     TrackerSparqlStatement *stmt;
     SearchFeatures features = 0;
+    NautilusQuery *query = nautilus_search_provider_get_query (self);
+    g_autoptr (GFile) location = nautilus_query_get_location (query);
 
-    g_set_object (&self->query, query);
+    self->fts_enabled = nautilus_query_get_search_content (query);
 
-    if (self->query_pending)
-    {
-        return FALSE;
-    }
-
-    if (self->connection == NULL)
-    {
-        g_warning ("Localsearch search engine has no connection");
-        return FALSE;
-    }
-
-    g_debug ("Tracker engine start");
-    g_object_ref (self);
-    self->query_pending = TRUE;
-
-    g_autoptr (GFile) location = nautilus_query_get_location (self->query);
-
-    self->fts_enabled = nautilus_query_get_search_content (self->query);
-
-    query_text = nautilus_query_get_text (self->query);
-    mimetypes = nautilus_query_get_mime_types (self->query);
-    date_range = nautilus_query_get_date_range (self->query);
-    type = nautilus_query_get_search_type (self->query);
+    query_text = nautilus_query_get_text (query);
+    date_range = nautilus_query_get_date_range (query);
+    type = nautilus_query_get_search_type (query);
 
     if (query_text != NULL)
     {
@@ -498,11 +412,11 @@ search_engine_localsearch_start (NautilusSearchProvider *provider,
     {
         features |= SEARCH_FEATURE_CONTENT;
     }
-    if (nautilus_query_recursive (self->query))
+    if (nautilus_query_recursive (query))
     {
         features |= SEARCH_FEATURE_RECURSIVE;
     }
-    if (mimetypes->len > 0)
+    if (nautilus_query_has_mime_types (query))
     {
         features |= SEARCH_FEATURE_MIMETYPE;
     }
@@ -548,27 +462,11 @@ search_engine_localsearch_start (NautilusSearchProvider *provider,
         tracker_sparql_statement_bind_string (stmt, "match", query_text);
     }
 
-    if (mimetypes->len > 0)
+    if (nautilus_query_has_mime_types (query))
     {
-        g_autoptr (GString) mimetype_str = NULL;
+        g_autofree char *mimetype_str = nautilus_query_get_mime_type_str (query);
 
-        for (guint i = 0; i < mimetypes->len; i++)
-        {
-            const gchar *mimetype;
-
-            mimetype = g_ptr_array_index (mimetypes, i);
-
-            if (!mimetype_str)
-            {
-                mimetype_str = g_string_new (mimetype);
-            }
-            else
-            {
-                g_string_append_printf (mimetype_str, ",%s", mimetype);
-            }
-        }
-
-        tracker_sparql_statement_bind_string (stmt, "mimeTypes", mimetype_str->str);
+        tracker_sparql_statement_bind_string (stmt, "mimeTypes", mimetype_str);
     }
 
     if (date_range)
@@ -594,60 +492,38 @@ search_engine_localsearch_start (NautilusSearchProvider *provider,
                                               end_date_format);
     }
 
-    self->cancellable = g_cancellable_new ();
     tracker_sparql_statement_execute_async (stmt,
-                                            self->cancellable,
+                                            nautilus_search_provider_get_cancellable (self),
                                             query_callback,
                                             self);
-
-    return TRUE;
-}
-
-static void
-nautilus_search_engine_localsearch_stop (NautilusSearchProvider *provider)
-{
-    NautilusSearchEngineLocalsearch *self = NAUTILUS_SEARCH_ENGINE_LOCALSEARCH (provider);
-
-    if (self->query_pending)
-    {
-        g_debug ("Tracker engine stop");
-        g_cancellable_cancel (self->cancellable);
-        g_clear_object (&self->cancellable);
-        self->query_pending = FALSE;
-    }
-}
-
-static void
-nautilus_search_provider_init (NautilusSearchProviderInterface *iface)
-{
-    iface->start = search_engine_localsearch_start;
-    iface->stop = nautilus_search_engine_localsearch_stop;
 }
 
 static void
 nautilus_search_engine_localsearch_class_init (NautilusSearchEngineLocalsearchClass *class)
 {
-    GObjectClass *gobject_class;
+    GObjectClass *gobject_class = G_OBJECT_CLASS (class);
+    NautilusSearchProviderClass *search_provider_class = NAUTILUS_SEARCH_PROVIDER_CLASS (class);
 
-    gobject_class = G_OBJECT_CLASS (class);
     gobject_class->finalize = finalize;
+    search_provider_class->get_name = get_name;
+    search_provider_class->should_search = should_search;
+    search_provider_class->start_search = start_search;
 }
 
 static void
 nautilus_search_engine_localsearch_init (NautilusSearchEngineLocalsearch *engine)
 {
-    GError *error = NULL;
+    g_autoptr (GError) error = NULL;
 
-    engine->hits_pending = g_queue_new ();
     engine->statements = g_hash_table_new_full (NULL, NULL, NULL,
                                                 g_object_unref);
-
     engine->connection = nautilus_localsearch_get_miner_fs_connection (&error);
-    if (error)
+    if (error != NULL)
     {
-        g_warning ("Could not establish a connection to Tracker: %s", error->message);
-        g_error_free (error);
+        g_warning ("Could not establish a connection to Localsearch: %s", error->message);
     }
+
+    engine->tz = g_time_zone_new_local ();
 }
 
 

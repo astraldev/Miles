@@ -39,6 +39,9 @@ typedef void (* NautilusCreateCallback)    (GFile      *new_file,
 					    gpointer    callback_data);
 typedef void (* NautilusOpCallback)        (gboolean    success,
 					    gpointer    callback_data);
+typedef void (* NautilusOpRenameCallback)  (GFile      *renamed_file,
+					    gboolean    success,
+					    gpointer    callback_data);
 typedef void (* NautilusDeleteCallback)    (GHashTable *debuting_uris,
 					    gboolean    user_cancel,
 					    gpointer    callback_data);
@@ -100,19 +103,12 @@ void nautilus_file_set_permissions_recursive (const char                     *di
 					      NautilusOpCallback              callback,
 					      gpointer                        callback_data);
 
-void nautilus_file_operations_unmount_mount (GtkWindow                      *parent_window,
-					     GMount                         *mount,
-					     gboolean                        eject,
-					     gboolean                        check_trash);
 void nautilus_file_operations_unmount_mount_full (GtkWindow                 *parent_window,
 						  GMount                    *mount,
 						  GMountOperation           *mount_operation,
 						  gboolean                   eject,
-						  gboolean                   check_trash,
 						  NautilusUnmountCallback    callback,
 						  gpointer                   callback_data);
-void nautilus_file_operations_mount_volume  (GtkWindow                      *parent_window,
-					     GVolume                        *volume);
 void nautilus_file_operations_mount_volume_full (GtkWindow                      *parent_window,
 						 GVolume                        *volume,
 						 NautilusMountCallback           mount_callback,
@@ -162,6 +158,14 @@ void nautilus_file_operations_compress (GList                          *files,
                                         NautilusFileOperationsDBusData *dbus_data,
                                         NautilusCreateCallback          done_callback,
                                         gpointer                        done_callback_data);
+
+void
+nautilus_file_operations_rename (GFile                          *location,
+                                 const char                     *new_name,
+                                 GtkWidget                      *parent_view,
+                                 NautilusFileOperationsDBusData *dbus_data,
+                                 NautilusOpRenameCallback        done_callback,
+                                 gpointer                        done_callback_data);
 
 void
 nautilus_file_operations_paste_image_from_clipboard (GtkWidget                      *parent_view,

@@ -33,18 +33,12 @@ struct _NautilusNetworkDirectory
     GList /*<owned NetworkCallback>*/ *callback_list;
 };
 
-G_DEFINE_TYPE_WITH_CODE (NautilusNetworkDirectory, nautilus_network_directory, NAUTILUS_TYPE_DIRECTORY,
-                         nautilus_ensure_extension_points ();
-                         /* It looks like you’re implementing an extension point.
-                          * Did you modify nautilus_ensure_extension_builtins() accordingly?
-                          *
-                          * • Yes
-                          * • Doing it right now
-                          */
-                         g_io_extension_point_implement (NAUTILUS_DIRECTORY_PROVIDER_EXTENSION_POINT_NAME,
-                                                         g_define_type_id,
-                                                         NAUTILUS_NETWORK_DIRECTORY_PROVIDER_NAME,
-                                                         0));
+G_DEFINE_FINAL_TYPE_WITH_CODE (NautilusNetworkDirectory, nautilus_network_directory, NAUTILUS_TYPE_DIRECTORY,
+                               nautilus_ensure_extension_points ();
+                               g_io_extension_point_implement (NAUTILUS_DIRECTORY_PROVIDER_EXTENSION_POINT_NAME,
+                                                               g_define_type_id,
+                                                               NAUTILUS_NETWORK_DIRECTORY_PROVIDER_NAME,
+                                                               0));
 
 typedef struct
 {
@@ -371,8 +365,7 @@ network_callback_find (NautilusNetworkDirectory  *self,
 
 static void
 real_call_when_ready (NautilusDirectory         *directory,
-                      NautilusFileAttributes     file_attributes,
-                      gboolean                   wait_for_file_list,
+                      NautilusAttributes         attributes,
                       NautilusDirectoryCallback  callback,
                       gpointer                   callback_data)
 {
@@ -394,12 +387,10 @@ real_call_when_ready (NautilusDirectory         *directory,
     self->callback_list = g_list_prepend (self->callback_list, network_callback);
 
     nautilus_directory_call_when_ready (self->computer_backend_directory,
-                                        file_attributes,
-                                        wait_for_file_list,
+                                        attributes,
                                         on_backend_directory_ready, network_callback);
     nautilus_directory_call_when_ready (self->network_backend_directory,
-                                        file_attributes,
-                                        wait_for_file_list,
+                                        attributes,
                                         on_backend_directory_ready, network_callback);
 }
 
@@ -436,7 +427,7 @@ static void
 real_file_monitor_add (NautilusDirectory         *directory,
                        gconstpointer              client,
                        gboolean                   monitor_hidden_files,
-                       NautilusFileAttributes     file_attributes,
+                       NautilusAttributes         attributes,
                        NautilusDirectoryCallback  callback,
                        gpointer                   callback_data)
 {
@@ -445,12 +436,12 @@ real_file_monitor_add (NautilusDirectory         *directory,
     nautilus_directory_file_monitor_add (self->computer_backend_directory,
                                          client,
                                          monitor_hidden_files,
-                                         file_attributes,
+                                         attributes,
                                          NULL, NULL);
     nautilus_directory_file_monitor_add (self->network_backend_directory,
                                          client,
                                          monitor_hidden_files,
-                                         file_attributes,
+                                         attributes,
                                          NULL, NULL);
 
     if (callback != NULL)
@@ -521,19 +512,9 @@ real_handles_location (GFile *location)
 }
 
 static NautilusFile *
-real_new_file_from_filename (NautilusDirectory *directory,
-                             const char        *filename,
-                             gboolean           self_owned)
+real_new_as_file (NautilusDirectory *directory)
 {
-    if (!self_owned)
-    {
-        /* Children are regular vfs locations. */
-        return NAUTILUS_DIRECTORY_CLASS (nautilus_network_directory_parent_class)->new_file_from_filename (directory, filename, self_owned);
-    }
-
-    return NAUTILUS_FILE (g_object_new (NAUTILUS_TYPE_INTERNAL_PLACE_FILE,
-                                        "directory", directory,
-                                        NULL));
+    return g_object_new (NAUTILUS_TYPE_INTERNAL_PLACE_FILE, "directory", directory, NULL);
 }
 
 static void
@@ -613,7 +594,7 @@ nautilus_network_directory_class_init (NautilusNetworkDirectoryClass *klass)
     directory_class->is_not_empty = real_is_not_empty;
     directory_class->is_editable = real_is_editable;
     directory_class->handles_location = real_handles_location;
-    directory_class->new_file_from_filename = real_new_file_from_filename;
+    directory_class->new_as_file = real_new_as_file;
 }
 
 NautilusNetworkDirectory *

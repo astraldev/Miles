@@ -29,29 +29,21 @@
 
 #include <gtk/gtk.h>
 
-#define MAXIMUM_DISPLAYED_FILE_NAME_LENGTH      50
-#define MAXIMUM_DISPLAYED_ERROR_MESSAGE_LENGTH  350
 #define FAT_FORBIDDEN_CHARACTERS                ":|<>*?\\\"/"
 
 void nautilus_report_error_loading_directory	 (NautilusFile   *file,
 						  GError         *error,
-						  GtkWindow	 *parent_window);
+						  GtkWidget	 *parent);
 void nautilus_report_error_renaming_file         (NautilusFile *file,
 						  const char *new_name,
 						  GError *error,
-						  GtkWindow *parent_window);
+						  GtkWidget *parent);
 void nautilus_report_error_setting_permissions (NautilusFile   *file,
 						GError         *error,
-						GtkWindow	 *parent_window);
+						GtkWidget    *parent);
 void nautilus_report_error_setting_owner       (NautilusFile   *file,
 						GError         *error,  
-						GtkWindow	 *parent_window);
+						GtkWidget    *parent);
 void nautilus_report_error_setting_group       (NautilusFile   *file,
 						GError         *error,
-						GtkWindow	 *parent_window);
-
-/* FIXME bugzilla.gnome.org 42394: Should this file be renamed or should this function be moved? */
-void nautilus_rename_file                      (NautilusFile   *file,
-						const char     *new_name,
-						NautilusFileOperationCallback callback,
-						gpointer callback_data);
+						GtkWidget    *parent);

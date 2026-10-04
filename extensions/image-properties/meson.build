@@ -8,7 +8,7 @@ shared_module (
   ],
   dependencies: [
     gexiv,
-    gdkpixbuf,
+    glycin,
     nautilus_extension
   ],
   install: true,

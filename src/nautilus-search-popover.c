@@ -57,8 +57,6 @@ struct _NautilusSearchPopover
     GtkButton *specific_type_button;
     char *specific_mimetype;
 
-    GtkButton *active_type_button;
-
     /* Time Type */
     GtkLabel *time_type_label;
 
@@ -93,7 +91,7 @@ struct _NautilusSearchPopover
 
 static void          show_other_types_dialog (NautilusSearchPopover *popover);
 
-G_DEFINE_TYPE (NautilusSearchPopover, nautilus_search_popover, GTK_TYPE_POPOVER)
+G_DEFINE_FINAL_TYPE (NautilusSearchPopover, nautilus_search_popover, GTK_TYPE_POPOVER)
 
 enum
 {
@@ -105,6 +103,63 @@ enum
 };
 
 static guint signals[LAST_SIGNAL];
+
+static GPtrArray *
+get_type_buttons (NautilusSearchPopover *popover)
+{
+    GtkButton *buttons[9] =
+    {
+        [0] = popover->audio_button,
+        [1] = popover->documents_button,
+        [2] = popover->folders_button,
+        [3] = popover->images_button,
+        [4] = popover->pdf_button,
+        [5] = popover->spreadsheets_button,
+        [6] = popover->text_button,
+        [7] = popover->videos_button,
+        [8] = popover->specific_type_button,
+    };
+
+    return g_ptr_array_new_from_array ((gpointer) buttons, G_N_ELEMENTS (buttons),
+                                       NULL, NULL, NULL);
+}
+
+static void
+toggle_active_button (GtkButton *button)
+{
+    if (!gtk_widget_has_css_class (GTK_WIDGET (button), "accent"))
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (button), "accent");
+        gtk_accessible_update_state (GTK_ACCESSIBLE (button),
+                                     GTK_ACCESSIBLE_STATE_CHECKED, GTK_ACCESSIBLE_TRISTATE_TRUE,
+                                     -1);
+    }
+    else
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (button), "accent");
+        gtk_accessible_update_state (GTK_ACCESSIBLE (button),
+                                     GTK_ACCESSIBLE_STATE_CHECKED, GTK_ACCESSIBLE_TRISTATE_FALSE,
+                                     -1);
+    }
+}
+
+static void
+set_active_type_button (GtkButton *button,
+                        gboolean   active)
+{
+    if (active)
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (button), "accent");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (button), "accent");
+    }
+
+    gtk_accessible_update_state (GTK_ACCESSIBLE (button),
+                                 GTK_ACCESSIBLE_STATE_CHECKED, active,
+                                 -1);
+}
 
 static void
 set_active_button (GtkButton **active_button_pointer,
@@ -193,38 +248,58 @@ show_date_range_dialog_cb (NautilusSearchPopover *self)
     gtk_popover_popdown (GTK_POPOVER (self));
 }
 
+static GPtrArray *
+get_mime_types (NautilusSearchPopover *popover)
+{
+    g_autoptr (GPtrArray) mimetypes = g_ptr_array_new_with_free_func (g_free);
+    g_autoptr (GPtrArray) mimetype_buttons = get_type_buttons (popover);
+
+    for (uint i = 0; i < mimetype_buttons->len; i++)
+    {
+        GtkButton *button = mimetype_buttons->pdata[i];
+
+        if (!gtk_widget_has_css_class (GTK_WIDGET (button), "accent"))
+        {
+            continue;
+        }
+
+        if (button != popover->specific_type_button)
+        {
+            gint group = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "mimetype-group"));
+            GPtrArray *group_mimetypes = nautilus_mime_types_group_get_mimetypes (group);
+
+            g_ptr_array_extend_and_steal (mimetypes, group_mimetypes);
+        }
+        else
+        {
+            /* Other types button */
+            if (popover->specific_mimetype != NULL)
+            {
+                g_ptr_array_add (mimetypes, g_strdup (popover->specific_mimetype));
+            }
+        }
+    }
+
+    return g_steal_pointer (&mimetypes);
+}
+
 static void
 file_types_button_clicked (NautilusSearchPopover *popover,
                            GtkButton             *button)
 {
     g_assert (NAUTILUS_IS_SEARCH_POPOVER (popover));
 
-    if (button == popover->active_type_button)
+    if (button != popover->other_types_button)
     {
-        set_active_button (&popover->active_type_button, NULL);
-        g_signal_emit_by_name (popover, "mime-type", 0, NULL);
-    }
-    else if (button == popover->specific_type_button)
-    {
-        set_active_button (&popover->active_type_button, popover->specific_type_button);
-        g_signal_emit_by_name (popover, "mime-type", -1, popover->specific_mimetype);
+        g_autoptr (GPtrArray) mimetypes = NULL;
+
+        toggle_active_button (button);
+        mimetypes = get_mime_types (popover);
+        g_signal_emit (popover, signals[MIME_TYPE], 0, mimetypes);
     }
     else
     {
-        gint group = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "mimetype-group"));
-
-        /* The -1 group stands for the "Other Types" group, for which
-         * we should show the mimetype dialog.
-         */
-        if (group == -1)
-        {
-            show_other_types_dialog (popover);
-        }
-        else
-        {
-            set_active_button (&popover->active_type_button, button);
-            g_signal_emit_by_name (popover, "mime-type", group, NULL);
-        }
+        show_other_types_dialog (popover);
     }
 }
 
@@ -260,14 +335,16 @@ on_other_types_dialog_response (NautilusSearchPopover *popover)
 {
     NautilusMinimalCell *item = gtk_single_selection_get_selected_item (popover->other_types_model);
     const gchar *mimetype = nautilus_minimal_cell_get_subtitle (item);
-
     g_autofree gchar *display_name = g_content_type_get_description (mimetype);
+    g_autoptr (GPtrArray) mimetypes = NULL;
+
     gtk_button_set_label (popover->specific_type_button, display_name);
     gtk_widget_set_visible (GTK_WIDGET (popover->specific_type_button), TRUE);
     g_set_str (&popover->specific_mimetype, mimetype);
-    set_active_button (&popover->active_type_button, popover->specific_type_button);
+    set_active_type_button (popover->specific_type_button, TRUE);
 
-    g_signal_emit_by_name (popover, "mime-type", -1, mimetype);
+    mimetypes = get_mime_types (popover);
+    g_signal_emit (popover, signals[MIME_TYPE], 0, mimetypes);
 
     g_clear_object (&popover->other_types_model);
 
@@ -352,8 +429,7 @@ show_other_types_dialog (NautilusSearchPopover *popover)
         g_autofree gchar *content_type = l->data;
         g_autofree gchar *description = g_content_type_get_description (content_type);
         g_autoptr (GIcon) icon = g_content_type_get_icon (content_type);
-        g_autoptr (NautilusIconInfo) icon_info = nautilus_icon_info_lookup (icon, 32, scale);
-        GdkPaintable *paintable = nautilus_icon_info_get_paintable (icon_info);
+        GdkPaintable *paintable = nautilus_icon_info_lookup (icon, 32, scale);
 
         g_list_store_append (file_type_list, nautilus_minimal_cell_new (description,
                                                                         content_type,
@@ -444,6 +520,15 @@ nautilus_search_popover_class_init (NautilusSearchPopoverClass *klass)
                                          g_cclosure_marshal_generic,
                                          G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
 
+    /*
+     * NautilusSearchPopover::mime-type:
+     *
+     * @popover: The search popover which emitted the signal.
+     * @mimetypes: (element-type gchar) (transfer full): A list of mime types
+     *   that are selected.
+     *
+     * Emitted when selected mime types change.
+     */
     signals[MIME_TYPE] = g_signal_new ("mime-type",
                                        NAUTILUS_TYPE_SEARCH_POPOVER,
                                        G_SIGNAL_RUN_LAST,
@@ -452,9 +537,8 @@ nautilus_search_popover_class_init (NautilusSearchPopoverClass *klass)
                                        NULL,
                                        g_cclosure_marshal_generic,
                                        G_TYPE_NONE,
-                                       2,
-                                       G_TYPE_INT,
-                                       G_TYPE_STRING);
+                                       1,
+                                       G_TYPE_PTR_ARRAY);
 
     signals[TIME_TYPE] = g_signal_new ("time-type",
                                        NAUTILUS_TYPE_SEARCH_POPOVER,
@@ -559,22 +643,24 @@ time_type_to_label (NautilusSearchTimeType time_type)
 
 static void
 time_type_changed (GAction               *action,
-                   GVariant              *value,
+                   GVariant              *new_value,
                    NautilusSearchPopover *self)
 {
-    NautilusSearchTimeType time_type = g_variant_get_uint16 (value);
-    NautilusSearchTimeType old_time_type = g_settings_get_enum (nautilus_preferences,
-                                                                "search-filter-time-type");
+    g_autoptr (GVariant) current_value = g_action_get_state (action);
+    const char *time_type_str = g_variant_get_string (new_value, NULL);
 
-    if (time_type == old_time_type)
+    if (g_variant_equal (current_value, new_value))
     {
         return;
     }
 
-    g_simple_action_set_state (G_SIMPLE_ACTION (action), value);
+    g_simple_action_set_state (G_SIMPLE_ACTION (action), new_value);
+    g_settings_set_string (nautilus_preferences, "search-filter-time-type", time_type_str);
 
-    g_settings_set_enum (nautilus_preferences, "search-filter-time-type", time_type);
+    NautilusSearchTimeType time_type = g_settings_get_enum (nautilus_preferences,
+                                                            "search-filter-time-type");
     const char *label = time_type_to_label (time_type);
+
     gtk_label_set_label (self->time_type_label, label);
 
     g_signal_emit_by_name (self, "time-type", time_type);
@@ -595,7 +681,6 @@ nautilus_search_popover_init (NautilusSearchPopover *self)
     mime_tag_set_data (self->text_button, 10);
     mime_tag_set_data (self->videos_button, 11);
     mime_tag_set_data (self->other_types_button, -1);
-    set_active_button (&self->active_type_button, NULL);
 
     /* sort type buttons alphabetically */
     g_autoptr (GPtrArray) mime_type_array = g_ptr_array_new ();
@@ -617,10 +702,14 @@ nautilus_search_popover_init (NautilusSearchPopover *self)
     const char *label = time_type_to_label (time_type);
     gtk_label_set_label (self->time_type_label, label);
 
+    g_autofree char *time_type_str = g_settings_get_string (nautilus_preferences,
+                                                            "search-filter-time-type");
     g_autoptr (GSimpleAction) action = g_simple_action_new_stateful (
-        "time-type-changed", G_VARIANT_TYPE_UINT16, g_variant_new_uint16 (time_type));
+        "time-type-changed", G_VARIANT_TYPE_STRING, g_variant_new_string (time_type_str));
     g_simple_action_set_enabled (action, TRUE);
-    g_signal_connect_object (action, "change-state", G_CALLBACK (time_type_changed), self, 0);
+    g_signal_connect_object (action, "change-state",
+                             G_CALLBACK (time_type_changed), self,
+                             G_CONNECT_DEFAULT);
 
     GSimpleActionGroup *action_group = g_simple_action_group_new ();
     g_action_map_add_action (G_ACTION_MAP (action_group), G_ACTION (action));
@@ -663,9 +752,12 @@ nautilus_search_popover_reset_mime_types (NautilusSearchPopover *popover)
 {
     g_return_if_fail (NAUTILUS_IS_SEARCH_POPOVER (popover));
 
-    set_active_button (&popover->active_type_button, NULL);
+    g_autoptr (GPtrArray) mime_type_buttons = get_type_buttons (popover);
+    g_autoptr (GPtrArray) mime_types = g_ptr_array_new_full (0, g_free);
 
-    g_signal_emit_by_name (popover, "mime-type", 0, NULL);
+    g_ptr_array_foreach (mime_type_buttons, (GFunc) set_active_type_button, FALSE);
+
+    g_signal_emit (popover, signals[MIME_TYPE], 0, mime_types);
 }
 
 void
