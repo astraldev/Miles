@@ -369,6 +369,7 @@ static void
 resolve_location (SearchThreadData *data)
 {
     g_autofree char *path = NULL;
+    char *resolved_path;
     size_t length;
     size_t volume_length = strlen (DATA_VOLUME_PATH);
 
@@ -380,8 +381,13 @@ resolve_location (SearchThreadData *data)
     path = g_file_get_path (data->location);
 
     /* Spotlight reports paths with symbolic links resolved. */
-    data->location_path = realpath (path, NULL);
-    if (data->location_path == NULL)
+    resolved_path = realpath (path, NULL);
+    if (resolved_path != NULL)
+    {
+        data->location_path = g_strdup (resolved_path);
+        free (resolved_path);
+    }
+    else
     {
         data->location_path = g_steal_pointer (&path);
     }
@@ -665,7 +671,9 @@ add_date_clause (GStrvBuilder           *clauses,
     GDateTime *initial_date = g_ptr_array_index (date_range, 0);
     GDateTime *end_date = g_ptr_array_index (date_range, 1);
     /* As for other searches, the end date is inclusive: add a day to it. */
-    g_autoptr (GDateTime) shifted_end_date = g_date_time_add_days (end_date, 1);
+    g_autoptr (GDateTime) next_day = g_date_time_add_days (end_date, 1);
+    /* The last day GLib can hold has no next day. */
+    GDateTime *shifted_end_date = next_day != NULL ? next_day : end_date;
     g_autoptr (GDateTime) initial_utc = g_date_time_to_utc (initial_date);
     g_autoptr (GDateTime) end_utc = g_date_time_to_utc (shifted_end_date);
     g_autofree char *initial_format = g_date_time_format (initial_utc, "%Y-%m-%dT%H:%M:%SZ");
