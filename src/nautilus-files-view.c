@@ -37,6 +37,9 @@
 #include <libportal-gtk4/portal-gtk4.h>
 #include <nautilus-extension.h>
 
+#ifdef __APPLE__
+#include "mac/nautilus-mac-privacy.h"
+#endif
 #include "nautilus-application.h"
 #include "nautilus-app-chooser.h"
 #include "nautilus-batch-rename-dialog.h"
@@ -3644,6 +3647,27 @@ build_search_everywhere_button (void)
     return button;
 }
 
+#ifdef __APPLE__
+static void
+on_privacy_settings_clicked (NautilusFilesView *self)
+{
+    nautilus_mac_open_privacy_settings (self->location);
+}
+
+static GtkWidget *
+build_privacy_settings_button (NautilusFilesView *self)
+{
+    GtkWidget *button = gtk_button_new_with_mnemonic (_("Open System _Settings"));
+
+    gtk_widget_set_halign (button, GTK_ALIGN_CENTER);
+    gtk_widget_add_css_class (button, "pill");
+    gtk_widget_add_css_class (button, "suggested-action");
+    g_signal_connect_swapped (button, "clicked", G_CALLBACK (on_privacy_settings_clicked), self);
+
+    return button;
+}
+#endif
+
 static void
 nautilus_files_view_update_status_overlay (NautilusFilesView *self)
 {
@@ -3654,6 +3678,16 @@ nautilus_files_view_update_status_overlay (NautilusFilesView *self)
     {
         adw_status_page_set_child (status_page, NULL);
 
+#ifdef __APPLE__
+        if (nautilus_mac_location_is_blocked (self->location))
+        {
+            adw_status_page_set_icon_name (status_page, "folder-symbolic");
+            adw_status_page_set_title (status_page, _("No Permission"));
+            adw_status_page_set_description (status_page, _("Allow access in System Settings."));
+            adw_status_page_set_child (status_page, build_privacy_settings_button (self));
+        }
+        else
+#endif
         if (NAUTILUS_IS_SEARCH_DIRECTORY (self->directory))
         {
             NautilusSearchDirectory *search = NAUTILUS_SEARCH_DIRECTORY (self->directory);

@@ -313,6 +313,8 @@ if host_machine.system() == 'darwin'
     'mac/nautilus-mac-appearance.h',
     'mac/nautilus-mac-places.c',
     'mac/nautilus-mac-places.h',
+    'mac/nautilus-mac-privacy.c',
+    'mac/nautilus-mac-privacy.h',
     'mac/nautilus-mac-session-bus.c',
     'mac/nautilus-mac-session-bus.h',
     'mac/nautilus-search-engine-spotlight.c',
