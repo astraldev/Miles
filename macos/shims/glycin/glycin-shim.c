@@ -278,8 +278,8 @@ gly_image_get_specific_frame (GlyImage         *image,
     g_autoptr (GInputStream) stream = g_memory_input_stream_new_from_bytes (image->bytes);
     int width = frame_request->width > 0 ? (int) frame_request->width : -1;
     int height = frame_request->height > 0 ? (int) frame_request->height : -1;
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_stream_at_scale (stream, width, height, TRUE,
-                                                             NULL, error);
+    g_autoptr (GdkPixbuf) pixbuf = gdk_pixbuf_new_from_stream_at_scale (stream, width, height, TRUE,
+                                                                        NULL, error);
     GlyFrame *frame;
 
     if (pixbuf == NULL)
@@ -288,7 +288,8 @@ gly_image_get_specific_frame (GlyImage         *image,
     }
 
     frame = g_object_new (GLY_TYPE_FRAME, NULL);
-    frame->pixbuf = pixbuf;
+    /* glycin turns a photo the way its EXIF data says. */
+    frame->pixbuf = gdk_pixbuf_apply_embedded_orientation (pixbuf);
 
     return frame;
 }
