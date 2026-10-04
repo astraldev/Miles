@@ -1,0 +1,9 @@
+[wrap-git]
+url = https://gitlab.gnome.org/GNOME/gnome-desktop.git
+# 44.5
+revision = c214a5f3ff96d6add49bd88372c0c449bcab1967
+depth = 1
+diff_files = gnome-desktop-44.5-macos.patch
+
+[provide]
+gnome-desktop-4 = libgnome_desktop_base_dep
