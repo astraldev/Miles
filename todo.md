@@ -80,14 +80,15 @@ Where mac-only files go:
 - [ ] Servers do not show up by themselves: gvfs finds them with avahi, which mac lacks. Rewrite that backend on Apple's `dns_sd.h` (Bonjour)
 - [ ] Saved passwords: gvfs wants libsecret and a Secret Service. Mac has the Keychain instead
 - [x] Trash reads the macOS trash folders (`~/.Trash`, `.Trashes/<uid>` on other drives): `macos/patches/gvfs-1.58.5-macos-trash.patch`, applied by the script. Listing, opening and deleting for good work (tested against a test home folder)
-- [ ] Trash still shows empty until the app has Full Disk Access: macOS blocks `~/.Trash` for every app but Finder, and never asks. Tell the user (later):
-  - Detect it: opening `~/.Trash` fails with "Operation not permitted"
-  - In the Trash view, show a page in place of "Trash is Empty": "Files needs Full Disk Access to show the Trash", with a button "Open System Settings"
-  - The button opens `x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`, where the user switches Files on
-  - macOS only applies it to a newly started app: offer "Quit and Reopen" after
-  - Needs the signed `Files.app` first: the grant is tied to the app's identity, and the gvfs daemons get it through the app that started them (check this)
+- [ ] Trash still shows empty until the app has Full Disk Access: macOS blocks `~/.Trash` for every app but Finder, and never asks
+- [ ] A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/mac/nautilus-mac-privacy.c`, not committed). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest. Needs a look on screen. Left:
+  - The view does not notice the change: the user has to reload, and for Full Disk Access restart the app. Offer "Quit and Reopen"
+  - The error dialog "You do not have the permissions necessary..." still shows as well
+  - Needs the signed `Files.app` to be useful: the grant is tied to the app's identity (today it goes to the terminal), and the gvfs daemons get it through the app that started them (check this)
 - [ ] Trash: no "Restore" and no "Trashed on" date. macOS keeps the original place in `~/.Trash/.DS_Store` (put-back records), which needs a parser, and the date as the file's "date added"
 - [ ] Recent works but is empty until files are opened from Nautilus. Sidebar row is still hidden
+- [x] Review fixes (not committed): apps launched from Nautilus no longer get its private bus (they died when Nautilus quit); dragging over an app no longer launches it, and dropping on one is refused; the bus folder moved from `/tmp` (swept by macOS after 3 days) to `~/.cache/nautilus`; two launches at once no longer start two buses; a dead bus no longer kills Nautilus
+- [ ] Scripts and "open in terminal" started from Nautilus still get its private bus in their environment
 - [ ] If Nautilus crashes, the bus and daemons keep running. The next launch reuses them, nothing stops them
 - [ ] `dbus-daemon` comes from Homebrew, its path is fixed at build time. A standalone `Files.app` has to ship it, and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
 - [ ] gvfs 1.62 for GNOME 51: drop `-Dburn`
@@ -125,4 +126,8 @@ Where mac-only files go:
 ### Later
 
 - [ ] Send the generic fixes to GNOME (`strrchr`, unused includes)
-- [ ] Merge upstream 50 (adds glycin) and 51 (adds libgxdp)
+- [ ] Merge upstream 51.0.1. Trial merge: 46 conflicts, 10 in files the port changed. New dependencies, both tried on this Mac (patches kept in `.deps/gnome51-research/`):
+  - libgxdp: upstream's own wrap builds unpatched. One unused include in `nautilus-portal.c` breaks, one-line fix
+  - glycin 2.2.1 (image loading, Rust): builds as a wrap with a 72-line patch, about 3 minutes, needs cargo and downloads 285 crates. Loads PNG and JPEG, not SVG or ICNS. Or a 417-line stand-in on gdk-pixbuf, no Rust
+  - `blueprint-compiler` and, for glycin, `vala` are in Homebrew but not installed
+  - gvfs 1.62
