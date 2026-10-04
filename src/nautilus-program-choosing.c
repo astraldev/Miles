@@ -31,7 +31,6 @@
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <gio/gio.h>
-#include <gio/gdesktopappinfo.h>
 #include <stdlib.h>
 
 #include <gdk/gdk.h>
