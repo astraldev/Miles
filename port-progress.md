@@ -55,7 +55,7 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - Preferences opens with Command-comma, as in other mac apps (upstream: Control-comma)
 - Archives are extracted by Nautilus itself, on double-click and with "Extract": macOS's own Archive Utility showed its result in Finder. Zip, tar, gzip, bzip2, xz and 7z are known as archives on mac
 - Undo of "Move to Trash" says why when macOS keeps Nautilus out of the Trash, where it did nothing
-- Text is a step larger: the base font is set to 13 pt, where GTK takes 12 pt from macOS (`set_macos_font_size()` in `nautilus-application.c`)
+- Text is a step larger: the base font is set to 13 pt, where GTK takes 12 pt from macOS (`set_font_size()` in `nautilus-mac-appearance.c`)
 - Dialogs that open inside the window (Properties, ...) draw right: GTK's renderer left most of the window undrawn on macOS, so full redraws are forced (`GSK_DEBUG=full-redraw`, set in `main()`)
 - File type icons: with Yaru, the types macOS knows get their own icon (.docx, .pdf, .json, .zip, .md, ...)
 - Read-only, not-accessible and link badges: 51 ships its own icons for them
@@ -65,6 +65,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 ### Apps
 
 - Apps show the icon Finder shows (`src/macos/nautilus-mac-app-icon.m`, the one Objective-C file): it asks macOS for it (`NSWorkspace`). Many apps keep their icon where only macOS can read it, and the `.icns` file beside it is a leftover: Books' is blank, Phone's is the old square one. The icons come with the margins macOS gives them, so they are the size of the folders. About 30 ms the first time this Mac draws an app's icon, 4 ms after that: macOS keeps what it has drawn
+- App icons follow "Icon & widget style" (Default, Dark, Clear, Tinted): macOS does not announce a change of it in a public way, so Nautilus reads the setting when its window becomes active again, and draws the app icons anew if it differs, one after the other in name order (20 ms apart), since all at once is a flash. Other files are left alone
 - Double-click on an app launches it (`/usr/bin/open`). Right-click has "Show Package Contents" to browse inside
 - Dragging over an app does not launch it, and dropping on one is refused
 - Apps launched from Nautilus do not get its private bus
@@ -74,6 +75,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 
 - Spotlight search provider, in the place localsearch has on Linux (`src/macos/nautilus-search-engine-spotlight.c`)
 - File type filter works on mac: the filter's MIME types are turned into the UTIs GIO uses there
+- The texts about "search locations" are reworded on mac, and their "Search Settings" button is gone: both belong to GNOME's indexer. The note under the search bar no longer shows for a folder on this Mac
 - Research on a search that does not need Spotlight: a mac walker on `getattrlistbulk` with about 4 threads, breadth-first. Measured on `~/Documents` (810,000 entries): 4.4 s, against 49 s for the current walk
 
 ### Network, trash and recent (gvfs)
@@ -81,6 +83,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - `macos/scripts/install-gvfs.sh` builds gvfs into the prefix during `ninja install`, pinned to a commit, with the patches in `macos/patches/`
 - Nautilus starts its own D-Bus session bus (`src/macos/nautilus-mac-session-bus.c`, `macos/data/dbus-session.conf.in`) and stops it on quit. gvfs daemons start on demand and exit with the bus. A second launch joins the running app
 - The bus's sockets are in `~/.cache/nautilus`, since macOS sweeps `/tmp`. Two launches at once do not start two buses. A dead bus does not kill Nautilus, and a stuck one does not keep it from quitting
+- A bus left by a Nautilus that crashed is taken over: the next launch uses it and stops it on quit. It asks the bus's socket which process is behind it. Before, such a bus ran until logout. Tested by killing a test copy
 - `dbus-daemon` is built with the app, from a wrap pinned to dbus 1.16.2. Homebrew's is not used
 - Network view opens. Connect by address works for `sftp://`, `dav://`, `davs://`, `ftp://`, `afp://` (tested with the `gio` tool against test servers, not through the window)
 - Servers on the local network show up by themselves, under "Available on Current Network" (`src/macos/nautilus-mac-bonjour.c`). It asks macOS's own Bonjour service (`dns_sd.h`) for sftp, AFP, WebDAV and FTP servers, in Nautilus and not in gvfs, and lists them the way recent servers are listed. This Mac itself is left out
@@ -92,6 +95,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 ### Permissions
 
 - A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/macos/nautilus-mac-privacy.c`). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest. No error dialog comes with it, and the files of the folder shown before are cleared
+- A folder showing "No Permission" is looked at again when the window becomes active, and reloads if it can be read now: access is given in System Settings or in a prompt of macOS, both outside the window. For Full Disk Access macOS itself offers "Quit & Reopen"
 - A folder the user's account may not read (another user's home, ...) shows "No Permission" too, with no button. Upstream reopens it as `admin://`, which asks for a password through PolKit: that is Linux only, so on mac it said "admin locations are not supported"
 - Startup prints no "display server connection" message, and the build has no warnings in Nautilus's own code but one upstream deprecation
 
@@ -107,7 +111,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - Sidebar folders are fixed and match macOS's own
 - Search must not depend on Spotlight. "Search everywhere" will skip `~/Library`, `node_modules` and folders like them on its first pass
 - gvfs is ported, not replaced by native code
-- `smb://` (Windows shares) is left out: it needs samba and its large dependency chain
+- `smb://` (Windows shares) is left out: it needs samba and its large dependency chain. So they are not looked for on the network either
 - Stock extensions stay off. No AirDrop or Share menu. "Open in terminal" would be nice, not needed
 - No thumbnails for now: the type icons are enough
 - Graphite accent is not bark. What it is instead is open
