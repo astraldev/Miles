@@ -884,6 +884,10 @@ nautilus_window_slot_constructed (GObject *object)
     self->global_search_page = ADW_STATUS_PAGE (adw_status_page_new ());
     adw_status_page_set_icon_name (self->global_search_page, "edit-find-symbolic");
     adw_status_page_set_title (self->global_search_page, _("Search Everywhere"));
+#ifdef __APPLE__
+    adw_status_page_set_description (self->global_search_page, _("Find your files and apps by name"));
+    gtk_stack_add_child (GTK_STACK (self->stack), GTK_WIDGET (self->global_search_page));
+#else
     adw_status_page_set_description (self->global_search_page, _("Find files and folders in all search locations"));
     gtk_stack_add_child (GTK_STACK (self->stack), GTK_WIDGET (self->global_search_page));
 
@@ -892,6 +896,7 @@ nautilus_window_slot_constructed (GObject *object)
     gtk_widget_set_halign (button, GTK_ALIGN_CENTER);
     gtk_widget_add_css_class (button, "pill");
     adw_status_page_set_child (self->global_search_page, button);
+#endif
 
     g_object_bind_property (self, "location",
                             self->query_editor, "location",

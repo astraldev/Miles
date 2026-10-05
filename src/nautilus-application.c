@@ -68,6 +68,9 @@
 #include "nautilus-trash-monitor.h"
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window.h"
+#ifdef __APPLE__
+#include "macos/nautilus-mac-appearance.h"
+#endif
 
 struct _NautilusApplication
 {
@@ -699,8 +702,13 @@ nautilus_init_application_actions (NautilusApplication *app)
                                           "app.help", "F1");
     nautilus_application_set_accelerator (G_APPLICATION (app),
                                           "app.quit", "<Primary>q");
+#ifdef __APPLE__
+    nautilus_application_set_accelerator (G_APPLICATION (app),
+                                          "app.preferences", "<Meta>comma");
+#else
     nautilus_application_set_accelerator (G_APPLICATION (app),
                                           "app.preferences", "<Primary>comma");
+#endif
 }
 
 static void
@@ -1047,6 +1055,7 @@ nautilus_application_startup (GApplication *app)
         nautilus_application_identify_to_portal (app);
     }
 
+#ifndef __APPLE__
     /* Initialize GDK display (for wayland-x11-interop protocol) before GTK does
      * it during the chain-up. */
     g_autoptr (GError) error = NULL;
@@ -1063,6 +1072,7 @@ nautilus_application_startup (GApplication *app)
         g_message ("Failed to initialize display server connection: %s",
                    error->message);
     }
+#endif
 
     /* Chain up to the GtkApplication implementation early, so that gtk_init()
      * is called for us.
@@ -1070,6 +1080,18 @@ nautilus_application_startup (GApplication *app)
     G_APPLICATION_CLASS (nautilus_application_parent_class)->startup (G_APPLICATION (self));
 
     gtk_window_set_default_icon_name (APPLICATION_ID);
+
+#ifdef __APPLE__
+    nautilus_mac_appearance_init (GTK_APPLICATION (app));
+
+    /*
+     * Losing Nautilus's own bus only costs gvfs.
+     */
+    if (g_application_get_dbus_connection (app) != NULL)
+    {
+        g_dbus_connection_set_exit_on_close (g_application_get_dbus_connection (app), FALSE);
+    }
+#endif
 
     /* initialize preferences and create the global GSettings objects */
     nautilus_global_preferences_init ();

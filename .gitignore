@@ -1,10 +1,15 @@
 build/
 .*/
 !.gitlab/
+!.github/
 
-# Ignore meson's subprojects folder
+# Ignore what meson downloads into subprojects/, keep the wraps and patches
 /subprojects/*
 !/subprojects/*.wrap
+!/subprojects/packagefiles/
+
+/todo.md
+/port-progress.md
 
 # Ignore auto generated files
 /.buildconfig

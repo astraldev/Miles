@@ -1,0 +1,14 @@
+This patch is needed because Nautilus includes
+libportal-gtk4/portal-gtk4.h, a path that only exists once libportal is
+installed. Built as part of the Nautilus build, the header is only at
+libportal/portal-gtk4.h.
+
+This adds a header at the installed path that includes the real one.
+
+diff --git a/libportal-gtk4/portal-gtk4.h b/libportal-gtk4/portal-gtk4.h
+new file mode 100644
+index 0000000..ca41cd4
+--- /dev/null
++++ b/libportal-gtk4/portal-gtk4.h
+@@ -0,0 +1 @@
++#include <libportal/portal-gtk4.h>

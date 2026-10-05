@@ -39,6 +39,10 @@
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-session-bus.h"
+#endif
+
 typedef enum
 {
     ACTIVATION_ACTION_LAUNCH,
@@ -727,6 +731,12 @@ get_activation_action (NautilusFile *file)
 
     if (nautilus_file_is_archive (file))
     {
+#ifdef __APPLE__
+        /*
+         * Otherwise Finder opens it.
+         */
+        return ACTIVATION_ACTION_EXTRACT;
+#endif
         g_autoptr (GAppInfo) app_info = nautilus_mime_get_default_application_for_file (file);
 
         if (app_info != NULL)
@@ -748,7 +758,11 @@ get_activation_action (NautilusFile *file)
     }
 
     action = ACTIVATION_ACTION_DO_NOTHING;
-    if (nautilus_file_is_launchable (file))
+    if (nautilus_file_is_mac_app (file))
+    {
+        action = ACTIVATION_ACTION_LAUNCH;
+    }
+    else if (nautilus_file_is_launchable (file))
     {
         char *executable_path;
 
@@ -1668,6 +1682,21 @@ activate_files_internal (ActivateParameters *parameters)
 
         g_debug ("Launching file path %s", quoted_path);
 
+#ifdef __APPLE__
+        if (nautilus_file_is_mac_app (file))
+        {
+            const char *argv[] = { "/usr/bin/open", executable_path, NULL };
+            g_auto (GStrv) envp = nautilus_mac_session_bus_get_launch_environ ();
+            g_autoptr (GError) error = NULL;
+
+            if (!g_spawn_async (NULL, (char **) argv, envp, G_SPAWN_DEFAULT, NULL, NULL, NULL, &error))
+            {
+                g_warning ("Could not open the app %s: %s", executable_path, error->message);
+            }
+            continue;
+        }
+#endif
+
         nautilus_launch_application_from_command (display, quoted_path, FALSE, NULL);
     }
 
@@ -1715,6 +1744,7 @@ activate_files_internal (ActivateParameters *parameters)
             file = NAUTILUS_FILE (l->data);
             uri = nautilus_file_get_activation_uri (file);
             location = g_file_new_for_uri (uri);
+#ifndef __APPLE__
             if (g_file_is_native (location) &&
                 (nautilus_file_is_in_admin (file) ||
                  !nautilus_file_can_read (file) ||
@@ -1723,6 +1753,7 @@ activate_files_internal (ActivateParameters *parameters)
                 g_free (uri);
                 uri = g_strconcat (SCHEME_ADMIN "://", g_file_peek_path (location), NULL);
             }
+#endif
 
             location_with_permissions = g_file_new_for_uri (uri);
 

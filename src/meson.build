@@ -309,6 +309,34 @@ nautilus_deps = [
   tinysparql,
 ]
 
+if host_machine.system() == 'darwin'
+  libnautilus_sources += [
+    'macos/nautilus-mac-app-data.c',
+    'macos/nautilus-mac-app-data.h',
+    'macos/nautilus-mac-app-icon.m',
+    'macos/nautilus-mac-app-icon.h',
+    'macos/nautilus-mac-appearance.c',
+    'macos/nautilus-mac-appearance.h',
+    'macos/nautilus-mac-bonjour.c',
+    'macos/nautilus-mac-bonjour.h',
+    'macos/nautilus-mac-drag.h',
+    'macos/nautilus-mac-drag.m',
+    'macos/nautilus-mac-paths.c',
+    'macos/nautilus-mac-paths.h',
+    'macos/nautilus-mac-places.c',
+    'macos/nautilus-mac-places.h',
+    'macos/nautilus-mac-privacy.c',
+    'macos/nautilus-mac-privacy.h',
+    'macos/nautilus-mac-session-bus.c',
+    'macos/nautilus-mac-session-bus.h',
+    'macos/nautilus-mac-type-icon.c',
+    'macos/nautilus-mac-type-icon.h',
+    'macos/nautilus-search-engine-walker.c',
+    'macos/nautilus-search-engine-walker.h',
+  ]
+  nautilus_deps += dependency('appleframeworks', modules: ['AppKit', 'SystemConfiguration'])
+endif
+
 libnautilus = static_library(
   'nautilus',
   libnautilus_sources,

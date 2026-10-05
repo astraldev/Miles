@@ -35,6 +35,10 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-places.h"
+#endif
+
 #define MAX_BOOKMARK_LENGTH 80
 #define LOAD_JOB 1
 #define SAVE_JOB 2
@@ -701,6 +705,16 @@ nautilus_bookmark_list_can_bookmark (NautilusBookmarkList *list,
         /* Already in the sidebar */
         return FALSE;
     }
+
+#ifdef __APPLE__
+    if (nautilus_mac_location_is_place (location))
+    {
+        /*
+         * Already in the sidebar
+         */
+        return FALSE;
+    }
+#endif
 
     return TRUE;
 }

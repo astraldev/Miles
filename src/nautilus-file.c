@@ -65,6 +65,13 @@
 #include "nautilus-ui-utilities.h"
 #include "nautilus-vfs-file.h"
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-app-icon.h"
+#include "macos/nautilus-mac-places.h"
+#include "macos/nautilus-mac-privacy.h"
+#include "macos/nautilus-mac-type-icon.h"
+#endif
+
 #ifdef HAVE_SELINUX
 #include <selinux/selinux.h>
 #endif
@@ -1546,8 +1553,23 @@ nautilus_file_can_trash (NautilusFile *file)
 }
 
 gboolean
+nautilus_file_is_mac_app (NautilusFile *file)
+{
+#ifdef __APPLE__
+    return NAUTILUS_IS_MAC_APP_ICON (file->details->icon);
+#else
+    return FALSE;
+#endif
+}
+
+gboolean
 nautilus_file_opens_in_view (NautilusFile *file)
 {
+    if (nautilus_file_is_mac_app (file))
+    {
+        return FALSE;
+    }
+
     return (nautilus_file_is_directory (file) ||
             nautilus_file_get_file_type (file) == G_FILE_TYPE_MOUNTABLE ||
             (nautilus_file_get_file_type (file) == G_FILE_TYPE_SHORTCUT &&
@@ -2434,6 +2456,12 @@ update_info_internal (NautilusFile *file,
     const char *symlink_name, *mime_type, *selinux_context, *name;
     GFileType file_type;
     GIcon *icon;
+#ifdef __APPLE__
+    g_autoptr (GIcon) app_icon = NULL;
+    g_autofree char *mac_content_type = NULL;
+    g_autoptr (GIcon) mac_icon = NULL;
+    g_autoptr (GIcon) mac_type_icon = NULL;
+#endif
     const char *filesystem_id;
     const char *trash_orig_path;
     const char *group, *owner, *owner_real;
@@ -2775,7 +2803,60 @@ update_info_internal (NautilusFile *file,
         changed = TRUE;
     }
 
+#ifdef __APPLE__
+    /*
+     * gvfs names folders by MIME type, which GIO does not know on macOS.
+     */
+    mime_type = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE);
+    if (mime_type != NULL && strchr (mime_type, '/') != NULL)
+    {
+        mac_content_type = g_content_type_from_mime_type (mime_type);
+    }
+#endif
+
     icon = g_file_info_get_icon (info);
+#ifdef __APPLE__
+    if (mac_content_type != NULL)
+    {
+        g_autoptr (GIcon) unknown_type_icon = g_content_type_get_icon (mime_type);
+
+        /*
+         * Keep an icon that was chosen for the file, as for a server or the trash.
+         */
+        if (icon == NULL || g_icon_equal (icon, unknown_type_icon))
+        {
+            mac_icon = g_content_type_get_icon (mac_content_type);
+            icon = mac_icon;
+        }
+    }
+
+    {
+        const char *content_type = mac_content_type != NULL ? mac_content_type : mime_type;
+        g_autoptr (GIcon) type_icon = content_type != NULL ? g_content_type_get_icon (content_type) : NULL;
+
+        if (icon != NULL && type_icon != NULL && g_icon_equal (icon, type_icon))
+        {
+            mac_type_icon = nautilus_mac_get_type_icon (content_type);
+            if (mac_type_icon != NULL)
+            {
+                icon = mac_type_icon;
+            }
+        }
+    }
+
+    name = update_name ? g_file_info_get_name (info) : file->details->name;
+    if (file_type == G_FILE_TYPE_DIRECTORY && name != NULL && g_str_has_suffix (name, ".app"))
+    {
+        g_autoptr (GFile) parent = nautilus_directory_get_location (file->details->directory);
+        g_autoptr (GFile) location = g_file_get_child (parent, name);
+
+        app_icon = nautilus_mac_app_icon_new (location);
+        if (app_icon != NULL)
+        {
+            icon = app_icon;
+        }
+    }
+#endif
     if (!g_icon_equal (icon, file->details->icon))
     {
         changed = TRUE;
@@ -2800,6 +2881,12 @@ update_info_internal (NautilusFile *file,
     {
         mime_type = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE);
     }
+#ifdef __APPLE__
+    if (mac_content_type != NULL)
+    {
+        mime_type = mac_content_type;
+    }
+#endif
     if (g_strcmp0 (file->details->mime_type, mime_type) != 0)
     {
         changed = TRUE;
@@ -4578,6 +4665,15 @@ get_automatic_emblem_keywords (NautilusFile *file)
         keywords = g_list_prepend (keywords, NAUTILUS_FILE_EMBLEM_NAME_SYMBOLIC_LINK);
     }
 
+#ifdef __APPLE__
+    g_autoptr (GFile) location = nautilus_file_get_location (file);
+
+    if (nautilus_mac_location_is_in_cloud (location))
+    {
+        keywords = g_list_prepend (keywords, "weather-overcast-symbolic");
+    }
+#endif
+
     if (!nautilus_file_can_read (file))
     {
         keywords = g_list_prepend (keywords, NAUTILUS_FILE_EMBLEM_NAME_CANT_READ);
@@ -4938,6 +5034,18 @@ gboolean
 nautilus_file_should_show_directory_item_count (NautilusFile *file)
 {
     g_return_val_if_fail (NAUTILUS_IS_FILE (file), FALSE);
+
+#ifdef __APPLE__
+    /*
+     * Counting opens the folder, and MacOS would ask for each one a folder shows.
+     */
+    g_autoptr (GFile) guarded_location = nautilus_file_get_location (file);
+
+    if (nautilus_mac_location_is_guarded (guarded_location))
+    {
+        return FALSE;
+    }
+#endif
 
     /* Don't count items in autofs directories to avoid triggering automount. */
     if (file->details->is_mountpoint)
@@ -7266,6 +7374,41 @@ gboolean
 nautilus_file_is_archive (NautilusFile *file)
 {
     const char *mime_type = nautilus_file_get_mime_type (file);
+
+#ifdef __APPLE__
+    /*
+     * macOS has its own names for file types, and GIO maps these three to MIME types autoar lacks.
+     */
+    static const struct
+    {
+        const char *content_type;
+        const char *mime_type;
+    } archive_types[] =
+    {
+        { "org.gnu.gnu-zip-archive", "application/gzip" },
+        { "org.gnu.gnu-zip-tar-archive", "application/x-compressed-tar" },
+        { "public.bzip2-archive", "application/x-bzip" },
+    };
+    g_autofree char *translated_mime_type = NULL;
+
+    if (mime_type == NULL)
+    {
+        return FALSE;
+    }
+
+    for (guint i = 0; i < G_N_ELEMENTS (archive_types); i++)
+    {
+        if (g_str_equal (mime_type, archive_types[i].content_type))
+        {
+            return autoar_check_mime_type_supported (archive_types[i].mime_type);
+        }
+    }
+
+    translated_mime_type = g_content_type_get_mime_type (mime_type);
+
+    return translated_mime_type != NULL &&
+           autoar_check_mime_type_supported (translated_mime_type);
+#endif
 
     return autoar_check_mime_type_supported (mime_type);
 }

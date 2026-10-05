@@ -391,6 +391,35 @@ emit_change_signals_for_all_files_in_all_directories (void)
     }
 }
 
+#ifdef __APPLE__
+NautilusFileList *
+nautilus_directory_get_mac_apps (void)
+{
+    NautilusFileList *apps = NULL;
+    GHashTableIter iter;
+    NautilusDirectory *directory;
+
+    if (directories == NULL)
+    {
+        return NULL;
+    }
+
+    g_hash_table_iter_init (&iter, directories);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &directory))
+    {
+        for (GList *l = directory->details->file_list; l != NULL; l = l->next)
+        {
+            if (nautilus_file_is_mac_app (l->data))
+            {
+                apps = g_list_prepend (apps, g_object_ref (l->data));
+            }
+        }
+    }
+
+    return apps;
+}
+#endif
+
 static void
 async_state_changed_one (gpointer key,
                          gpointer value,

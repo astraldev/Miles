@@ -115,6 +115,27 @@
         </link>
       </item>
       <item>
+        <attribute name="label" translatable="yes">Show Package Contents</attribute>
+        <attribute name="action">view.show-package-contents</attribute>
+        <attribute name="hidden-when">action-disabled</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">Uninstall</attribute>
+        <attribute name="nautilus-menu-item">uninstall-submenu</attribute>
+        <link name="submenu">
+          <section>
+            <item>
+              <attribute name="label" translatable="yes">Keep Settings and Data</attribute>
+              <attribute name="action">view.uninstall-app</attribute>
+            </item>
+            <item>
+              <attribute name="label" translatable="yes">Remove Settings and Data</attribute>
+              <attribute name="action">view.uninstall-app-and-data</attribute>
+            </item>
+          </section>
+        </link>
+      </item>
+      <item>
         <attribute name="label" translatable="yes">_Open Item Location</attribute>
         <attribute name="action">view.open-item-location</attribute>
         <attribute name="hidden-when">action-disabled</attribute>

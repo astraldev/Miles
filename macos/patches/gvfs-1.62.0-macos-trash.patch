@@ -1,0 +1,126 @@
+Makes gvfs's trash backend use the trash of MacOS, with the code in gvfs-trashmac.h.
+The files it changes are GPL-3.0-only.
+
+diff --git a/daemon/trashlib/trashexpunge.c b/daemon/trashlib/trashexpunge.c
+index db3e70ca4..094ddc1b8 100644
+--- a/daemon/trashlib/trashexpunge.c
++++ b/daemon/trashlib/trashexpunge.c
+@@ -82,6 +82,9 @@ trash_expunge_thread (gpointer data)
+ 
+           g_mutex_unlock (&trash_expunge_lock);
+           trash_expunge_delete_everything_under (directory);
++#ifdef __APPLE__
++          g_file_delete (directory, NULL, NULL);
++#endif
+           g_mutex_lock (&trash_expunge_lock);
+ 
+           g_object_unref (directory);
+diff --git a/daemon/trashlib/trashitem.c b/daemon/trashlib/trashitem.c
+index 08dd8ad88..93a3e98d9 100644
+--- a/daemon/trashlib/trashitem.c
++++ b/daemon/trashlib/trashitem.c
+@@ -11,6 +11,10 @@
+ 
+ #include <glib/gstdio.h>
+ 
++#ifdef __APPLE__
++#include "trashmac.h"
++#endif
++
+ typedef struct
+ {
+   trash_item_notify func;
+@@ -148,6 +152,11 @@ trash_item_get_trashinfo (GFile  *path,
+   char *trashinfo;
+   char *basename;
+ 
++#ifdef __APPLE__
++  trash_item_get_put_back (path, topdir, original, date);
++  return;
++#endif
++
+   files = g_file_get_parent (path);
+   trashdir = g_file_get_parent (files);
+   trashpath = g_file_get_path (trashdir);
+@@ -391,6 +400,11 @@ trash_root_add_item (TrashRoot *list,
+ {
+   TrashItem *item;
+ 
++#ifdef __APPLE__
++  if (trash_mac_skips (file))
++    return;
++#endif
++
+   item = trash_item_new (list, file, topdir, in_homedir);
+ 
+   g_rw_lock_writer_lock (&list->lock);
+@@ -489,6 +503,10 @@ trash_item_delete (TrashItem  *item,
+   guint unique;
+   guint i;
+ 
++#ifdef __APPLE__
++  return trash_mac_delete (item, error);
++#endif
++
+   expunged = g_file_resolve_relative_path (item->file,
+                                            "../../expunged");
+   g_file_make_directory_with_parents (expunged, NULL, NULL);
+@@ -538,6 +556,10 @@ trash_item_restore (TrashItem  *item,
+       g_hash_table_remove (item->root->item_table, item->escaped_name);
+       g_rw_lock_writer_unlock (&item->root->lock);
+ 
++#ifdef __APPLE__
++      return TRUE;
++#endif
++
+       {
+         GFile *trashinfo;
+         gchar *basename;
+diff --git a/daemon/trashlib/trashwatcher.c b/daemon/trashlib/trashwatcher.c
+index cf3ff7ba0..bf32bce00 100644
+--- a/daemon/trashlib/trashwatcher.c
++++ b/daemon/trashlib/trashwatcher.c
+@@ -74,6 +74,11 @@ decide_watch_type (GUnixMountEntry *mount,
+   if (mount == NULL)
+     return TRASH_WATCHER_TRUSTED;
+ 
++#ifdef __APPLE__
++  if (!is_home_trash)
++    return TRASH_WATCHER_WATCH;
++#endif
++
+   mount_path = g_unix_mount_entry_get_mount_path (mount);
+ 
+   /* Do not care about mount points without read access to avoid polling, see:
+@@ -186,8 +191,13 @@ trash_mount_insert (TrashWatcher    *watcher,
+    */
+ 
+   /* (1) */
++#ifdef __APPLE__
++  mount->dirs[0] = trash_dir_new (watcher->root, watching, FALSE, mountpoint,
++                                  ".Trashes/%d", (int) getuid ());
++#else
+   mount->dirs[0] = trash_dir_new (watcher->root, watching, FALSE, mountpoint,
+                                   ".Trash/%d/files", (int) getuid ());
++#endif
+ 
+   /* (2) */
+   mount->dirs[1] = trash_dir_new (watcher->root, watching, FALSE, mountpoint,
+@@ -402,10 +412,17 @@ trash_watcher_new (TrashRoot *root)
+   homedir_trashdir = g_file_get_child (user_datadir, "Trash/files");
+   homedir_mount = find_mount_entry_for_file (homedir_trashdir);
+   watcher->homedir_type = decide_watch_type (homedir_mount, TRUE);
++#ifdef __APPLE__
++  watcher->homedir_trashdir = trash_dir_new (watcher->root,
++                                             FALSE, TRUE,
++                                             g_get_home_dir (),
++                                             ".Trash");
++#else
+   watcher->homedir_trashdir = trash_dir_new (watcher->root,
+                                              FALSE, TRUE,
+                                              g_get_user_data_dir (),
+                                              "Trash/files");
++#endif
+ 
+   if (homedir_mount)
+     g_unix_mount_entry_free (homedir_mount);

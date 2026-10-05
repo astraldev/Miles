@@ -32,7 +32,6 @@
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
-#include <gio/gdesktopappinfo.h>
 
 #include <locale.h>
 #ifdef HAVE_MALLOC_H
@@ -42,12 +41,18 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-paths.h"
+#include "macos/nautilus-mac-session-bus.h"
+#endif
+
 int
 main (int   argc,
       char *argv[])
 {
     gint retval;
     NautilusApplication *application;
+
     /* Initialize gettext support */
     setlocale (LC_ALL, "");
     bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
@@ -64,6 +69,12 @@ main (int   argc,
         exit (ENOTSUP);
     }
 
+#ifdef __APPLE__
+    nautilus_mac_paths_init ();
+    nautilus_mac_session_bus_start ();
+    g_setenv ("GSK_DEBUG", "full-redraw", FALSE);
+#endif
+
     nautilus_register_resource ();
     /* Run the nautilus application. */
     application = nautilus_application_new ();
@@ -74,10 +85,22 @@ main (int   argc,
         g_application_hold (G_APPLICATION (application));
     }
 
+#ifdef __APPLE__
+    /*
+     * Only the instance that runs the app starts up. One that hands over to it does not.
+     */
+    g_signal_connect (application, "startup",
+                      G_CALLBACK (nautilus_mac_session_bus_take_over), NULL);
+#endif
+
     retval = g_application_run (G_APPLICATION (application),
                                 argc, argv);
 
     g_object_unref (application);
+
+#ifdef __APPLE__
+    nautilus_mac_session_bus_stop ();
+#endif
 
     return retval;
 }

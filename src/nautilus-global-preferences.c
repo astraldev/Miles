@@ -109,7 +109,9 @@ nautilus_global_preferences_init (void)
     gnome_lockdown_preferences = g_settings_new ("org.gnome.desktop.lockdown");
     gnome_interface_preferences = g_settings_new ("org.gnome.desktop.interface");
     gnome_privacy_preferences = g_settings_new ("org.gnome.desktop.privacy");
+#ifdef ENABLE_LOCALSEARCH
     localsearch_preferences = g_settings_new ("org.freedesktop.Tracker3.Miner.Files");
+#endif
 
     if (check_schema_available (FILE_SHARING_SCHEMA_ID) &&
         check_schema_available (FILE_SHARING_SERVICE_SCHEMA_ID))

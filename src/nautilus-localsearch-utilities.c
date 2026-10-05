@@ -81,6 +81,10 @@ host_tracker_miner_fs_ready (GObject      *source,
 void
 nautilus_localsearch_setup_miner_fs_connection (void)
 {
+#ifndef ENABLE_LOCALSEARCH
+    return;
+#endif
+
     static gsize tried_tracker_init = FALSE;
 
     if (tracker_miner_fs_connection != NULL)
@@ -224,6 +228,10 @@ get_tracker_locations (const gchar *key)
     GList *list = NULL;
     gint idx;
     GFile *location;
+
+#ifndef ENABLE_LOCALSEARCH
+    return NULL;
+#endif
 
     locations = g_settings_get_strv (localsearch_preferences, key);
 

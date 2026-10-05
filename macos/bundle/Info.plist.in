@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>@APP_NAME@</string>
+	<key>CFBundleDisplayName</key>
+	<string>@APP_NAME@</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.astralco.Miles</string>
+	<key>CFBundleExecutable</key>
+	<string>nautilus</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@VERSION@</string>
+
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 1999 The Files Authors. © 2026 Ekure Edem. GPL 3.0 or later.</string>
+
+	<!-- Without these keys, MacOS refuses access without asking. -->
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>@APP_NAME@ shows and manages the files on your Desktop.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>@APP_NAME@ shows and manages the files in your Documents folder.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>@APP_NAME@ shows and manages the files in your Downloads folder.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>@APP_NAME@ shows and manages the files on removable drives.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>@APP_NAME@ shows and manages the files on network volumes.</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>@APP_NAME@ shows and manages the files in your cloud folders.</string>
+
+	<key>NSAppleEventsUsageDescription</key>
+	<string>@APP_NAME@ asks Finder to move an app to the Trash when that needs an administrator's password.</string>
+
+	<!-- The types src/macos/nautilus-mac-bonjour.c looks for. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>@APP_NAME@ finds and connects to file servers on your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_sftp-ssh._tcp</string>
+		<string>_afpovertcp._tcp</string>
+		<string>_webdav._tcp</string>
+		<string>_webdavs._tcp</string>
+		<string>_ftp._tcp</string>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,48 @@
+This patch is needed because gvfs 1.62.0 fails to build on mac, due to
+explicit_bzero (clears a password from memory before freeing it), which mac does not have.
+
+Mac has memset_s for the same job, so nothing is lost.
+
+The TLS library reads its certificates from the folder it was built for. An app
+that was moved to another Mac says where they are, with GVFS_TLS_CERTIFICATES.
+
+diff --git a/common/gvfsutils.h b/common/gvfsutils.h
+index 00097be..bde13ef 100644
+--- a/common/gvfsutils.h
++++ b/common/gvfsutils.h
+@@ -38,7 +38,11 @@ gvfs_free_password (gpointer str)
+ {
+   if (str != NULL)
+     {
++#ifdef __APPLE__
++      memset_s (str, strlen (str), 0, strlen (str));
++#else
+       explicit_bzero (str, strlen (str));
++#endif
+       g_free (str);
+     }
+ }
+diff --git a/daemon/daemon-main.c b/daemon/daemon-main.c
+index 16ca8ed..58dd61a 100644
+--- a/daemon/daemon-main.c
++++ b/daemon/daemon-main.c
+@@ -70,6 +70,19 @@ daemon_init (void)
+ 
+   gvfs_setup_debug_handler ();
+ 
++#ifdef __APPLE__
++  {
++    const char *certificates = g_getenv ("GVFS_TLS_CERTIFICATES");
++    GTlsDatabase *database = certificates != NULL ? g_tls_file_database_new (certificates, NULL) : NULL;
++
++    if (database != NULL)
++      {
++        g_tls_backend_set_default_database (g_tls_backend_get_default (), database);
++        g_object_unref (database);
++      }
++  }
++#endif
++
+ #ifdef SIGPIPE
+   /* Ignore SIGPIPE to avoid killing daemons on cancelled transfer *
+    * See https://bugzilla.gnome.org/show_bug.cgi?id=649041         *

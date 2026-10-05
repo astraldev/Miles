@@ -416,7 +416,7 @@ nautilus_previewer_call_show_file (const gchar        *uri,
     g_signal_connect_object (g_application_get_default (), "last-window-closed",
                              G_CALLBACK (previewer_call_close), window, 0);
 
-    GdkSurface *gdk_surface = gtk_native_get_surface (GTK_NATIVE (window));
+    G_GNUC_UNUSED GdkSurface *gdk_surface = gtk_native_get_surface (GTK_NATIVE (window));
 #ifdef GDK_WINDOWING_X11
     if (GDK_IS_X11_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))))
     {

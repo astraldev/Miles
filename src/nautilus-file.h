@@ -416,6 +416,7 @@ GList *                 nautilus_file_get_emblem_icons                  (Nautilu
 
 /* Whether the file should open inside a view */
 gboolean                nautilus_file_opens_in_view                     (NautilusFile                   *file);
+gboolean                nautilus_file_is_mac_app                        (NautilusFile                   *file);
 
 /* Convenience functions for dealing with a list of NautilusFile objects that each have a ref.
  * These are just convenient names for functions that work on lists of GtkObject *.

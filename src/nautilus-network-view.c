@@ -16,6 +16,10 @@
 #include "nautilus-view-item.h"
 #include "nautilus-view-model.h"
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-bonjour.h"
+#endif
+
 struct _NautilusNetworkView
 {
     NautilusListBase parent_instance;
@@ -60,6 +64,13 @@ get_section (NautilusViewItem *item)
     }
 
     g_autoptr (GFile) location = nautilus_file_get_location (file);
+
+#ifdef __APPLE__
+    if (nautilus_mac_bonjour_is_file_name (nautilus_file_get_name (file)))
+    {
+        return SECTION_AVAILABLE;
+    }
+#endif
 
     if (g_file_has_uri_scheme (location, SCHEME_NETWORK))
     {

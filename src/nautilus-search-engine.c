@@ -23,6 +23,10 @@
 
 #include <glib/gi18n.h>
 
+#ifdef __APPLE__
+#include "macos/nautilus-search-engine-walker.h"
+#endif
+
 struct _NautilusSearchEngine
 {
     GObject parent_instance;
@@ -268,8 +272,16 @@ nautilus_search_engine_set_search_type (NautilusSearchEngine *self,
 
     self->search_type = search_type;
 
+#ifdef ENABLE_LOCALSEARCH
     setup_provider (self, &self->localsearch, NAUTILUS_SEARCH_TYPE_LOCALSEARCH,
                     (CreateFunc) nautilus_search_engine_localsearch_new);
+#elif defined (__APPLE__)
+    /*
+     * In the place of the indexer: it searches everywhere too.
+     */
+    setup_provider (self, &self->localsearch, NAUTILUS_SEARCH_TYPE_LOCALSEARCH,
+                    (CreateFunc) nautilus_search_engine_walker_new);
+#endif
     setup_provider (self, &self->model, NAUTILUS_SEARCH_TYPE_MODEL,
                     (CreateFunc) nautilus_search_engine_model_new);
     setup_provider (self, &self->recent, NAUTILUS_SEARCH_TYPE_RECENT,

@@ -29,6 +29,10 @@
 
 #include "config.h"
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-paths.h"
+#endif
+
 struct _NautilusTagManager
 {
     GObject object;
@@ -665,10 +669,16 @@ setup_database (NautilusTagManager  *self,
     g_autofree gchar *ontology_path = NULL;
     g_autoptr (GFile) store = NULL;
     g_autoptr (GFile) ontology = NULL;
+#ifdef __APPLE__
+    g_autofree char *install_datadir = nautilus_mac_get_install_path (NAUTILUS_DATADIR);
+#endif
 
     /* Open private database to store nautilus:starred property. */
 
     datadir = NAUTILUS_DATADIR;
+#ifdef __APPLE__
+    datadir = install_datadir;
+#endif
 
     store_path = g_build_filename (g_get_user_data_dir (), "nautilus", "tags", NULL);
     ontology_path = g_build_filename (datadir, "ontology", NULL);

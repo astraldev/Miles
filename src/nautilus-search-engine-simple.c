@@ -33,6 +33,10 @@
 #include <glib.h>
 #include <gio/gio.h>
 
+#ifdef __APPLE__
+#include "macos/nautilus-search-engine-walker.h"
+#endif
+
 #define FLUSH_TIME_SPAN (250 * G_TIME_SPAN_MILLISECOND)
 
 struct _NautilusSearchEngineSimple
@@ -215,6 +219,15 @@ start_search (NautilusSearchProvider *provider)
                              ? STD_ATTRIBUTES_WITH_CONTENT_TYPE
                              : STD_ATTRIBUTES;
     gboolean recursion_enabled = nautilus_query_recursive (query);
+
+#ifdef __APPLE__
+    if (g_file_is_native (toplevel))
+    {
+        nautilus_search_engine_walker_search (self, toplevel, recursion_enabled);
+
+        return;
+    }
+#endif
 
     nautilus_iterate_directory_recursive (toplevel,
                                           recursion_enabled ? G_MAXUINT : 0,

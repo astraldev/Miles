@@ -1,0 +1,10 @@
+[wrap-git]
+url = https://github.com/flatpak/libportal.git
+# 0.9.1
+revision = 8f5dc8d192f6e31dafe69e35219e3b707bde71ce
+depth = 1
+diff_files = libportal-0.9.1-macos.patch, libportal-0.9.1-subproject.patch
+
+[provide]
+libportal = libportal_dep
+libportal-gtk4 = libportal_gtk4_dep

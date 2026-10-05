@@ -113,15 +113,45 @@ subproject('libgxdp',
 gio = dependency('gio-2.0', version: glib_ver)
 gio_unix = dependency('gio-unix-2.0', version: glib_ver)
 glib = dependency('glib-2.0', version: glib_ver)
-glycin = dependency('glycin-2', version: '>= 2')
-glycin_gtk4 = dependency('glycin-gtk4-2', version: '>= 2')
+if host_machine.system() == 'darwin'
+  add_languages('objc', native: false)
+  add_project_arguments('-Wno-unused-parameter', language: 'objc')
+  subdir('macos/shims/glycin')
+else
+  glycin = dependency('glycin-2', version: '>= 2')
+  glycin_gtk4 = dependency('glycin-gtk4-2', version: '>= 2')
+endif
 gmodule = dependency('gmodule-no-export-2.0', version: glib_ver)
 gnome_autoar = dependency('gnome-autoar-0', version: '>= 0.4.4')
-gnome_desktop = dependency('gnome-desktop-4', version: '>= 43')
+# The default_options apply when these are built from subprojects/, as on macOS.
+gnome_desktop = dependency('gnome-desktop-4', version: '>= 43',
+  default_options: [
+    'build_gtk4=true',
+    'legacy_library=false',
+    'introspection=false',
+    'desktop_docs=false',
+    'debug_tools=false',
+    'gtk_doc=false',
+    'installed_tests=false',
+    'udev=disabled',
+    'systemd=disabled',
+  ],
+)
 gtk = dependency('gtk4', version: '>= 4.22.0')
 libadwaita = dependency('libadwaita-1', version: '>= 1.8.alpha')
 libgxdp = dependency('libgxdp')
-libportal = dependency('libportal', version: '>= 0.7')
+libportal = dependency('libportal', version: '>= 0.7',
+  default_options: [
+    'backend-gtk4=enabled',
+    'backend-gtk3=disabled',
+    'backend-qt5=disabled',
+    'backend-qt6=disabled',
+    'introspection=false',
+    'vapi=false',
+    'docs=false',
+    'tests=false',
+  ],
+)
 libportal_gtk4 = dependency('libportal-gtk4', version: '>= 0.5')
 tinysparql = dependency('tinysparql-3.0', version: '>= 3.8')
 icu_dep = dependency('icu-uc', version: '>=56')
@@ -176,6 +206,44 @@ conf.set_quoted('PACKAGE_VERSION', meson.project_version())
 conf.set_quoted('PROFILE', profile)
 conf.set_quoted('VERSION', version_string)
 
+conf.set('ENABLE_LOCALSEARCH', host_machine.system() != 'darwin')
+if host_machine.system() == 'darwin'
+  macos_app_name = 'Miles'
+
+  conf.set_quoted('NAUTILUS_MACOS_APP_NAME', macos_app_name)
+  conf.set_quoted('NAUTILUS_PREFIX', prefix)
+
+  brew = find_program('brew', required: false)
+  macos_data_dirs = ['/usr/local/share', '/usr/share']
+  if brew.found()
+    macos_data_dirs = [join_paths(run_command(brew, '--prefix', check: true).stdout().strip(), 'share')] + macos_data_dirs
+  endif
+  conf.set_quoted('NAUTILUS_MACOS_SYSTEM_DATA_DIRS', ':'.join(macos_data_dirs))
+
+  # macOS has no session bus. Nautilus starts its own, for gvfs, with the dbus-daemon built here.
+  subproject('dbus',
+    default_options: [
+      'message_bus=true',
+      'tools=false',
+      'traditional_activation=false',
+      'modular_tests=disabled',
+      'doxygen_docs=disabled',
+      'ducktype_docs=disabled',
+      'xml_docs=disabled',
+      'qt_help=disabled',
+      'launchd=disabled',
+      'x11_autolaunch=disabled',
+      'systemd=disabled',
+      'selinux=disabled',
+      'apparmor=disabled',
+      'libaudit=disabled',
+    ],
+  )
+  conf.set_quoted('NAUTILUS_DBUS_DAEMON', join_paths(prefix, get_option('bindir'), 'dbus-daemon'))
+  conf.set_quoted('NAUTILUS_GIO_MODULE_DIR', join_paths(prefix, libdir, 'gio', 'modules'))
+  conf.set_quoted('NAUTILUS_BUS_SERVICES_DIR', join_paths(prefix, datadir, 'dbus-1', 'services'))
+  conf.set_quoted('NAUTILUS_GVFS_MOUNTS_DIR', join_paths(prefix, datadir, 'gvfs', 'mounts'))
+endif
 conf.set('HAVE_SELINUX', selinux.found())
 conf.set('HAVE_CLOUDPROVIDERS', cloudproviders.found())
 
@@ -248,8 +316,38 @@ endforeach
 gnome.post_install(
   gtk_update_icon_cache: true,
   glib_compile_schemas: true,
-  update_desktop_database: true,
+  update_desktop_database: host_machine.system() != 'darwin',
 )
+
+if host_machine.system() == 'darwin'
+  meson.add_install_script('macos/scripts/install-yaru.sh',
+    join_paths(datadir, 'nautilus', 'icons'),
+  )
+
+  meson.add_install_script('macos/scripts/install-gvfs.sh')
+
+  configure_file(
+    input: 'macos/bundle/Info.plist.in',
+    output: 'Info.plist',
+    configuration: {'APP_NAME': macos_app_name, 'VERSION': meson.project_version()},
+  )
+  meson.add_install_script('macos/scripts/install-app.sh', macos_app_name)
+
+  # "ninja app", after an install.
+  run_target('app',
+    command: [
+      find_program('macos/scripts/bundle-app.sh'),
+      prefix, macos_app_name, meson.current_build_dir(),
+    ],
+  )
+  # "ninja dmg", after "ninja app".
+  run_target('dmg',
+    command: [
+      find_program('macos/scripts/make-dmg.sh'),
+      macos_app_name, meson.project_version(), meson.current_build_dir(),
+    ],
+  )
+endif
 
 #### Summary ####
 
