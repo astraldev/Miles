@@ -208,6 +208,16 @@ conf.set_quoted('VERSION', version_string)
 
 conf.set('ENABLE_LOCALSEARCH', host_machine.system() != 'darwin')
 if host_machine.system() == 'darwin'
+  macos_app_name = 'Miles'
+
+  # Started from Finder, the app has no environment that says where schemas and icons are.
+  brew = find_program('brew', required: false)
+  macos_data_dirs = [join_paths(prefix, datadir)]
+  if brew.found()
+    macos_data_dirs += join_paths(run_command(brew, '--prefix', check: true).stdout().strip(), 'share')
+  endif
+  conf.set_quoted('NAUTILUS_MACOS_DATA_DIRS', ':'.join(macos_data_dirs + ['/usr/local/share', '/usr/share']))
+
   # macOS has no session bus. Nautilus starts its own, for gvfs, with the dbus-daemon built here.
   subproject('dbus',
     default_options: [
@@ -319,6 +329,14 @@ if host_machine.system() == 'darwin'
     configuration: {'servicedir': join_paths(prefix, datadir, 'dbus-1', 'services')},
     install_dir: join_paths(datadir, 'nautilus'),
   )
+
+  configure_file(
+    input: 'macos/bundle/Info.plist.in',
+    output: 'Info.plist',
+    configuration: {'APP_NAME': macos_app_name, 'VERSION': meson.project_version()},
+  )
+  # Last: it copies what the scripts before it installed.
+  meson.add_install_script('macos/scripts/install-app.sh', macos_app_name)
 endif
 
 #### Summary ####

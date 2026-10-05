@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The app's icon. An apple as the sole of a footprint: a file manager from GNOME, on the Mac.
+     Laid out on Apple's icon grid: a 1024 canvas, an 824 tile with a corner radius of 185.4. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#62a0ea"/>
+      <stop offset="1" stop-color="#1c71d8"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <path d="M 383.41 100.00 L 640.59 100.00 C 722.19 100.00 763.00 100.00 806.92 113.89 C 854.88 131.34 892.66 169.12 910.11 217.08 C 924.00 261.00 924.00 301.81 924.00 383.41 L 924.00 640.59 C 924.00 722.19 924.00 763.00 910.11 806.92 C 892.66 854.88 854.88 892.66 806.92 910.11 C 763.00 924.00 722.19 924.00 640.59 924.00 L 383.41 924.00 C 301.81 924.00 261.00 924.00 217.08 910.11 C 169.12 892.66 131.34 854.88 113.89 806.92 C 100.00 763.00 100.00 722.19 100.00 640.59 L 100.00 383.41 C 100.00 301.81 100.00 261.00 113.89 217.08 C 131.34 169.12 169.12 131.34 217.08 113.89 C 261.00 100.00 301.81 100.00 383.41 100.00 Z" fill="url(#tile)" filter="url(#shadow)"/>
+  <g transform="translate(512 604) scale(1.6)" fill="#ffffff">
+    <path d="M 0 -72 C 34.2 -93.6 91.8 -81 91.8 -14.4 C 91.8 41.4 54 84.6 25.2 84.6 C 12.6 84.6 9 78.3 0 78.3 C -9 78.3 -12.6 84.6 -25.2 84.6 C -54 84.6 -91.8 41.4 -91.8 -14.4 C -91.8 -81 -34.2 -93.6 0 -72 Z"/>
+    <ellipse cx="-146.17" cy="-61.08" rx="22" ry="31" transform="rotate(-66 -146.17 -61.08)"/>
+    <ellipse cx="-87.14" cy="-130.19" rx="22" ry="31" transform="rotate(-33 -87.14 -130.19)"/>
+    <ellipse cx="0.00" cy="-160.00" rx="29" ry="40" transform="rotate(0 0.00 -160.00)"/>
+    <ellipse cx="87.14" cy="-130.19" rx="22" ry="31" transform="rotate(33 87.14 -130.19)"/>
+    <ellipse cx="146.17" cy="-61.08" rx="22" ry="31" transform="rotate(66 146.17 -61.08)"/>
+  </g>
+</svg>

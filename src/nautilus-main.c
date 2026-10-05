@@ -69,6 +69,7 @@ main (int   argc,
     }
 
 #ifdef __APPLE__
+    g_setenv ("XDG_DATA_DIRS", NAUTILUS_MACOS_DATA_DIRS, FALSE);
     nautilus_mac_session_bus_start ();
     g_setenv ("GSK_DEBUG", "full-redraw", FALSE);
 #endif
