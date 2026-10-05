@@ -18,6 +18,9 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$prefix/bin/nautilus" "$app/Contents/MacOS/nautilus"
 cp "$MESON_BUILD_ROOT/Info.plist" "$app/Contents/Info.plist"
 
+minimum=$(vtool -show-build "$prefix/bin/nautilus" | awk '/minos/ { print $2 }')
+/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $minimum" "$app/Contents/Info.plist"
+
 if command -v rsvg-convert >/dev/null 2>&1; then
     iconset=$MESON_BUILD_ROOT/AppIcon.iconset
 
