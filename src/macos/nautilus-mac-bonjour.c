@@ -15,7 +15,7 @@
  *
  */
 
-/* Finds the file servers on the local network. gvfs does this with avahi, which macOS lacks. */
+/* Finds the file servers on the local network. gvfs does this with avahi, which MacOS lacks. */
 
 #define G_LOG_DOMAIN "nautilus-mac"
 
@@ -43,7 +43,6 @@ static const struct
     { "_ftp._tcp", "ftp", 21 },
 };
 
-/* A request to the system's Bonjour service, answered through a socket. */
 typedef struct
 {
     NautilusMacBonjour *bonjour;
@@ -60,7 +59,6 @@ typedef struct
     /* A server is announced once on each network interface it is seen on. */
     guint n_interfaces;
     Request resolve;
-    /* Set once the address of the server is known and "added" was emitted. */
     GFileInfo *info;
 } Server;
 
@@ -113,7 +111,7 @@ on_request_ready (int          fd,
     /* Calls the callback of the request, which may end it. */
     if (DNSServiceProcessResult (request->ref) != kDNSServiceErr_NoError)
     {
-        /* The Bonjour service of macOS went away. What it told is no longer kept up to date. */
+        /* The Bonjour service went away: what it told is stale. */
         request->source_id = 0;
         schedule_restart (request->bonjour);
 

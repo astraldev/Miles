@@ -31,7 +31,7 @@
 #include "nautilus-icon-names.h"
 #include "nautilus-scheme.h"
 #ifdef __APPLE__
-#include "mac/nautilus-mac-places.h"
+#include "macos/nautilus-mac-places.h"
 #endif
 
 #include <gio/gio.h>

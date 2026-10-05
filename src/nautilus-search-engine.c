@@ -17,7 +17,7 @@
 #include "nautilus-search-engine-model.h"
 #include "nautilus-search-engine-localsearch.h"
 #ifdef __APPLE__
-#include "mac/nautilus-search-engine-spotlight.h"
+#include "macos/nautilus-search-engine-spotlight.h"
 #endif
 #include "nautilus-search-engine-recent.h"
 #include "nautilus-search-engine-simple.h"

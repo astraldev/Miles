@@ -34,7 +34,7 @@
 #include "nautilus-trash-monitor.h"
 
 #ifdef __APPLE__
-#include "mac/nautilus-mac-places.h"
+#include "macos/nautilus-mac-places.h"
 #include "nautilus-window-slot.h"
 #endif
 

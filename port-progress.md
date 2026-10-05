@@ -6,7 +6,7 @@ Base: upstream Nautilus 51.0.1, branch `mac-development`. The port as it was on 
 
 Where mac-only files go:
 
-- `src/mac/`: code
+- `src/macos/`: code
 - `macos/bundle/`: what goes into `Files.app` (Info.plist, entitlements)
 - `macos/scripts/`: scripts the build runs
 - `macos/patches/`: patches for what the scripts build (gvfs)
@@ -46,9 +46,9 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 ### Browsing and looks
 
 - App starts, shows a window, browses folders
-- Sidebar: Applications, Documents, Downloads, Movies, Music, Pictures as fixed places in their own section with a divider (`src/mac/nautilus-mac-places.c`, `nautilus-sidebar.c`). They cannot be dragged or bookmarked twice
+- Sidebar: Applications, Documents, Downloads, Movies, Music, Pictures as fixed places in their own section with a divider (`src/macos/nautilus-mac-places.c`, `nautilus-sidebar.c`). They cannot be dragged or bookmarked twice
 - Yaru icon theme is bundled with the app: `macos/scripts/install-yaru.sh` puts it in the app's own data folder (`share/nautilus/icons`) during `ninja install`, pinned to a Yaru commit, and Nautilus adds that folder to the icon search path itself. If the theme is missing, the app refuses to start
-- macOS accent colour picks the Yaru colour variant, at startup and when it is changed in System Settings (`src/mac/nautilus-mac-appearance.c`): Multicolour and Blue to blue, Purple to purple, Pink to magenta, Red to red, Orange to Yaru's own, Yellow to yellow, Green to viridian, Graphite to bark
+- macOS accent colour picks the Yaru colour variant, at startup and when it is changed in System Settings (`src/macos/nautilus-mac-appearance.c`): Multicolour and Blue to blue, Purple to purple, Pink to magenta, Red to red, Orange to Yaru's own, Yellow to yellow, Green to viridian, Graphite to bark
 - Dark appearance uses Yaru's `-dark` variant of the same colour, whose folders are lighter. It follows macOS, also while the app runs
 - Grid zoom steps are even: 48, 72, 112, 168, 256, each about 1.5 times the one before (upstream: 48, 64, 96, 168, 256)
 - The startup disk has a row in the sidebar, under its own name ("Macintosh HD"). It is in the drives section at the bottom, after a divider, ahead of the drives that come and go
@@ -64,7 +64,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 
 ### Apps
 
-- Apps show their own icon (`src/mac/nautilus-mac-app-icon.c`): the icon set in Finder if there is one, else the `.icns` file the app's Info.plist names. About 7 ms per app the first time it is drawn
+- Apps show their own icon (`src/macos/nautilus-mac-app-icon.c`): the icon set in Finder if there is one, else the `.icns` file the app's Info.plist names. About 7 ms per app the first time it is drawn
 - Double-click on an app launches it (`/usr/bin/open`). Right-click has "Show Package Contents" to browse inside
 - Dragging over an app does not launch it, and dropping on one is refused
 - Apps launched from Nautilus do not get its private bus
@@ -72,18 +72,18 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 
 ### Search
 
-- Spotlight search provider, in the place localsearch has on Linux (`src/mac/nautilus-search-engine-spotlight.c`)
+- Spotlight search provider, in the place localsearch has on Linux (`src/macos/nautilus-search-engine-spotlight.c`)
 - File type filter works on mac: the filter's MIME types are turned into the UTIs GIO uses there
 - Research on a search that does not need Spotlight: a mac walker on `getattrlistbulk` with about 4 threads, breadth-first. Measured on `~/Documents` (810,000 entries): 4.4 s, against 49 s for the current walk
 
 ### Network, trash and recent (gvfs)
 
 - `macos/scripts/install-gvfs.sh` builds gvfs into the prefix during `ninja install`, pinned to a commit, with the patches in `macos/patches/`
-- Nautilus starts its own D-Bus session bus (`src/mac/nautilus-mac-session-bus.c`, `macos/data/dbus-session.conf.in`) and stops it on quit. gvfs daemons start on demand and exit with the bus. A second launch joins the running app
+- Nautilus starts its own D-Bus session bus (`src/macos/nautilus-mac-session-bus.c`, `macos/data/dbus-session.conf.in`) and stops it on quit. gvfs daemons start on demand and exit with the bus. A second launch joins the running app
 - The bus's sockets are in `~/.cache/nautilus`, since macOS sweeps `/tmp`. Two launches at once do not start two buses. A dead bus does not kill Nautilus, and a stuck one does not keep it from quitting
 - `dbus-daemon` is built with the app, from a wrap pinned to dbus 1.16.2. Homebrew's is not used
 - Network view opens. Connect by address works for `sftp://`, `dav://`, `davs://`, `ftp://`, `afp://` (tested with the `gio` tool against test servers, not through the window)
-- Servers on the local network show up by themselves, under "Available on Current Network" (`src/mac/nautilus-mac-bonjour.c`). It asks macOS's own Bonjour service (`dns_sd.h`) for sftp, AFP, WebDAV and FTP servers, in Nautilus and not in gvfs, and lists them the way recent servers are listed. This Mac itself is left out
+- Servers on the local network show up by themselves, under "Available on Current Network" (`src/macos/nautilus-mac-bonjour.c`). It asks macOS's own Bonjour service (`dns_sd.h`) for sftp, AFP, WebDAV and FTP servers, in Nautilus and not in gvfs, and lists them the way recent servers are listed. This Mac itself is left out
 - Folders on a server show as folders: gvfs names them by MIME type, which GIO does not know on mac, so the type is translated
 - Trash reads the macOS trash folders (`~/.Trash`, `.Trashes/<uid>` on other drives). Listing, opening and deleting for good work (tested against a test home folder)
 - Trash knows where a file came from and when it was trashed, so "Restore" works: macOS has no call for it, so the gvfs patch reads the put-back records Finder keeps in the trash folder's `.DS_Store` file, and takes the date from the file's "date added". Tested on a disk image: a file whose name clashed in the trash went back to its folder under its own name. The reader was run 230,000 times on damaged files under sanitizers
@@ -91,7 +91,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 
 ### Permissions
 
-- A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/mac/nautilus-mac-privacy.c`). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest. No error dialog comes with it, and the files of the folder shown before are cleared
+- A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/macos/nautilus-mac-privacy.c`). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest. No error dialog comes with it, and the files of the folder shown before are cleared
 - A folder the user's account may not read (another user's home, ...) shows "No Permission" too, with no button. Upstream reopens it as `admin://`, which asks for a password through PolKit: that is Linux only, so on mac it said "admin locations are not supported"
 - Startup prints no "display server connection" message, and the build has no warnings in Nautilus's own code but one upstream deprecation
 

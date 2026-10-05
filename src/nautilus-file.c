@@ -66,7 +66,7 @@
 #include "nautilus-vfs-file.h"
 
 #ifdef __APPLE__
-#include "mac/nautilus-mac-app-icon.h"
+#include "macos/nautilus-mac-app-icon.h"
 #endif
 
 #ifdef HAVE_SELINUX

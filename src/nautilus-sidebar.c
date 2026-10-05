@@ -39,7 +39,7 @@
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
 #ifdef __APPLE__
-#include "mac/nautilus-mac-places.h"
+#include "macos/nautilus-mac-places.h"
 #endif
 
 #ifdef GDK_WINDOWING_X11

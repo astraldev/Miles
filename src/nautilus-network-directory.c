@@ -13,7 +13,7 @@
 #include "nautilus-file-utilities.h"
 #include "nautilus-internal-place-file.h"
 #ifdef __APPLE__
-#include "mac/nautilus-mac-bonjour.h"
+#include "macos/nautilus-mac-bonjour.h"
 #endif
 #include "nautilus-recent-servers.h"
 #include "nautilus-scheme.h"

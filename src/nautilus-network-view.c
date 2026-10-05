@@ -12,7 +12,7 @@
 #include "nautilus-global-preferences.h"
 #include "nautilus-list-base-private.h"
 #ifdef __APPLE__
-#include "mac/nautilus-mac-bonjour.h"
+#include "macos/nautilus-mac-bonjour.h"
 #endif
 #include "nautilus-network-cell.h"
 #include "nautilus-scheme.h"

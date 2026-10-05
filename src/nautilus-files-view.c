@@ -37,8 +37,8 @@
 #include <nautilus-extension.h>
 
 #ifdef __APPLE__
-#include "mac/nautilus-mac-bonjour.h"
-#include "mac/nautilus-mac-privacy.h"
+#include "macos/nautilus-mac-bonjour.h"
+#include "macos/nautilus-mac-privacy.h"
 #endif
 #include "nautilus-application.h"
 #include "nautilus-app-chooser.h"

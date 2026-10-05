@@ -15,7 +15,7 @@
  *
  */
 
-/* macOS has no D-Bus session bus. Nautilus starts its own, for gvfs. */
+/* MacOS has no D-Bus session bus. Nautilus starts its own, for gvfs. */
 
 #define G_LOG_DOMAIN "nautilus-mac"
 
@@ -63,7 +63,7 @@ add_gio_modules (void)
     g_setenv ("GIO_EXTRA_MODULES", with_gvfs, TRUE);
 }
 
-/* Not in /tmp, which macOS sweeps. */
+/* Not in /tmp, which MacOS sweeps. */
 static char *
 create_runtime_dir (void)
 {

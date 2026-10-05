@@ -32,7 +32,7 @@
 #include "nautilus-file-undo-manager.h"
 #include "nautilus-batch-rename-dialog.h"
 #ifdef __APPLE__
-#include "mac/nautilus-mac-privacy.h"
+#include "macos/nautilus-mac-privacy.h"
 #include "nautilus-ui-utilities.h"
 #endif
 #include "nautilus-scheme.h"

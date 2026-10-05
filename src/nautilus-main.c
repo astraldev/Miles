@@ -31,7 +31,7 @@
 #include "nautilus-resources.h"
 
 #ifdef __APPLE__
-#include "mac/nautilus-mac-session-bus.h"
+#include "macos/nautilus-mac-session-bus.h"
 #endif
 
 #include <glib/gi18n.h>

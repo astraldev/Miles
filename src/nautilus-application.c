@@ -69,7 +69,7 @@
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window.h"
 #ifdef __APPLE__
-#include "mac/nautilus-mac-appearance.h"
+#include "macos/nautilus-mac-appearance.h"
 #endif
 
 struct _NautilusApplication

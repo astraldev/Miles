@@ -8,7 +8,7 @@ set -eu
 YARU_URL=https://github.com/ubuntu/yaru.git
 YARU_COMMIT=7f18973e05607c609c4b972f0dd9bff36fa2a13e
 
-# One per macOS accent colour, see src/mac/nautilus-mac-appearance.c.
+# One per macOS accent colour, see src/macos/nautilus-mac-appearance.c.
 YARU_COLOURS="bark blue magenta purple red viridian yellow"
 
 if [ $# -ne 1 ] || [ -z "$1" ]; then

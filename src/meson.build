@@ -311,20 +311,20 @@ nautilus_deps = [
 
 if host_machine.system() == 'darwin'
   libnautilus_sources += [
-    'mac/nautilus-mac-app-icon.c',
-    'mac/nautilus-mac-app-icon.h',
-    'mac/nautilus-mac-appearance.c',
-    'mac/nautilus-mac-appearance.h',
-    'mac/nautilus-mac-bonjour.c',
-    'mac/nautilus-mac-bonjour.h',
-    'mac/nautilus-mac-places.c',
-    'mac/nautilus-mac-places.h',
-    'mac/nautilus-mac-privacy.c',
-    'mac/nautilus-mac-privacy.h',
-    'mac/nautilus-mac-session-bus.c',
-    'mac/nautilus-mac-session-bus.h',
-    'mac/nautilus-search-engine-spotlight.c',
-    'mac/nautilus-search-engine-spotlight.h',
+    'macos/nautilus-mac-app-icon.c',
+    'macos/nautilus-mac-app-icon.h',
+    'macos/nautilus-mac-appearance.c',
+    'macos/nautilus-mac-appearance.h',
+    'macos/nautilus-mac-bonjour.c',
+    'macos/nautilus-mac-bonjour.h',
+    'macos/nautilus-mac-places.c',
+    'macos/nautilus-mac-places.h',
+    'macos/nautilus-mac-privacy.c',
+    'macos/nautilus-mac-privacy.h',
+    'macos/nautilus-mac-session-bus.c',
+    'macos/nautilus-mac-session-bus.h',
+    'macos/nautilus-search-engine-spotlight.c',
+    'macos/nautilus-search-engine-spotlight.h',
   ]
   nautilus_deps += dependency('appleframeworks', modules: ['CoreGraphics', 'CoreServices', 'ImageIO', 'SystemConfiguration'])
 endif

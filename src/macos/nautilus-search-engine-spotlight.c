@@ -35,7 +35,7 @@
 #define MAX_RESULTS 10000
 /* Limit for one-folder searches: gathering cannot be interrupted, and this takes about a second. */
 #define MAX_GATHERED_RESULTS 20000
-/* Where macOS mounts the user's data. Spotlight reports its folders as seen from the root. */
+/* Where MacOS mounts the user's data. Spotlight reports its folders as seen from the root. */
 #define DATA_VOLUME_PATH "/System/Volumes/Data"
 /* The other volumes mounted there are internal to the system. */
 #define SYSTEM_VOLUMES_PATH "/System/Volumes/"
@@ -46,19 +46,15 @@ typedef struct
     GCancellable *cancellable;
 
     NautilusQuery *query;
-    /* Folder being searched, or NULL when searching everywhere. */
     GFile *location;
     char *query_string;
     gboolean recursive;
     gboolean show_hidden;
     gboolean search_content;
-    /* Whether the type filter asks for folders and nothing else. */
     gboolean only_folders;
 
-    /* The following data is only used by the search thread. */
-    /* Path of @location with links resolved and no trailing separator. */
+    /* Only used by the search thread. */
     char *location_path;
-    /* The same folder as seen from the root, when it is on the data volume. */
     const char *location_alias;
     MDQueryRef md_query;
 } SearchThreadData;
@@ -67,7 +63,6 @@ struct _NautilusSearchEngineSpotlight
 {
     NautilusSearchProvider parent_instance;
 
-    /* Built by should_search(), used by start_search(). */
     char *query_string;
 };
 
@@ -174,7 +169,6 @@ date_time_from_result (MDQueryRef  md_query,
                                                       kCFAbsoluteTimeIntervalSince1970));
 }
 
-/* Returns: (nullable): the part of @path below @folder (no trailing separator), or NULL. */
 static const char *
 path_below_folder (const char *path,
                    const char *folder)
@@ -197,7 +191,6 @@ path_below_folder (const char *path,
     return relative;
 }
 
-/* Returns: (nullable): @path relative to the searched folder, or NULL if the file is not wanted. */
 static const char *
 get_wanted_path (SearchThreadData *data,
                  const char       *path)
@@ -214,7 +207,6 @@ get_wanted_path (SearchThreadData *data,
 
         if (relative == NULL || *relative == '\0')
         {
-            /* Outside of the searched folder, or the folder itself. */
             return NULL;
         }
 
@@ -294,7 +286,6 @@ hit_from_result (SearchThreadData *data,
     }
 
     basename = g_path_get_basename (path);
-    /* Negative when the name does not match the way NautilusQuery compares. */
     match = nautilus_query_matches_string (data->query, basename);
     if (match < 0 && !data->search_content)
     {
@@ -406,7 +397,6 @@ resolve_location (SearchThreadData *data)
     }
 }
 
-/* Returns: (nullable): the Spotlight query for @data, ready to execute. */
 static MDQueryRef
 create_md_query (SearchThreadData *data)
 {
@@ -486,7 +476,6 @@ search_thread_func (gpointer user_data)
     }
     else if (!MDQueryExecute (data->md_query, kMDQuerySynchronous))
     {
-        /* MDQueryExecute () blocks until Spotlight has gathered the results. */
         g_debug ("Spotlight engine could not run the query");
     }
     else
@@ -512,7 +501,7 @@ search_thread_func (gpointer user_data)
     return NULL;
 }
 
-/* Appends @text as a quoted Spotlight string. Modifiers: "c" ignores case, "d" ignores accents. */
+/* Modifiers: "c" ignores case, "d" ignores accents. */
 static void
 append_quoted (GString    *string,
                const char *text,
@@ -560,7 +549,6 @@ get_name_modifiers (const char *word)
     return "cd";
 }
 
-/* Every word must match the name or the text. Returns: whether @text had any word. */
 static gboolean
 add_text_clauses (GStrvBuilder *clauses,
                   const char   *text,
@@ -611,7 +599,6 @@ add_text_clauses (GStrvBuilder *clauses,
     return TRUE;
 }
 
-/* Spotlight filters by uniform type identifier. Returns: whether any type could be expressed. */
 static gboolean
 add_type_clause (GStrvBuilder *clauses,
                  GPtrArray    *mime_types)
@@ -710,7 +697,6 @@ add_date_clause (GStrvBuilder           *clauses,
     g_strv_builder_add (clauses, clause);
 }
 
-/* Returns: (nullable) (transfer full): the Spotlight query, or NULL to leave it to the others. */
 static char *
 build_query_string (NautilusQuery *query,
                     gboolean       has_location)
@@ -720,7 +706,6 @@ build_query_string (NautilusQuery *query,
     g_autoptr (GPtrArray) mime_types = nautilus_query_get_content_types (query);
     g_autoptr (GPtrArray) date_range = nautilus_query_get_date_range (query);
     gboolean search_content = nautilus_query_get_search_content (query);
-    /* Only the children of one folder are wanted. */
     gboolean one_folder = has_location && !nautilus_query_recursive (query);
     g_auto (GStrv) strv = NULL;
 

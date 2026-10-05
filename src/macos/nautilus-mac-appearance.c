@@ -22,7 +22,7 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 
-/* macOS accent colour ("AppleAccentColor") to Yaru variant. install-yaru.sh must list each one. */
+/* "AppleAccentColor" to Yaru variant. install-yaru.sh must list each one. */
 static const struct
 {
     int accent;
@@ -39,10 +39,9 @@ static const struct
     { 6, "Yaru-magenta" },  /* Pink */
 };
 
-/* Multicolour, the default, has no value stored. macOS then uses blue. */
+/* Multicolour, the default, has no value stored. MacOS then uses blue. */
 #define MULTICOLOUR_ICON_THEME "Yaru-blue"
 
-/* Returns: the Yaru icon theme that matches the accent colour of macOS. */
 const char *
 nautilus_mac_get_accent_icon_theme (void)
 {
@@ -87,7 +86,7 @@ apply_accent (gpointer user_data)
                               kCFPreferencesAnyHost);
     CFPreferencesAppSynchronize (kCFPreferencesCurrentApplication);
 
-    g_debug ("Accent colour of macOS: %s", nautilus_mac_get_accent_icon_theme ());
+    g_debug ("Accent colour of MacOS: %s", nautilus_mac_get_accent_icon_theme ());
     accent_changed_func ();
 }
 
@@ -98,7 +97,7 @@ accent_changed_cb (CFNotificationCenterRef  center,
                    const void              *object,
                    CFDictionaryRef          user_info)
 {
-    g_debug ("macOS says its colours changed");
+    g_debug ("MacOS says its colours changed");
 
     /* The notification can come before the new setting can be read: look again later. */
     g_idle_add_once (apply_accent, NULL);
@@ -107,7 +106,6 @@ accent_changed_cb (CFNotificationCenterRef  center,
     g_main_context_wakeup (NULL);
 }
 
-/* Calls @func in the main loop when the accent colour changes. Call once, from the main thread. */
 void
 nautilus_mac_watch_accent_colour (NautilusMacAppearanceFunc func)
 {
@@ -116,7 +114,6 @@ nautilus_mac_watch_accent_colour (NautilusMacAppearanceFunc func)
 
     accent_changed_func = func;
 
-    /* System Settings tells every app with these notifications. */
     CFNotificationCenterAddObserver (CFNotificationCenterGetDistributedCenter (),
                                      &accent_changed_func,
                                      accent_changed_cb,

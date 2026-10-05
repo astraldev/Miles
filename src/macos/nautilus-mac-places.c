@@ -15,7 +15,7 @@
  *
  */
 
-/* Folders the sidebar always lists on macOS, where nothing adds them as bookmarks. */
+/* Folders the sidebar always lists on MacOS, where nothing adds them as bookmarks. */
 
 #include <config.h>
 #include "nautilus-mac-places.h"
@@ -26,10 +26,8 @@
 
 typedef struct
 {
-    /* A fixed path, or NULL to ask for @directory. */
     const char *path;
     GUserDirectory directory;
-    /* An icon name, or NULL to use the icon of @directory. */
     const char *icon_name;
 } Place;
 
@@ -43,7 +41,6 @@ static const Place places[NAUTILUS_MAC_N_PLACES] =
     { NULL, G_USER_DIRECTORY_PICTURES, NULL },
 };
 
-/* Returns: (nullable) (transfer full): path of the folder at @index, NULL if this Mac lacks it. */
 char *
 nautilus_mac_place_get_path (guint index)
 {
@@ -68,7 +65,6 @@ nautilus_mac_place_get_path (guint index)
     return g_strdup (path);
 }
 
-/* Returns: (transfer full): the icon for the folder at @index. */
 GIcon *
 nautilus_mac_place_get_symbolic_icon (guint index)
 {
@@ -82,7 +78,6 @@ nautilus_mac_place_get_symbolic_icon (guint index)
     return nautilus_special_directory_get_symbolic_icon (places[index].directory);
 }
 
-/* Returns: whether @location is one of the folders the sidebar always lists. */
 gboolean
 nautilus_mac_location_is_place (GFile *location)
 {
@@ -127,7 +122,7 @@ nautilus_mac_get_startup_disk_name (void)
     return result;
 }
 
-/* Finder shows the apps of macOS in Applications. On disk they are apart. */
+/* Finder shows the apps of MacOS in Applications. On disk they are apart. */
 GFile *
 nautilus_mac_get_system_apps_location (GFile *location)
 {

@@ -28,7 +28,7 @@
 #include <string.h>
 
 #ifdef __APPLE__
-#include "mac/nautilus-mac-session-bus.h"
+#include "macos/nautilus-mac-session-bus.h"
 #endif
 #include "nautilus-application.h"
 #include "nautilus-enums.h"
