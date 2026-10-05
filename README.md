@@ -2,7 +2,7 @@
 
 <img src="macos/bundle/AppIcon.svg" width="128" alt="App icon">
 
-# Files for MacOS
+# Files for MacOS (Miles)
 
 **GNOME's file manager, at home on the Mac.**
 
@@ -11,7 +11,7 @@
 [![Licence: GPL 3.0 or later](https://img.shields.io/badge/licence-GPL%203.0%2B-green)](LICENSE)
 ![Status: work in progress](https://img.shields.io/badge/status-work%20in%20progress-orange)
 
-[What's different](#changed-features) · [What's missing](#missing-features) · [Build it](#building)
+[What's different](#changed-features) · [What's missing](#missing-features) · [What may come](#future) · [Build it](#building)
 
 </div>
 
@@ -79,6 +79,20 @@ Some of what Files does on GNOME is not available in this port.
 - Saved passwords for servers
 - Opening a folder as administrator
 
+## Future
+
+These may come later. None of them is promised.
+
+- Thumbnails for pictures and documents
+- A preview with the space bar, as Quick Look gives in Finder
+- An app icon that follows the Dark, Clear and Tinted icon styles of MacOS
+- A Graphite colour for folders, to match the Graphite accent
+- The colour tags of Finder
+- Restore for every file, when several were moved to the Trash at once
+- All texts translated in the app you download, also those that come from GTK
+- A signed app that opens without a warning, and installs with Homebrew
+- A build for Intel Macs
+
 ## Building
 
 You need Homebrew with GTK 4, libadwaita and the other libraries Files uses. Homebrew's Python has to come first on `PATH`.
@@ -90,4 +104,14 @@ PATH="/opt/homebrew/bin:$PATH" meson setup build --prefix="$PWD/.deps/prefix" \
 ninja -C build install
 ```
 
-Installing also builds gvfs and bundles the icons.
+Installing also builds gvfs, bundles the icons and makes `Miles.app` in the prefix. That app runs from where it was built. To make one that can be moved to another Mac, and the disk image to install it from:
+
+```bash
+ninja -C build app
+```
+
+```bash
+ninja -C build dmg
+```
+
+The disk image needs `dmgbuild`, which `pip install dmgbuild` installs.

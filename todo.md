@@ -59,16 +59,20 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Packaging and release
 
-- [ ] Pipeline: `.github/workflows/build.yml` builds on an Apple silicon runner. It is written and has not run yet: push it and fix what fails
-- [ ] Apple silicon build of `Files.app` from the pipeline, as a download. Decide on Intel: a second build, a universal one, or none
-- [ ] `.dmg` with `Files.app` and a link to Applications, built by the pipeline
+- [ ] Pipeline: `.github/workflows/release.yml` makes the disk image on an Apple silicon runner. A tag like `51.0.1-mac.1` drafts a release with it; run by hand it only keeps the image with the run. It has not run yet: run it by hand and fix what fails
+- [ ] Decide on Intel: a second build, a universal one, or none
+- [ ] Open the disk image (`build/Miles-51.0.1.dmg`) and look at its window: the picture, the two icons, the names under them in the light and the dark appearance
+- [ ] Before a binary goes out (from the licence audit): a `THIRD-PARTY-NOTICES.md` and a `SOURCES.md` beside the release, with each package, version, licence and source; About and README must say this is a modified version, not made by GNOME; the three credit sentences (FreeType, libjpeg, ICU). The licence files themselves are already copied into the app
+- [ ] From the licence audit, lesser: a copyright line in the port's files, a licence for the icon and the scripts, the Apple logo in a README badge, the wording "GNOME's file manager", whether `astralco.com` is ours, and asking GNOME and weighing Apple about the icon
 - [ ] App icon: it is one fixed picture (`macos/bundle/AppIcon.svg`). The dark, clear and tinted styles of macOS need an Icon Composer `.icon` file
 - [ ] A build on this Mac only runs on macOS 26 or newer, as Homebrew's libraries are built for the system they are installed on. The pipeline has to build on the oldest runner
 - [ ] The app's name: Miles for now, set in one place (`macos_app_name` in `meson.build`). Nomtilus and GMacFiles were the other ideas. Texts inside the window still say Files
-- [ ] The app runs in place: it uses the libraries and data of the prefix it was built for, so it cannot be copied to another Mac. A relocatable app has to carry its libraries and find its data relative to itself: the bundled icon theme's folder is fixed at build time (`NAUTILUS_DATADIR`), and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
-- [ ] Bundle Adwaita too: Yaru falls back to it for the icons it lacks, and today it comes from Homebrew
+- [ ] The translations of GTK, libadwaita, GLib and gvfs are not in the movable app: those libraries look in the folder they were built for, and no setting changes it. Their texts show in English. A way: bind those text domains again after the libraries start
+- [ ] The movable app was only run from the terminal, with Homebrew and the build folders hidden by a sandbox. Try it on screen, and on a Mac that never had Homebrew
+- [ ] The certificates in the movable app are Mozilla's list as Homebrew ships it. A certificate the user added to the Keychain is not trusted by it
+- [ ] tinysparql's path to its parser is changed inside the copied library (`bundle-app.sh`). It fails loudly if a new tinysparql holds the path differently. The clean way is a setting in tinysparql
 - [ ] Homebrew tap formula. It cannot download during a build, so it has to supply the pinned sources itself: libportal, gnome-desktop, libgxdp, blueprint-compiler, dbus, gvfs, Yaru
-- [ ] Signing and notarization
+- [ ] Signing and notarization: the scripts sign with `CODESIGN_IDENTITY` when it is set, and by no one otherwise. Needs the Apple Developer ID, then the notary step in the workflow
 - [ ] `mac-release` branch and release tags (`51.0.1-mac.1`)
 
 ## Later

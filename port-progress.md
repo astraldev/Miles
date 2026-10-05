@@ -23,7 +23,7 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 
 ### Repo and build
 
-- `upstream` is GNOME, `origin` is astraldev/nautilus-mac, default branch `mac-development`
+- `upstream` is GNOME, `origin` is astraldev/Miles, default branch `mac-development`
 - Builds and links on mac, with extensions, introspection, tests and docs off
 - `meson setup` on a clean clone needs no manual steps: libportal, gnome-desktop, libgxdp and blueprint-compiler are pulled by the build as wraps pinned to commits, with patches in `subprojects/packagefiles/`
 - `g_set_date_time` clash with GLib 2.90 (upstream fix cherry-picked)
@@ -86,7 +86,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 ### Network, trash and recent (gvfs)
 
 - `macos/scripts/install-gvfs.sh` builds gvfs into the prefix during `ninja install`, pinned to a commit, with the patches in `macos/patches/`
-- Nautilus starts its own D-Bus session bus (`src/macos/nautilus-mac-session-bus.c`, `macos/data/dbus-session.conf.in`) and stops it on quit. gvfs daemons start on demand and exit with the bus. A second launch joins the running app
+- Nautilus starts its own D-Bus session bus (`src/macos/nautilus-mac-session-bus.c`) and stops it on quit. It writes the bus's settings at each start. gvfs daemons start on demand and exit with the bus. A second launch joins the running app
 - The bus's sockets are in `~/.cache/nautilus`, since macOS sweeps `/tmp`. Two launches at once do not start two buses. A dead bus does not kill Nautilus, and a stuck one does not keep it from quitting
 - A bus left by a Nautilus that crashed is taken over: the next launch uses it and stops it on quit. It asks the bus's socket which process is behind it. Before, such a bus ran until logout. Tested by killing a test copy
 - `dbus-daemon` is built with the app, from a wrap pinned to dbus 1.16.2. Homebrew's is not used
@@ -109,7 +109,11 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - `ninja install` makes `Miles.app` in `<prefix>/Applications` (`macos/scripts/install-app.sh`, `macos/bundle/Info.plist.in`): the nautilus binary, an Info.plist with the texts macOS shows when it asks for a folder or the local network, and an icon made from the SVG. It is signed for this Mac only
 - Started from Finder there is no environment, so `main()` says where the schemas and icons are (`XDG_DATA_DIRS`, from the prefix and Homebrew's at build time)
 - With the app, macOS gives permissions to Miles and not to the terminal
-- The name is set in one place, `macos_app_name` in `meson.build`
+- The name is set in one place, `macos_app_name` in `meson.build`. The bundle identifier is `com.astralco.Miles`
+- `ninja -C build app` makes `build/Miles.app`, which can be moved to another Mac (`macos/scripts/bundle-app.sh`): 90 programs and libraries, the data, Adwaita's icons, certificates and each package's licence files, 179 MB. Every library is found through `@rpath`. Run with Homebrew and the build folders hidden by a sandbox: the app, the bus, gvfs, trash, recent and network worked, HTTPS accepted a good certificate and refused a self-signed and an expired one
+- `ninja -C build dmg` makes `build/Miles-51.0.1.dmg` (`macos/scripts/make-dmg.sh`, `macos/dmg/`), 74 MB: the app, a link to Applications, a picture behind them and the app's icon on the drive. It needs `dmgbuild`
+- These two notes files are no longer in the repository
+- Nautilus and gvfs find their files from where the app is, when the app carries them in `Contents/Resources` (`src/macos/nautilus-mac-paths.c`): data, icons, translations, the bus, the gvfs daemons and modules. Otherwise they use the prefix, as before. The bus's service files and gvfs's mount files hold full paths, so they are written anew at each start, into `~/.cache/nautilus`. Tested with a copy of the app, filled by hand, in a folder with a space and an apostrophe in its name: bus, gvfs, trash, recent and network ran from the copy, and it read no data from the prefix but gvfs's translations
 
 ### Reviews
 
