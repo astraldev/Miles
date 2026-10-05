@@ -326,7 +326,7 @@ if host_machine.system() == 'darwin'
     'mac/nautilus-search-engine-spotlight.c',
     'mac/nautilus-search-engine-spotlight.h',
   ]
-  nautilus_deps += dependency('appleframeworks', modules: ['CoreGraphics', 'CoreServices', 'ImageIO'])
+  nautilus_deps += dependency('appleframeworks', modules: ['CoreGraphics', 'CoreServices', 'ImageIO', 'SystemConfiguration'])
 endif
 
 libnautilus = static_library(
