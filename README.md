@@ -53,6 +53,11 @@ Most of Files is unchanged. These are the places where it works differently than
 
 Files uses the Yaru icon theme. Folders take the accent colour you chose in System Settings and change with the light and dark appearance, so the window matches the rest of your Mac.
 
+<p align="center">
+  <img src="macos/screenshots/documents-light.png" width="49%" alt="A Documents folder in Miles, in the light appearance">
+  <img src="macos/screenshots/documents-dark.png" width="49%" alt="The same folder in Miles, in the dark appearance">
+</p>
+
 ### 🧭 Sidebar
 
 Applications, Documents, Downloads, Movies, Music and Pictures are always in the sidebar. Below them are the startup disk, your cloud folders and your other drives.
@@ -64,7 +69,6 @@ If you use iCloud Drive, Google Drive, OneDrive or a similar service, its folder
 ### 🚀 Apps
 
 An app is shown as a single item with the icon Finder gives it, and a double-click opens it. Right-click an app to look inside it with Show Package Contents, or to remove it with Uninstall, which moves it to the Trash and can take its settings and data along.
-
 ### 🔍 Search
 
 Search finds files by name, without an index that has to be built first. Search Everywhere looks through your home folder and your apps.
