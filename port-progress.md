@@ -52,6 +52,7 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - Dark appearance uses Yaru's `-dark` variant of the same colour, whose folders are lighter. It follows macOS, also while the app runs
 - Grid zoom steps are even: 48, 64, 88, 120, 160, each about 1.35 times the one before (upstream: 48, 64, 96, 168, 256)
 - The startup disk has a row in the sidebar, under its own name ("Macintosh HD"). It is in the drives section at the bottom, after a divider, ahead of the drives that come and go
+- Cloud folders have rows in the sidebar, in a section of their own above the drives: iCloud Drive (`~/Library/Mobile Documents/com~apple~CloudDocs`) and each folder in `~/Library/CloudStorage`, where the apps of Google Drive, OneDrive and others keep the user's files as normal folders. No sign-in code and no gvfs backend: gvfs's Google backend is deprecated and needs GNOME Online Accounts. The rows are looked at again when the window becomes active, so a service set up meanwhile shows without a restart. macOS names iCloud Drive's folder. It has no name for the others, so theirs is the folder's name without the account ("GoogleDrive-name@…" shows as "Google Drive"). Files and folders inside a cloud folder carry a small cloud mark on their icon, the way a link or a read-only file has its mark
 - Preferences opens with Command-comma, as in other mac apps (upstream: Control-comma)
 - Archives are extracted by Nautilus itself, on double-click and with "Extract": macOS's own Archive Utility showed its result in Finder. Zip, tar, gzip, bzip2, xz and 7z are known as archives on mac
 - Undo of "Move to Trash" says why when macOS keeps Nautilus out of the Trash, where it did nothing
@@ -60,7 +61,7 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - File type icons: with Yaru, the types macOS knows get their own icon (.docx, .pdf, .json, .zip, .md, ...)
 - Read-only, not-accessible and link badges: 51 ships its own icons for them
 
-Checked on screen on 51 by the owner: sidebar folders and divider, app icons, launching apps and "Show Package Contents", zoom steps, the "No Permission" page (Downloads), dialogs inside the window, Network (found servers, connecting, browsing), the Macintosh HD row, Command-comma for Preferences, the dark folders, the 13 pt font, and the app icons from macOS (Books, Phone, their size next to folders).
+Checked on screen on 51 by the owner: sidebar folders and divider, app icons, launching apps and "Show Package Contents", zoom steps, the "No Permission" page (Downloads), dialogs inside the window, Network (found servers, connecting, browsing), the Macintosh HD row, Command-comma for Preferences, the dark folders, the 13 pt font, the app icons from macOS (Books, Phone, their size next to folders), and the iCloud Drive and Google Drive rows (opening Google Drive, My Drive and the files in it).
 
 ### Apps
 

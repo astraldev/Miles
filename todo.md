@@ -10,6 +10,8 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Check on screen
 
+- [ ] Files and folders in a cloud folder have a small cloud mark on their icon. A cloud service set up while the app runs gets its sidebar row when the window is active again
+- [ ] Search in the window: in a folder, and "Search Everywhere"
 - [ ] Double-click on a `.zip` extracts it in place, with no Finder window
 - [ ] A folder the account may not read shows "No Permission", with no dialog and no "admin" message
 - [ ] Zoom steps of 1.35: 48, 64, 88, 120, 160
