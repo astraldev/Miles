@@ -1,0 +1,75 @@
+name: Release
+
+# A tag like 51.0.1-mac.1 makes a draft release with the disk image.
+# Run by hand, it only builds the disk image and keeps it with the run.
+on:
+  push:
+    tags: ['*-mac.*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Disk image (Apple silicon)
+    # The app runs on this version of MacOS and newer: Homebrew's libraries are built for it.
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install meson ninja pkgconf gettext \
+            gtk4 libadwaita gnome-autoar libarchive icu4c tinysparql \
+            gsettings-desktop-schemas gdk-pixbuf iso-codes xkeyboard-config \
+            pygobject3 libsoup libgcrypt glib-networking \
+            adwaita-icon-theme hicolor-icon-theme librsvg ca-certificates
+          pipx install dmgbuild
+
+      - name: Set up the environment
+        run: |
+          brew_prefix=$(brew --prefix)
+          # blueprint-compiler needs the Python that has PyGObject.
+          echo "$(brew --prefix python3)/bin" >> "$GITHUB_PATH"
+          echo "PKG_CONFIG_PATH=$PWD/prefix/lib/pkgconfig:$(brew --prefix icu4c)/lib/pkgconfig:$(brew --prefix libarchive)/lib/pkgconfig:$brew_prefix/lib/pkgconfig:$brew_prefix/share/pkgconfig" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: |
+          meson setup build --prefix="$PWD/prefix" \
+            -Dextensions=false -Dintrospection=false -Ddocs=false \
+            -Dselinux=disabled -Dcloudproviders=disabled -Dtests=none
+
+      # Also builds gvfs and bundles the Yaru icon theme.
+      - name: Build and install
+        run: ninja -C build install
+
+      - name: Make the app
+        run: ninja -C build app
+
+      - name: Make the disk image
+        run: ninja -C build dmg
+
+      - name: Keep the disk image
+        uses: actions/upload-artifact@v4
+        with:
+          name: disk-image
+          path: build/*.dmg
+
+      - name: Draft the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" build/*.dmg --draft --generate-notes --title "Miles $GITHUB_REF_NAME"
+
+      - name: Keep the logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meson-logs
+          path: build/meson-logs/
