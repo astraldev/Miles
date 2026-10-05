@@ -50,7 +50,7 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - Yaru icon theme is bundled with the app: `macos/scripts/install-yaru.sh` puts it in the app's own data folder (`share/nautilus/icons`) during `ninja install`, pinned to a Yaru commit, and Nautilus adds that folder to the icon search path itself. If the theme is missing, the app refuses to start
 - macOS accent colour picks the Yaru colour variant, at startup and when it is changed in System Settings (`src/macos/nautilus-mac-appearance.c`): Multicolour and Blue to blue, Purple to purple, Pink to magenta, Red to red, Orange to Yaru's own, Yellow to yellow, Green to viridian, Graphite to bark
 - Dark appearance uses Yaru's `-dark` variant of the same colour, whose folders are lighter. It follows macOS, also while the app runs
-- Grid zoom steps are even: 48, 72, 112, 168, 256, each about 1.5 times the one before (upstream: 48, 64, 96, 168, 256)
+- Grid zoom steps are even: 48, 64, 88, 120, 160, each about 1.35 times the one before (upstream: 48, 64, 96, 168, 256)
 - The startup disk has a row in the sidebar, under its own name ("Macintosh HD"). It is in the drives section at the bottom, after a divider, ahead of the drives that come and go
 - Preferences opens with Command-comma, as in other mac apps (upstream: Control-comma)
 - Archives are extracted by Nautilus itself, on double-click and with "Extract": macOS's own Archive Utility showed its result in Finder. Zip, tar, gzip, bzip2, xz and 7z are known as archives on mac
@@ -60,11 +60,11 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - File type icons: with Yaru, the types macOS knows get their own icon (.docx, .pdf, .json, .zip, .md, ...)
 - Read-only, not-accessible and link badges: 51 ships its own icons for them
 
-Checked on screen on 51 by the owner: sidebar folders and divider, app icons, launching apps and "Show Package Contents", zoom steps, the "No Permission" page (Downloads), dialogs inside the window, Network (found servers, connecting, browsing), the Macintosh HD row, Command-comma for Preferences, the dark folders, and the 13 pt font.
+Checked on screen on 51 by the owner: sidebar folders and divider, app icons, launching apps and "Show Package Contents", zoom steps, the "No Permission" page (Downloads), dialogs inside the window, Network (found servers, connecting, browsing), the Macintosh HD row, Command-comma for Preferences, the dark folders, the 13 pt font, and the app icons from macOS (Books, Phone, their size next to folders).
 
 ### Apps
 
-- Apps show their own icon (`src/macos/nautilus-mac-app-icon.c`): the icon set in Finder if there is one, else the `.icns` file the app's Info.plist names. About 7 ms per app the first time it is drawn
+- Apps show the icon Finder shows (`src/macos/nautilus-mac-app-icon.m`, the one Objective-C file): it asks macOS for it (`NSWorkspace`). Many apps keep their icon where only macOS can read it, and the `.icns` file beside it is a leftover: Books' is blank, Phone's is the old square one. The icons come with the margins macOS gives them, so they are the size of the folders. About 30 ms the first time this Mac draws an app's icon, 4 ms after that: macOS keeps what it has drawn
 - Double-click on an app launches it (`/usr/bin/open`). Right-click has "Show Package Contents" to browse inside
 - Dragging over an app does not launch it, and dropping on one is refused
 - Apps launched from Nautilus do not get its private bus
@@ -121,5 +121,5 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - If installing the icon theme is interrupted halfway, the next install repairs it
 - Running the app before `ninja install` stops at startup, because the bundled icon theme is not there yet
 - Building with a `datadir` outside the install prefix puts the icon theme in the wrong place
-- App icons come from the `.icns` file. An app that keeps its icon only in `Assets.car` gets a generic icon, and most `.icns` files stop at 256 px, so the two largest zoom steps are stretched on Retina
+- The first time an app folder is opened on a Mac, drawing its icons can hold the window for about a second (30 ms per app). Loading them off the main thread was weighed and left out: it needs a guess at what macOS has cached
 - A plain folder named `something.app` is treated as an app. macOS says the same of it (`kCFURLIsApplicationKey`), and so does Finder

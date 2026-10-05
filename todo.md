@@ -11,12 +11,13 @@ What is left. What is done and decided is in `port-progress.md`.
 
 - [ ] Double-click on a `.zip` extracts it in place, with no Finder window
 - [ ] A folder the account may not read shows "No Permission", with no dialog and no "admin" message
-- [ ] Applications and Applications/Utilities have a banner at the top, and its button opens the folder with Apple's apps
+- [ ] Zoom steps of 1.35: 48, 64, 88, 120, 160
+- [ ] App icons follow a switch between light and dark while the app runs. If they stay as they were, refresh them a second time a moment later. A change of "Icon & widget style" alone is not noticed until restart
+- [ ] Applications and Applications/Utilities have a banner at the top, and its button opens the folder with Apple's apps. That folder has one that leads back
 - [ ] Disks and volumes: what shows when a drive is plugged in
 
 ## GNOME 51
 
-- [ ] Lost in the merge: an app whose icon cannot be read gets the generic file icon again, not a generic app icon. 51 no longer tells the caller that an icon is a fallback
 - [ ] The memory audit did not cover the files changed by the merge
 
 ## Search
@@ -66,6 +67,9 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Packaging and release
 
+- [ ] Pipeline: `.github/workflows/build.yml` builds on an Apple silicon runner. It is written and has not run yet: push it and fix what fails
+- [ ] Apple silicon build of `Files.app` from the pipeline, as a download. Decide on Intel: a second build, a universal one, or none
+- [ ] `.dmg` with `Files.app` and a link to Applications, built by the pipeline
 - [ ] Wire `macos/bundle/Info.plist.in` and the entitlements into the build to produce `Files.app`
 - [ ] App icon (`.icns`)
 - [ ] A relocatable `Files.app` has to find its data relative to itself: the bundled icon theme's folder is fixed at build time (`NAUTILUS_DATADIR`), and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
