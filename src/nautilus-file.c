@@ -2804,7 +2804,9 @@ update_info_internal (NautilusFile *file,
     }
 
 #ifdef __APPLE__
-    /* gvfs names folders by MIME type, which GIO does not know on macOS. */
+    /*
+     * gvfs names folders by MIME type, which GIO does not know on macOS.
+     */
     mime_type = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE);
     if (mime_type != NULL && strchr (mime_type, '/') != NULL)
     {
@@ -2818,7 +2820,9 @@ update_info_internal (NautilusFile *file,
     {
         g_autoptr (GIcon) unknown_type_icon = g_content_type_get_icon (mime_type);
 
-        /* Keep an icon that was chosen for the file, as for a server or the trash. */
+        /*
+         * Keep an icon that was chosen for the file, as for a server or the trash.
+         */
         if (icon == NULL || g_icon_equal (icon, unknown_type_icon))
         {
             mac_icon = g_content_type_get_icon (mac_content_type);
@@ -2830,7 +2834,6 @@ update_info_internal (NautilusFile *file,
         const char *content_type = mac_content_type != NULL ? mac_content_type : mime_type;
         g_autoptr (GIcon) type_icon = content_type != NULL ? g_content_type_get_icon (content_type) : NULL;
 
-        /* Only where the icon is the one of the type, not one chosen for the file. */
         if (icon != NULL && type_icon != NULL && g_icon_equal (icon, type_icon))
         {
             mac_type_icon = nautilus_mac_get_type_icon (content_type);
@@ -5033,7 +5036,9 @@ nautilus_file_should_show_directory_item_count (NautilusFile *file)
     g_return_val_if_fail (NAUTILUS_IS_FILE (file), FALSE);
 
 #ifdef __APPLE__
-    /* Counting opens the folder, and MacOS would ask for each one a folder shows. */
+    /*
+     * Counting opens the folder, and MacOS would ask for each one a folder shows.
+     */
     g_autoptr (GFile) guarded_location = nautilus_file_get_location (file);
 
     if (nautilus_mac_location_is_guarded (guarded_location))
@@ -7371,7 +7376,9 @@ nautilus_file_is_archive (NautilusFile *file)
     const char *mime_type = nautilus_file_get_mime_type (file);
 
 #ifdef __APPLE__
-    /* macOS has its own names for file types, and GIO maps these three to MIME types autoar lacks. */
+    /*
+     * macOS has its own names for file types, and GIO maps these three to MIME types autoar lacks.
+     */
     static const struct
     {
         const char *content_type;

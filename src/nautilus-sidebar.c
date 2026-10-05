@@ -649,7 +649,6 @@ on_account_updated (GObject    *object,
 #endif
 
 #ifdef __APPLE__
-/* On macOS the user's folders are fixed places, in a section of their own. */
 static void
 add_user_folder_places (NautilusSidebar *sidebar)
 {
@@ -783,7 +782,9 @@ update_places (NautilusSidebar *sidebar)
     {
         g_autofree char *disk_name = nautilus_mac_get_startup_disk_name ();
 
-        /* A built-in row sorts before the drives that come and go. */
+        /*
+         * A built-in row sorts before the drives that come and go.
+         */
         start_icon = g_themed_icon_new_with_default_fallbacks ("drive-harddisk-symbolic");
         add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
                    NAUTILUS_SIDEBAR_SECTION_MOUNTS,
@@ -3499,7 +3500,9 @@ list_box_sort_func (GtkListBoxRow *row1,
     }
 
 #ifdef __APPLE__
-    /* The startup disk, then the cloud folders: by name the disk would come between them. */
+    /*
+     * The startup disk, then the cloud folders: by name the disk would come between them.
+     */
     if (section_type_1 == NAUTILUS_SIDEBAR_SECTION_MOUNTS &&
         place_type_1 == NAUTILUS_SIDEBAR_ROW_BUILT_IN)
     {
@@ -3650,7 +3653,9 @@ update_location (NautilusSidebar *self)
 }
 
 #ifdef __APPLE__
-/* A cloud service may have been set up or removed while the user was elsewhere. */
+/*
+ * A cloud service may have been set up or removed while the user was elsewhere.
+ */
 static void
 on_window_active_changed (NautilusSidebar *sidebar,
                           GParamSpec      *pspec,

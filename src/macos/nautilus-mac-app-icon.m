@@ -50,7 +50,9 @@ load_png (const char *path,
     {
         NSString *file = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:path
                                                                                      length:strlen (path)];
-        /* The icon Finder shows. Many apps keep it where only MacOS can read it. */
+        /*
+         * The icon Finder shows. Many apps keep it where only MacOS can read it.
+         */
         NSImage *image = [[NSWorkspace sharedWorkspace] iconForFile:file];
         NSBitmapImageRep *bitmap = [[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
                                                                             pixelsWide:size

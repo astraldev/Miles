@@ -34,7 +34,6 @@
 #define FONT_SIZE 13
 #define APP_ICON_STAGGER_MS 20
 
-/* Where macos/scripts/install-yaru.sh puts the icon theme bundled with the app. */
 static const char *
 get_bundled_icons_dir (void)
 {
@@ -48,24 +47,29 @@ get_bundled_icons_dir (void)
     return icons_dir;
 }
 
-/* "AppleAccentColor" to Yaru variant. install-yaru.sh must list each one. */
+/*
+ * "AppleAccentColor" to Yaru variant: -1 is Graphite, 1 Orange, 3 Green and 6 Pink.
+ * install-yaru.sh must list each one.
+ */
 static const struct
 {
     int accent;
     const char *icon_theme;
 } accent_icon_themes[] =
 {
-    { -1, "Yaru-bark" },    /* Graphite */
-    { 0, "Yaru-red" },      /* Red */
-    { 1, "Yaru" },          /* Orange, which is Yaru's own colour */
-    { 2, "Yaru-yellow" },   /* Yellow */
-    { 3, "Yaru-viridian" }, /* Green */
-    { 4, "Yaru-blue" },     /* Blue */
-    { 5, "Yaru-purple" },   /* Purple */
-    { 6, "Yaru-magenta" },  /* Pink */
+    { -1, "Yaru-bark" },
+    { 0, "Yaru-red" },
+    { 1, "Yaru" },
+    { 2, "Yaru-yellow" },
+    { 3, "Yaru-viridian" },
+    { 4, "Yaru-blue" },
+    { 5, "Yaru-purple" },
+    { 6, "Yaru-magenta" },
 };
 
-/* Multicolour, the default, has no value stored. MacOS then uses blue. */
+/*
+ * Multicolour, the default, has no value stored. MacOS then uses blue.
+ */
 #define MULTICOLOUR_ICON_THEME "Yaru-blue"
 
 static const char *
@@ -75,7 +79,9 @@ get_accent_icon_theme (void)
     CFPropertyListRef value;
     int accent;
 
-    /* Looks in the app's own preferences, then in the global ones. */
+    /*
+     * Looks in the app's own preferences, then in the global ones.
+     */
     value = CFPreferencesCopyAppValue (CFSTR ("AppleAccentColor"),
                                        kCFPreferencesCurrentApplication);
     if (value == NULL)
@@ -117,7 +123,9 @@ update_icon_theme (void)
 
     if (!g_file_test (index, G_FILE_TEST_EXISTS))
     {
-        /* The theme is installed with the app: without it this install is broken. */
+        /*
+         * The theme is installed with the app: without it this install is broken.
+         */
         g_error ("The icon theme %s is missing from %s", name, get_bundled_icons_dir ());
     }
 
@@ -127,7 +135,9 @@ update_icon_theme (void)
 static void
 apply_accent (gpointer user_data)
 {
-    /* CFPreferences keeps what it has read. Make it read the setting again. */
+    /*
+     * CFPreferences keeps what it has read. Make it read the setting again.
+     */
     CFPreferencesSynchronize (kCFPreferencesAnyApplication,
                               kCFPreferencesCurrentUser,
                               kCFPreferencesAnyHost);
@@ -146,7 +156,9 @@ accent_changed_cb (CFNotificationCenterRef  center,
 {
     g_debug ("MacOS says its colours changed");
 
-    /* The notification can come before the new setting can be read: look again later. */
+    /*
+     * The notification can come before the new setting can be read: look again later.
+     */
     g_idle_add_once (apply_accent, NULL);
     g_timeout_add_once (300, apply_accent, NULL);
     g_timeout_add_once (1500, apply_accent, NULL);
@@ -166,7 +178,9 @@ watch_icon_theme (void)
     g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
     g_auto (GStrv) bundled_first = NULL;
 
-    /* Part of the app: searched first, so a theme of the same name elsewhere cannot replace it. */
+    /*
+     * Part of the app: searched first, so a theme of the same name elsewhere cannot replace it.
+     */
     g_strv_builder_add (builder, get_bundled_icons_dir ());
     if (search_path != NULL)
     {
@@ -301,7 +315,9 @@ compare_apps (gconstpointer a,
                                            NAUTILUS_FILE_SORT_BY_DISPLAY_NAME, FALSE, FALSE);
 }
 
-/* One after the other, in the order they are shown: all at once is a flash. */
+/*
+ * One after the other, in the order they are shown: all at once is a flash.
+ */
 static void
 refresh_app_icons (void)
 {
@@ -323,7 +339,9 @@ refresh_app_icons (void)
 static void
 on_window_active_changed (GtkWindow *window)
 {
-    /* MacOS does not announce a change of the icon style. */
+    /*
+     * MacOS does not announce a change of the icon style.
+     */
     if (gtk_window_is_active (window) && icon_style_changed ())
     {
         refresh_app_icons ();

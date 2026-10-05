@@ -585,7 +585,9 @@ nautilus_network_directory_init (NautilusNetworkDirectory *self)
                              G_CALLBACK (on_recent_servers_removed), self, G_CONNECT_SWAPPED);
 
 #ifdef __APPLE__
-    /* The servers it finds are listed the way recent ones are. */
+    /*
+     * The servers it finds are listed the way recent ones are.
+     */
     self->bonjour = nautilus_mac_bonjour_new ();
     g_signal_connect_object (self->bonjour, "added",
                              G_CALLBACK (on_recent_servers_added), self, G_CONNECT_SWAPPED);

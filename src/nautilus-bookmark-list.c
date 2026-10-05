@@ -709,7 +709,9 @@ nautilus_bookmark_list_can_bookmark (NautilusBookmarkList *list,
 #ifdef __APPLE__
     if (nautilus_mac_location_is_place (location))
     {
-        /* Already in the sidebar */
+        /*
+         * Already in the sidebar
+         */
         return FALSE;
     }
 #endif

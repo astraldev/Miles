@@ -8,7 +8,6 @@ build/
 !/subprojects/*.wrap
 !/subprojects/packagefiles/
 
-# Ignore the port's working notes
 /todo.md
 /port-progress.md
 

@@ -1,5 +1,7 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later
- * Copyright (C) 2026 Ekure Edem */
+/*
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Ekure Edem
+ */
 
 #include "glycin.h"
 #include "glycin-gtk4.h"
@@ -291,7 +293,9 @@ gly_image_get_specific_frame (GlyImage         *image,
     }
 
     frame = g_object_new (GLY_TYPE_FRAME, NULL);
-    /* glycin turns a photo the way its EXIF data says. */
+    /*
+     * glycin turns a photo the way its EXIF data says.
+     */
     frame->pixbuf = gdk_pixbuf_apply_embedded_orientation (pixbuf);
     if (frame->pixbuf == NULL)
     {

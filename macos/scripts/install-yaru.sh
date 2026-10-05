@@ -2,9 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Ekure Edem
-#
-# Bundles the Yaru icon theme into the app's own data folder on macOS.
-# Meson runs it at install. By hand: install-yaru.sh <prefix>/share/nautilus/icons
 
 set -eu
 
@@ -42,7 +39,6 @@ if [ "$(git -C "$src_dir" rev-parse HEAD 2>/dev/null)" != "$YARU_COMMIT" ]; then
     git -C "$src_dir" checkout --quiet FETCH_HEAD
 fi
 
-# install_theme <name> <theme it falls back to>
 install_theme() {
     rm -rf "$icons_root/$1"
     cp -R "$icons_dir/$1" "$icons_root/$1"

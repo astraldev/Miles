@@ -58,7 +58,9 @@ get_open_error (GFile *location)
     return errno;
 }
 
-/* MacOS privacy gives EPERM, file permissions give EACCES. */
+/*
+ * MacOS privacy gives EPERM, file permissions give EACCES.
+ */
 gboolean
 nautilus_mac_location_is_blocked (GFile *location)
 {
@@ -71,7 +73,9 @@ nautilus_mac_location_is_denied (GFile *location)
     return get_open_error (location) == EACCES;
 }
 
-/* The folders MacOS lists one by one. The rest need Full Disk Access. */
+/*
+ * The folders MacOS lists one by one. The rest need Full Disk Access.
+ */
 static gboolean
 is_listed_folder (const char *path)
 {
@@ -101,7 +105,9 @@ is_listed_folder (const char *path)
     return FALSE;
 }
 
-/* The folders MacOS asks about when an app opens them: looking inside is left to the user. */
+/*
+ * The folders MacOS asks about when an app opens them: looking inside is left to the user.
+ */
 gboolean
 nautilus_mac_location_is_guarded (GFile *location)
 {

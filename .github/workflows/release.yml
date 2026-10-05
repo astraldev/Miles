@@ -1,8 +1,5 @@
 name: Release
 
-# A tag like 51.0.1-mac.1 makes a draft release with the disk image.
-# Run by hand, it builds the branch and keeps the disk image with the run, or drafts the
-# release of a tag that is named.
 on:
   push:
     tags: ['*-mac.*']
@@ -55,7 +52,6 @@ jobs:
             -Dextensions=false -Dintrospection=false -Ddocs=false \
             -Dselinux=disabled -Dcloudproviders=disabled -Dtests=none
 
-      # Also builds gvfs and bundles the Yaru icon theme.
       - name: Build and install
         run: ninja -C build install
 
@@ -76,7 +72,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # The list of what the app carries, and where the source of each is.
           cp build/Miles.app/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md build/
           gh release create "$TAG" build/*.dmg build/THIRD-PARTY-NOTICES.md \
             --verify-tag --draft --generate-notes --title "Miles $TAG"

@@ -17,7 +17,9 @@
  *
  */
 
-/* Finds the file servers on the local network. gvfs does this with avahi, which MacOS lacks. */
+/*
+ * gvfs finds servers with avahi, which MacOS lacks.
+ */
 
 #define G_LOG_DOMAIN "nautilus-mac"
 
@@ -58,7 +60,9 @@ typedef struct
     guint type_index;
     char *key;
     char *display_name;
-    /* A server is announced once on each network interface it is seen on. */
+    /*
+     * A server is announced once on each network interface it is seen on.
+     */
     guint n_interfaces;
     Request resolve;
     GFileInfo *info;
@@ -110,10 +114,14 @@ on_request_ready (int          fd,
 {
     Request *request = user_data;
 
-    /* Calls the callback of the request, which may end it. */
+    /*
+     * Calls the callback of the request, which may end it.
+     */
     if (DNSServiceProcessResult (request->ref) != kDNSServiceErr_NoError)
     {
-        /* The Bonjour service went away: what it told is stale. */
+        /*
+         * The Bonjour service went away: what it told is stale.
+         */
         request->source_id = 0;
         schedule_restart (request->bonjour);
 
@@ -152,7 +160,9 @@ server_info_new (Server     *server,
                  const char *uri)
 {
     GFileInfo *info = g_file_info_new ();
-    /* The name goes into a URI and is looked up again: keep it to plain characters. */
+    /*
+     * The name goes into a URI and is looked up again: keep it to plain characters.
+     */
     g_autofree char *checksum = g_compute_checksum_for_string (G_CHECKSUM_SHA1, server->key, -1);
     g_autofree char *name = g_strconcat (FILE_NAME_PREFIX, checksum, NULL);
     g_autoptr (GIcon) icon = g_themed_icon_new ("network-server");
@@ -237,13 +247,17 @@ on_resolved (DNSServiceRef         ref,
         return;
     }
 
-    /* WebDAV servers say which folder they share. */
+    /*
+     * WebDAV servers say which folder they share.
+     */
     txt_path = TXTRecordGetValuePtr (txt_length, txt, "path", &path_length);
     if (txt_path != NULL && path_length > 0 && txt_path[0] == '/')
     {
         g_autofree char *announced_path = g_strndup (txt_path, path_length);
 
-        /* It may be escaped already. */
+        /*
+         * It may be escaped already.
+         */
         path = g_uri_escape_string (announced_path,
                                     G_URI_RESERVED_CHARS_ALLOWED_IN_PATH "%", TRUE);
     }
@@ -406,7 +420,9 @@ nautilus_mac_bonjour_class_init (NautilusMacBonjourClass *klass)
 {
     G_OBJECT_CLASS (klass)->dispose = nautilus_mac_bonjour_dispose;
 
-    /* Both signals carry a GList of GFileInfo, as those of NautilusRecentServers do. */
+    /*
+     * Both signals carry a GList of GFileInfo, as those of NautilusRecentServers do.
+     */
     signals[ADDED] = g_signal_new ("added", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST,
                                    0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
     signals[REMOVED] = g_signal_new ("removed", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST,

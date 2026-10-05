@@ -320,7 +320,6 @@ gnome.post_install(
 )
 
 if host_machine.system() == 'darwin'
-  # Bundles the icon theme on macOS, where set_macos_icon_theme() looks for it.
   meson.add_install_script('macos/scripts/install-yaru.sh',
     join_paths(datadir, 'nautilus', 'icons'),
   )
@@ -332,7 +331,6 @@ if host_machine.system() == 'darwin'
     output: 'Info.plist',
     configuration: {'APP_NAME': macos_app_name, 'VERSION': meson.project_version()},
   )
-  # Last: it copies what the scripts before it installed.
   meson.add_install_script('macos/scripts/install-app.sh', macos_app_name)
 
   # "ninja app", after an install.

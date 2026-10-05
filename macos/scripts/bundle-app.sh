@@ -3,8 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Ekure Edem
 #
-# Makes an app that carries all it needs, in Contents/Resources, laid out as in the prefix.
-# "ninja app" runs it: bundle-app.sh <prefix> <app name> <build folder>
+# Contents/Resources is laid out as the prefix is.
 
 set -eu
 
@@ -58,7 +57,6 @@ formula_field () {
     ' "$2" | tr -d '"' | tr -s ' '
 }
 
-# The licence of a Homebrew package, the formula it was built by, and its line in the notices.
 copy_brew_licences () {
     case $1 in
         "$brew_prefix"/Cellar/*) ;;
@@ -238,8 +236,7 @@ PARSER_PATH=$parser_path perl -pi -e \
 
 echo "Signing"
 
-# Changing a file breaks its signature. Without CODESIGN_IDENTITY the app is signed by no
-# one: it runs on any Mac, once its user has let it through Gatekeeper.
+# Changing a file breaks its signature. Without CODESIGN_IDENTITY the signature is ad hoc.
 if [ -n "${CODESIGN_IDENTITY:-}" ]; then
     set -- --options runtime --timestamp --entitlements "$source_dir/macos/bundle/nautilus.entitlements" \
            --sign "$CODESIGN_IDENTITY"

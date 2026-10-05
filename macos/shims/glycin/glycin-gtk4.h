@@ -1,5 +1,7 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later
- * Copyright (C) 2026 Ekure Edem */
+/*
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Ekure Edem
+ */
 
 #pragma once
 

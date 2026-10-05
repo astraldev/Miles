@@ -276,7 +276,9 @@ nautilus_search_engine_set_search_type (NautilusSearchEngine *self,
     setup_provider (self, &self->localsearch, NAUTILUS_SEARCH_TYPE_LOCALSEARCH,
                     (CreateFunc) nautilus_search_engine_localsearch_new);
 #elif defined (__APPLE__)
-    /* In the place of the indexer: it searches everywhere too. */
+    /*
+     * In the place of the indexer: it searches everywhere too.
+     */
     setup_provider (self, &self->localsearch, NAUTILUS_SEARCH_TYPE_LOCALSEARCH,
                     (CreateFunc) nautilus_search_engine_walker_new);
 #endif

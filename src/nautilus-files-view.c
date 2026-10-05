@@ -1681,7 +1681,9 @@ on_uninstall_confirmed (Uninstall *uninstall)
                                                     NULL, NULL, NULL);
 }
 
-/* The data is found by the app's identifier and name: show what would go. */
+/*
+ * The data is found by the app's identifier and name: show what would go.
+ */
 static GtkWidget *
 build_uninstall_data_list (GList *data)
 {
@@ -3847,7 +3849,9 @@ build_privacy_settings_button (NautilusFilesView *self)
 
     return button;
 }
-/* Access is given in System Settings or in a prompt of MacOS, so look when coming back. */
+/*
+ * Access is given in System Settings or in a prompt of MacOS, so look when coming back.
+ */
 static void
 on_window_active_changed (NautilusFilesView *self,
                           GParamSpec        *pspec,
@@ -4939,7 +4943,9 @@ load_error_callback (NautilusDirectory *directory,
 {
     NautilusFilesView *view = NAUTILUS_FILES_VIEW (callback_data);
 
-    /* The files of the previous location are still shown: they are not in this one. */
+    /*
+     * The files of the previous location are still shown: they are not in this one.
+     */
     transition_emit_delayed_signals_if_pending (view);
 
     /* FIXME: By doing a stop, we discard some pending files. Is
@@ -4948,7 +4954,9 @@ load_error_callback (NautilusDirectory *directory,
     nautilus_files_view_stop_loading (view);
 
 #ifdef __APPLE__
-    /* The "No Permission" page says it, and a dialog would cover it. */
+    /*
+     * The "No Permission" page says it, and a dialog would cover it.
+     */
     if (nautilus_mac_location_is_blocked (view->location) ||
         nautilus_mac_location_is_denied (view->location))
     {
@@ -8235,7 +8243,9 @@ update_selection_menu (NautilusFilesView *self,
         g_free (item_label);
     }
 
-    /* Only for an app that can be removed: not for those that come with MacOS. */
+    /*
+     * Only for an app that can be removed: not for those that come with MacOS.
+     */
     object = gtk_builder_get_object (builder, "open-with-application-section");
     nautilus_menu_item_change_attribute (G_MENU_MODEL (object),
                                          "uninstall-submenu",

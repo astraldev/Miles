@@ -23,7 +23,6 @@
 
 G_BEGIN_DECLS
 
-/* Applications, Documents, Downloads, Movies, Music and Pictures. */
 #define NAUTILUS_MAC_N_PLACES 6
 
 char *   nautilus_mac_place_get_path          (guint  index);

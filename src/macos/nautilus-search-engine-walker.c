@@ -17,8 +17,9 @@
  *
  */
 
-/* Finds files by name. GIO reads a folder one file at a time: 49 s for a tree of
- * 800,000 files. This asks MacOS for a folder's files in bulk, from several threads: 2 s. */
+/*
+ * GIO reads a folder file by file: 49 s for 800,000 files. In bulk, from several threads: 2 s.
+ */
 
 #define G_LOG_DOMAIN "nautilus-search"
 
@@ -82,7 +83,9 @@ typedef struct
             field += sizeof (target); \
         }
 
-/* The fields come in this order, and only those MacOS could give. */
+/*
+ * The fields come in this order, and only those MacOS could give.
+ */
 static void
 parse_entry (const char *field,
              Entry      *entry)
@@ -117,7 +120,9 @@ should_descend (Walk        *walk,
 {
     struct statfs file_system;
 
-    /* An app is one thing to the user, as a search in Finder has it. */
+    /*
+     * An app is one thing to the user, as a search in Finder has it.
+     */
     if (g_str_has_suffix (entry->name, ".app"))
     {
         return FALSE;
@@ -133,13 +138,17 @@ should_descend (Walk        *walk,
         return FALSE;
     }
 
-    /* /Users and others are on another volume without being where it is mounted. */
+    /*
+     * /Users and others are on another volume without being where it is mounted.
+     */
     if (!g_str_equal (file_system.f_mntonname, path))
     {
         return TRUE;
     }
 
-    /* The volumes MacOS keeps for itself repeat the files of the startup disk. */
+    /*
+     * The volumes MacOS keeps for itself repeat the files of the startup disk.
+     */
     return !(file_system.f_flags & MNT_DONTBROWSE) &&
            (!nautilus_query_recursive_local_only (walk->query) ||
             (file_system.f_flags & MNT_LOCAL));
@@ -191,7 +200,9 @@ add_hit (Walk        *walk,
     nautilus_search_hit_set_access_time (hit, accessed);
     nautilus_search_hit_set_creation_time (hit, created);
 
-    /* The provider takes hits from one thread at a time. */
+    /*
+     * The provider takes hits from one thread at a time.
+     */
     g_mutex_lock (&walk->lock);
 
     nautilus_search_provider_add_hit (walk->provider, hit);
@@ -230,7 +241,9 @@ handle_entry (Walk        *walk,
         return;
     }
 
-    /* A server can have names that are not UTF-8, which matching needs. */
+    /*
+     * A server can have names that are not UTF-8, which matching needs.
+     */
     if (!g_utf8_validate (entry->name, -1, NULL))
     {
         valid_name = g_utf8_make_valid (entry->name, -1);
@@ -314,7 +327,9 @@ walk_thread (gpointer user_data)
 
     while (TRUE)
     {
-        /* A folder being read may still add its folders to the queue. */
+        /*
+         * A folder being read may still add its folders to the queue.
+         */
         while (g_queue_is_empty (&walk->folders) && walk->n_folders_being_read > 0)
         {
             g_cond_wait (&walk->changed, &walk->lock);
@@ -356,7 +371,9 @@ walk_thread (gpointer user_data)
     return NULL;
 }
 
-/* Without a @location: the user's files and the apps. Finishes the search of @provider itself. */
+/*
+ * Finishes the search of the provider itself.
+ */
 void
 nautilus_search_engine_walker_search (gpointer  provider,
                                       GFile    *location,
@@ -404,7 +421,9 @@ run_in_thread (NautilusSearchProvider *provider)
     return TRUE;
 }
 
-/* A search in a folder comes through the simple engine. This one is for everywhere. */
+/*
+ * A search in a folder comes through the simple engine. This one is for everywhere.
+ */
 static gboolean
 should_search (NautilusSearchProvider *provider,
                NautilusQuery          *query)

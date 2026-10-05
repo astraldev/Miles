@@ -17,7 +17,9 @@
  *
  */
 
-/* MacOS has no D-Bus session bus. Nautilus starts its own, for gvfs. */
+/*
+ * MacOS has no D-Bus session bus. Nautilus starts its own, for gvfs.
+ */
 
 #define G_LOG_DOMAIN "nautilus-mac"
 
@@ -36,7 +38,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-/* After dbus's session.conf. The address given to dbus-daemon replaces the one here. */
+/*
+ * After dbus's session.conf. The address given to dbus-daemon replaces the one here.
+ */
 #define BUS_CONFIG \
         "<busconfig>" \
         "<type>session</type>" \
@@ -53,9 +57,13 @@
 #define BUS_START_TIMEOUT_MS 3000
 #define BUS_STOP_TIMEOUT_MS 1000
 
-/* 0 if the bus was already running. */
+/*
+ * 0 if the bus was already running.
+ */
 static GPid bus_pid = 0;
-/* The bus that was already running: one a crashed Nautilus left, unless another one runs. */
+/*
+ * Left by a crashed Nautilus, unless another one runs.
+ */
 static GPid found_bus_pid = 0;
 static gboolean owns_found_bus = FALSE;
 
@@ -83,7 +91,9 @@ add_gio_modules (void)
     g_setenv ("GIO_EXTRA_MODULES", with_gvfs, TRUE);
 }
 
-/* Not in /tmp, which MacOS sweeps. */
+/*
+ * Not in /tmp, which MacOS sweeps.
+ */
 static char *
 create_runtime_dir (void)
 {
@@ -148,7 +158,9 @@ stop_bus (GPid     pid,
          is_child ? waitpid (pid, NULL, WNOHANG) == 0 : kill (pid, 0) == 0;
          waited_ms += 10)
     {
-        /* A bus that ignores the signal must not hang Nautilus. */
+        /*
+         * A bus that ignores the signal must not hang Nautilus.
+         */
         if (waited_ms >= BUS_STOP_TIMEOUT_MS)
         {
             kill (pid, SIGKILL);
@@ -163,7 +175,9 @@ stop_bus (GPid     pid,
     }
 }
 
-/* These files hold full paths, and the app may have been moved. */
+/*
+ * These files hold full paths, and the app may have been moved.
+ */
 static char *
 copy_install_files (const char *built_in_dir,
                     const char *runtime_dir,
@@ -173,7 +187,9 @@ copy_install_files (const char *built_in_dir,
     char *target_dir = g_build_filename (runtime_dir, name, NULL);
     g_autoptr (GDir) sources = g_dir_open (source_dir, 0, NULL);
     g_autoptr (GDir) targets = NULL;
-    /* Quoted for the command line, escaped for the key file. */
+    /*
+     * Quoted for the command line, escaped for the key file.
+     */
     g_autofree char *quoted_prefix = g_shell_quote (nautilus_mac_get_prefix ());
     g_autoptr (GString) prefix = g_string_new (quoted_prefix);
     const char *file_name;
@@ -181,7 +197,9 @@ copy_install_files (const char *built_in_dir,
     g_string_replace (prefix, "\\", "\\\\", 0);
     g_mkdir (target_dir, 0700);
 
-    /* What an earlier version of the app left. */
+    /*
+     * What an earlier version of the app left.
+     */
     targets = g_dir_open (target_dir, 0, NULL);
     while (targets != NULL && (file_name = g_dir_read_name (targets)) != NULL)
     {
@@ -223,7 +241,9 @@ spawn_bus (const char *bus_address,
     g_autofree char *config_argument = g_strconcat ("--config-file=", config_path, NULL);
     g_autofree char *address_argument = g_strconcat ("--address=", bus_address, NULL);
     g_autofree char *certificates = nautilus_mac_get_install_path (NAUTILUS_DATADIR "/certificates.pem");
-    /* gvfs is started by the bus, and gets its environment. */
+    /*
+     * gvfs is started by the bus, and gets its environment.
+     */
     g_auto (GStrv) envp = g_environ_setenv (g_get_environ (), "GVFS_MOUNTABLE_DIR", mounts_dir, TRUE);
     const char *argv[] =
     {
@@ -238,7 +258,9 @@ spawn_bus (const char *bus_address,
 
     g_file_set_contents (config_path, config, -1, NULL);
 
-    /* Only an app that carries its files has them: see bundle-app.sh. */
+    /*
+     * Only an app that carries its files has them: see bundle-app.sh.
+     */
     if (g_file_test (certificates, G_FILE_TEST_EXISTS))
     {
         envp = g_environ_setenv (envp, "GVFS_TLS_CERTIFICATES", certificates, TRUE);
@@ -281,7 +303,9 @@ spawn_bus (const char *bus_address,
     return FALSE;
 }
 
-/* Call in main() before anything uses GIO, which reads these variables once. */
+/*
+ * Call in main() before anything uses GIO, which reads these variables once.
+ */
 void
 nautilus_mac_session_bus_start (void)
 {
@@ -320,7 +344,9 @@ nautilus_mac_session_bus_start (void)
     bus_address = g_strconcat ("unix:path=", socket_path, NULL);
     lock_path = g_build_filename (runtime_dir, "bus.lock", NULL);
 
-    /* Two Nautilus starting together must not both start a bus. */
+    /*
+     * Two Nautilus starting together must not both start a bus.
+     */
     lock_fd = g_open (lock_path, O_CREAT | O_RDWR | O_CLOEXEC, 0600);
     if (lock_fd >= 0)
     {

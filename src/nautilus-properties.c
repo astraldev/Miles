@@ -514,7 +514,9 @@ get_image_for_properties_widget (NautilusPropertiesWidget *self,
     gint scale = gtk_widget_get_scale_factor (GTK_WIDGET (self));
     NautilusFileIconFlags flags = NAUTILUS_FILE_ICON_FLAGS_USE_THUMBNAILS |
                                   NAUTILUS_FILE_ICON_FLAGS_USE_MOUNT_ICON;
-    /* The size nautilus-properties-widget.blp gives the icon. */
+    /*
+     * The size nautilus-properties-widget.blp gives the icon.
+     */
     guint size = 96;
     g_autoqueue (GdkPaintable) shown_icons = g_queue_new ();
 

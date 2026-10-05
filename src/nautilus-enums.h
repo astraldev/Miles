@@ -121,7 +121,9 @@ typedef enum {
 typedef enum {
   NAUTILUS_SIDEBAR_SECTION_INVALID = 0,
   NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS,
-  /* The user's folders, where they are fixed places and not bookmarks (macOS) */
+  /*
+   * MacOS: fixed places, not bookmarks
+   */
   NAUTILUS_SIDEBAR_SECTION_USER_FOLDERS,
   NAUTILUS_SIDEBAR_SECTION_BOOKMARKS,
   NAUTILUS_SIDEBAR_SECTION_CLOUD,

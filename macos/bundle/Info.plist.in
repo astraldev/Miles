@@ -34,8 +34,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>© 1999 The Files Authors. © 2026 Ekure Edem. GPL 3.0 or later.</string>
 
-	<!-- macOS shows each of these the first time the app goes to that place.
-	     Without the key, access is refused without a question. -->
+	<!-- Without these keys, MacOS refuses access without asking. -->
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>@APP_NAME@ shows and manages the files on your Desktop.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
@@ -49,7 +48,7 @@
 	<key>NSFileProviderDomainUsageDescription</key>
 	<string>@APP_NAME@ shows and manages the files in your cloud folders.</string>
 
-	<!-- For finding servers through Bonjour: the types src/macos/nautilus-mac-bonjour.c looks for. -->
+	<!-- The types src/macos/nautilus-mac-bonjour.c looks for. -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>@APP_NAME@ finds and connects to file servers on your local network.</string>
 	<key>NSBonjourServices</key>

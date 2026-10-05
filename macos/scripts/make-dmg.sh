@@ -2,10 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Ekure Edem
-#
-# Makes the disk image people install the app from.
-# "ninja dmg" runs it, after "ninja app": make-dmg.sh <app name> <version> <build folder>
-# Needs dmgbuild: pip install dmgbuild
 
 set -eu
 

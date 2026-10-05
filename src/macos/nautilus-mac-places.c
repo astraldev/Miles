@@ -17,7 +17,9 @@
  *
  */
 
-/* Folders the sidebar always lists on MacOS, where nothing adds them as bookmarks. */
+/*
+ * Folders the sidebar always lists on MacOS, where nothing adds them as bookmarks.
+ */
 
 #include <config.h>
 #include "nautilus-mac-places.h"
@@ -56,7 +58,9 @@ nautilus_mac_place_get_path (guint index)
         path = g_get_user_special_dir (places[index].directory);
     }
 
-    /* A folder that is not set up points at the home folder. */
+    /*
+     * A folder that is not set up points at the home folder.
+     */
     if (path == NULL ||
         g_strcmp0 (path, g_get_home_dir ()) == 0 ||
         !g_file_test (path, G_FILE_TEST_IS_DIR))
@@ -101,7 +105,6 @@ nautilus_mac_location_is_place (GFile *location)
     return FALSE;
 }
 
-/* The name Finder shows, as "Macintosh HD" for / or "iCloud Drive" for its folder. */
 static char *
 get_name_from_macos (const char *path,
                      CFStringRef key)
@@ -133,7 +136,6 @@ nautilus_mac_get_startup_disk_name (void)
     return get_name_from_macos ("/", kCFURLVolumeNameKey);
 }
 
-/* The apps of cloud services keep the user's files in these, as normal folders. */
 GStrv
 nautilus_mac_get_cloud_folders (void)
 {
@@ -189,7 +191,9 @@ nautilus_mac_get_cloud_folder_name (const char *path)
         return g_steal_pointer (&name);
     }
 
-    /* MacOS has no name for these, and they are named "Service-account". */
+    /*
+     * MacOS has no name for these, and they are named "Service-account".
+     */
     account = strchr (folder, '-');
     if (account != NULL)
     {
@@ -199,7 +203,9 @@ nautilus_mac_get_cloud_folder_name (const char *path)
     return g_strdup (g_str_equal (folder, "GoogleDrive") ? "Google Drive" : folder);
 }
 
-/* Finder shows the apps of MacOS in Applications. On disk they are apart. */
+/*
+ * Finder shows the apps of MacOS in Applications. On disk they are apart.
+ */
 GFile *
 nautilus_mac_get_other_apps_location (GFile    *location,
                                       gboolean *is_system)

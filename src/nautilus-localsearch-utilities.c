@@ -82,7 +82,6 @@ void
 nautilus_localsearch_setup_miner_fs_connection (void)
 {
 #ifndef ENABLE_LOCALSEARCH
-    /* Built without the localsearch indexer: there is nothing to connect to. */
     return;
 #endif
 
@@ -231,7 +230,6 @@ get_tracker_locations (const gchar *key)
     GFile *location;
 
 #ifndef ENABLE_LOCALSEARCH
-    /* Built without the localsearch indexer: it indexes no folders. */
     return NULL;
 #endif
 

@@ -2,23 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!--
-	  Entitlements used when signing with the hardened runtime
-	  (required for notarization):
+	<!-- No App Sandbox: a file manager has to reach the whole file system. -->
 
-	    codesign -s "Developer ID Application: ..." -o runtime \
-	             -e macos/bundle/nautilus.entitlements Miles.app
-
-	  The App Sandbox is deliberately NOT enabled: a file manager has to
-	  reach the whole file system, which the sandbox forbids. That rules out
-	  the Mac App Store but is fine for Developer ID distribution.
-	-->
-
-	<!--
-	  GTK loads plugins at run time (GIO modules, gdk-pixbuf loaders, input
-	  methods). Needed while any bundled library is not signed with the same
-	  Team ID as the app itself.
-	-->
+	<!-- Needed while a bundled library is not signed with the app's Team ID. -->
 	<key>com.apple.security.cs.disable-library-validation</key>
 	<true/>
 </dict>

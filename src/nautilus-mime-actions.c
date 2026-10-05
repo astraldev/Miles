@@ -732,7 +732,9 @@ get_activation_action (NautilusFile *file)
     if (nautilus_file_is_archive (file))
     {
 #ifdef __APPLE__
-        /* Return early so as not to open Finder. */
+        /*
+         * Otherwise Finder opens it.
+         */
         return ACTIVATION_ACTION_EXTRACT;
 #endif
         g_autoptr (GAppInfo) app_info = nautilus_mime_get_default_application_for_file (file);

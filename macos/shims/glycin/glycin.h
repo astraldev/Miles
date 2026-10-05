@@ -1,7 +1,9 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later
+/*
+ * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Ekure Edem
  *
- * Stand-in for the part of glycin that Nautilus uses, on gdk-pixbuf. Real glycin needs Rust to build. */
+ * Real glycin needs Rust to build.
+ */
 #pragma once
 
 #include <gio/gio.h>

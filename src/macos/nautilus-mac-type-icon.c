@@ -20,8 +20,9 @@
 #include <config.h>
 #include "nautilus-mac-type-icon.h"
 
-/* GIO makes up an icon name from the type MacOS gives. For these the theme has
- * the icon under another name. */
+/*
+ * The theme has these icons under another name than the one GIO makes up.
+ */
 static const struct
 {
     const char *content_type;

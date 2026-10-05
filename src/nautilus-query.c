@@ -45,7 +45,6 @@ struct _NautilusQuery
     GFile *location;
     /* MIME types - an empty array means "Any type" */
     GPtrArray *mime_types;
-    /* Answers of nautilus_query_matches_content_type(), by content type. Guarded by the mutex. */
     GHashTable *content_type_matches;
     GMutex content_type_mutex;
     gboolean show_hidden;
@@ -290,7 +289,9 @@ nautilus_query_matches_mime_type (NautilusQuery *self,
                                   const char    *mime_type)
 {
 #ifdef __APPLE__
-    /* GIO names file types by UTI on macOS, which have a hierarchy. */
+    /*
+     * GIO names file types by UTI on macOS, which have a hierarchy.
+     */
     return nautilus_query_matches_content_type (self, mime_type);
 #endif
 
@@ -340,13 +341,17 @@ nautilus_query_get_mime_type_str (NautilusQuery *self)
     return g_string_free_and_steal (g_steal_pointer (&mimetype_str));
 }
 
-/* GIO names content types per platform (UTIs on macOS). Returns: (transfer full): @type as one. */
+/*
+ * GIO names content types per platform: UTIs on MacOS.
+ */
 static char *
 content_type_from_mime_type (const char *type)
 {
     char *content_type = NULL;
 
-    /* Anything without a slash is a content type already. */
+    /*
+     * Anything without a slash is a content type already.
+     */
     if (strchr (type, '/') != NULL)
     {
         content_type = g_content_type_from_mime_type (type);
@@ -365,7 +370,9 @@ content_types_from_mime_types (GPtrArray *mime_types)
     {
         g_autofree char *content_type = content_type_from_mime_type (g_ptr_array_index (mime_types, i));
 
-        /* macOS invents a "dyn." identifier for a MIME type it does not know: no file has it. */
+        /*
+         * macOS invents a "dyn." identifier for a MIME type it does not know: no file has it.
+         */
         if (g_str_has_prefix (content_type, "dyn."))
         {
             if (unknown_type == NULL)
@@ -375,7 +382,9 @@ content_types_from_mime_types (GPtrArray *mime_types)
             continue;
         }
 
-        /* Several MIME types can stand for the same content type. */
+        /*
+         * Several MIME types can stand for the same content type.
+         */
         if (!g_ptr_array_find_with_equal_func (content_types, content_type, g_str_equal, NULL))
         {
             g_ptr_array_add (content_types, g_steal_pointer (&content_type));
@@ -384,7 +393,9 @@ content_types_from_mime_types (GPtrArray *mime_types)
 
     if (content_types->len == 0 && unknown_type != NULL)
     {
-        /* An empty filter means "Any type", so keep one that matches nothing. */
+        /*
+         * An empty filter means "Any type", so keep one that matches nothing.
+         */
         g_ptr_array_add (content_types, g_steal_pointer (&unknown_type));
     }
 
@@ -406,7 +417,9 @@ content_type_matches_filter (GPtrArray  *filter,
     }
 
 #ifdef __APPLE__
-    /* "Any file" is application/octet-stream: public.data on macOS, which misses unknown types. */
+    /*
+     * "Any file" is application/octet-stream: public.data on macOS, which misses unknown types.
+     */
     if (g_ptr_array_find_with_equal_func (filter, "public.data", g_str_equal, NULL))
     {
         return !g_content_type_is_a (content_type, "public.folder") &&
@@ -417,7 +430,9 @@ content_type_matches_filter (GPtrArray  *filter,
     return FALSE;
 }
 
-/* Returns: whether a file of this content or MIME type passes the filter. Cached; any thread. */
+/*
+ * Safe to call from any thread.
+ */
 gboolean
 nautilus_query_matches_content_type (NautilusQuery *query,
                                      const char    *content_type)

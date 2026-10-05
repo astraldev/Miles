@@ -1176,7 +1176,9 @@ nautilus_location_is_autofs_mountpoint (GFile *location)
     }
 
 #ifdef __APPLE__
-    /* macOS has no O_PATH and identifies file systems by name. */
+    /*
+     * macOS has no O_PATH and identifies file systems by name.
+     */
     if (statfs (path, &buf) < 0)
     {
         return FALSE;

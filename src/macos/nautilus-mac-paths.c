@@ -17,8 +17,6 @@
  *
  */
 
-/* The files of Nautilus are in the prefix it was built for, or in the app when it carries them. */
-
 #include <config.h>
 #include "nautilus-mac-paths.h"
 
@@ -74,7 +72,9 @@ nautilus_mac_get_install_path (const char *built_in_path)
                              NULL);
 }
 
-/* Call first in main(). */
+/*
+ * Call first in main().
+ */
 void
 nautilus_mac_paths_init (void)
 {
@@ -86,7 +86,9 @@ nautilus_mac_paths_init (void)
     const char *prefix = nautilus_mac_get_prefix ();
     gboolean is_carried = !g_str_equal (prefix, NAUTILUS_PREFIX);
 
-    /* Started from Finder, nothing says where schemas and icons are. */
+    /*
+     * Started from Finder, nothing says where schemas and icons are.
+     */
     g_setenv ("XDG_DATA_DIRS", is_carried ? data_dir : with_system, is_carried);
 
     bindtextdomain (GETTEXT_PACKAGE, locale_dir);
@@ -97,7 +99,9 @@ nautilus_mac_paths_init (void)
         g_autofree char *image_loaders = g_build_filename (prefix, "lib", "gdk-pixbuf-2.0",
                                                            "loaders.cache", NULL);
 
-        /* Not Homebrew's modules, on a Mac that has it. */
+        /*
+         * Not Homebrew's modules, on a Mac that has it.
+         */
         g_setenv ("GIO_MODULE_DIR", gio_modules, TRUE);
         g_setenv ("GDK_PIXBUF_MODULE_FILE", image_loaders, TRUE);
         g_setenv ("GTK_EXE_PREFIX", prefix, TRUE);

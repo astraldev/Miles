@@ -1,7 +1,9 @@
-/* SPDX-License-Identifier: LGPL-2.0-or-later
+/*
+ * SPDX-License-Identifier: LGPL-2.0-or-later
  * Copyright (C) 2026 Ekure Edem
  *
- * The trash of MacOS, for gvfs's trash backend. install-gvfs.sh copies this into daemon/trashlib. */
+ * install-gvfs.sh copies this into gvfs's daemon/trashlib.
+ */
 
 #include <string.h>
 #include <sys/attr.h>
@@ -67,7 +69,9 @@ put_back_free (PutBack *put_back)
   g_free (put_back);
 }
 
-/* The .DS_Store of a drive is not to be trusted: restoring must stay on that drive. */
+/*
+ * The .DS_Store of a drive is not to be trusted: restoring must stay on that drive.
+ */
 static gboolean
 put_back_is_safe (const PutBack *put_back)
 {

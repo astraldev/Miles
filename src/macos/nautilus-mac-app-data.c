@@ -22,7 +22,9 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 
-/* Where an app keeps its settings and data in ~/Library, under its identifier. */
+/*
+ * Where an app keeps its settings and data in ~/Library, under its identifier.
+ */
 static const struct
 {
     const char *folder;
@@ -40,7 +42,9 @@ static const struct
     { "WebKit", "" },
 };
 
-/* Some apps use their name there. */
+/*
+ * Some apps use their name there.
+ */
 static const char *by_name[] = { "Application Support", "Caches", "Logs" };
 
 static char *
@@ -70,7 +74,9 @@ get_identifier (const char *app_path)
     return identifier;
 }
 
-/* It becomes a file name, and comes from the app: it must not lead out of its folder. */
+/*
+ * It becomes a file name, and comes from the app: it must not lead out of its folder.
+ */
 static gboolean
 is_identifier (const char *identifier)
 {
@@ -111,7 +117,9 @@ nautilus_mac_app_get_data (GFile *app)
     g_autofree char *name = path != NULL ? g_path_get_basename (path) : NULL;
     GList *data = NULL;
 
-    /* A name that is not an identifier could be the folder of another app. */
+    /*
+     * A name that is not an identifier could be the folder of another app.
+     */
     if (identifier != NULL && is_identifier (identifier))
     {
         for (guint i = 0; i < G_N_ELEMENTS (by_identifier); i++)
