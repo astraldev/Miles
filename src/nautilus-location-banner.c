@@ -258,8 +258,8 @@ set_mode (AdwBanner                  *banner,
         case NAUTILUS_LOCATION_BANNER_MAC_SYSTEM_APPS:
         {
 #ifdef __APPLE__
-            adw_banner_set_title (banner, _("The apps that come with MacOS are in another folder"));
-            button_label = _("_Show Them");
+            adw_banner_set_title (banner, _("Apps that come with MacOS are kept in another folder"));
+            button_label = _("Show _System Apps");
             callback = G_CALLBACK (on_mac_other_apps_clicked);
 #endif
         }
@@ -268,8 +268,8 @@ set_mode (AdwBanner                  *banner,
         case NAUTILUS_LOCATION_BANNER_MAC_USER_APPS:
         {
 #ifdef __APPLE__
-            adw_banner_set_title (banner, _("The apps you installed are in another folder"));
-            button_label = _("_Show Them");
+            adw_banner_set_title (banner, _("Apps you installed are kept in another folder"));
+            button_label = _("Show _Installed Apps");
             callback = G_CALLBACK (on_mac_other_apps_clicked);
 #endif
         }

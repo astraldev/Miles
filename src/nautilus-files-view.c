@@ -80,6 +80,7 @@
 #include "nautilus-window-slot.h"
 
 #ifdef __APPLE__
+#include "macos/nautilus-mac-app-data.h"
 #include "macos/nautilus-mac-bonjour.h"
 #include "macos/nautilus-mac-privacy.h"
 #endif
@@ -1656,6 +1657,123 @@ action_move_to_trash (GSimpleAction *action,
                       gpointer       user_data)
 {
     trash_or_delete_selected_files (NAUTILUS_FILES_VIEW (user_data));
+}
+
+#ifdef __APPLE__
+typedef struct
+{
+    NautilusFilesView *view;
+    GList *locations;
+} Uninstall;
+
+static void
+uninstall_free (Uninstall *uninstall)
+{
+    g_list_free_full (uninstall->locations, g_object_unref);
+    g_free (uninstall);
+}
+
+static void
+on_uninstall_confirmed (Uninstall *uninstall)
+{
+    nautilus_file_operations_trash_or_delete_async (uninstall->locations,
+                                                    nautilus_files_view_get_containing_window (uninstall->view),
+                                                    NULL, NULL, NULL);
+}
+
+/* The data is found by the app's identifier and name: show what would go. */
+static GtkWidget *
+build_uninstall_data_list (GList *data)
+{
+    g_autoptr (GString) paths = g_string_new (NULL);
+    GtkWidget *label;
+
+    for (GList *l = data; l != NULL; l = l->next)
+    {
+        g_autofree char *path = g_file_get_path (l->data);
+
+        g_string_append_printf (paths, "%s~%s", paths->len > 0 ? "\n" : "",
+                                path + strlen (g_get_home_dir ()));
+    }
+
+    label = gtk_label_new (paths->str);
+    gtk_label_set_xalign (GTK_LABEL (label), 0);
+    gtk_label_set_wrap (GTK_LABEL (label), TRUE);
+    gtk_label_set_wrap_mode (GTK_LABEL (label), PANGO_WRAP_WORD_CHAR);
+    gtk_widget_add_css_class (label, "caption");
+    gtk_widget_add_css_class (label, "dimmed");
+
+    return label;
+}
+
+static void
+uninstall_app (NautilusFilesView *self,
+               gboolean           with_data)
+{
+    g_autolist (NautilusFile) selection = nautilus_files_view_get_selection (self);
+    const char *body = _("The app will be moved to the Trash.");
+    AdwAlertDialog *dialog;
+    Uninstall *uninstall;
+    GList *data = NULL;
+
+    if (selection == NULL)
+    {
+        return;
+    }
+
+    uninstall = g_new0 (Uninstall, 1);
+    uninstall->view = self;
+    uninstall->locations = g_list_prepend (NULL, nautilus_file_get_location (selection->data));
+
+    if (with_data)
+    {
+        data = nautilus_mac_app_get_data (uninstall->locations->data);
+        body = data != NULL ?
+               _("The app will be moved to the Trash, together with its settings and data:") :
+               _("The app will be moved to the Trash. No settings or data were found for it.");
+    }
+
+    dialog = ADW_ALERT_DIALOG (adw_alert_dialog_new (NULL, body));
+    adw_alert_dialog_format_heading (dialog, _("Uninstall “%s”?"),
+                                     nautilus_file_get_display_name (selection->data));
+    adw_alert_dialog_add_responses (dialog,
+                                    "cancel", _("_Cancel"),
+                                    "uninstall", _("_Uninstall"),
+                                    NULL);
+    adw_alert_dialog_set_response_appearance (dialog, "uninstall", ADW_RESPONSE_DESTRUCTIVE);
+    adw_alert_dialog_set_close_response (dialog, "cancel");
+    if (data != NULL)
+    {
+        adw_alert_dialog_set_extra_child (dialog, build_uninstall_data_list (data));
+        uninstall->locations = g_list_concat (uninstall->locations, data);
+    }
+
+    g_object_set_data_full (G_OBJECT (dialog), "uninstall", uninstall, (GDestroyNotify) uninstall_free);
+    g_signal_connect_swapped (dialog, "response::uninstall",
+                              G_CALLBACK (on_uninstall_confirmed), uninstall);
+
+    adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (self));
+}
+#endif
+
+static void
+action_uninstall_app (GSimpleAction *action,
+                      GVariant      *state,
+                      gpointer       user_data)
+{
+#ifdef __APPLE__
+    uninstall_app (user_data, FALSE);
+#endif
+}
+
+static void
+action_uninstall_app_and_data (GSimpleAction *action,
+                               GVariant      *state,
+                               gpointer       user_data)
+{
+#ifdef __APPLE__
+    uninstall_app (user_data, TRUE);
+#endif
 }
 
 static void
@@ -3781,7 +3899,7 @@ nautilus_files_view_update_status_overlay (NautilusFilesView *self)
         {
             adw_status_page_set_icon_name (status_page, "folder-symbolic");
             adw_status_page_set_title (status_page, _("No Permission"));
-            adw_status_page_set_description (status_page, _("Allow access in System Settings."));
+            adw_status_page_set_description (status_page, _("Allow access to this folder in System Settings"));
             adw_status_page_set_child (status_page, build_privacy_settings_button (self));
             set_shows_no_permission (self, TRUE);
         }
@@ -3789,7 +3907,7 @@ nautilus_files_view_update_status_overlay (NautilusFilesView *self)
         {
             adw_status_page_set_icon_name (status_page, "folder-symbolic");
             adw_status_page_set_title (status_page, _("No Permission"));
-            adw_status_page_set_description (status_page, _("You do not have permission to open this folder."));
+            adw_status_page_set_description (status_page, _("You do not have permission to open this folder"));
             set_shows_no_permission (self, TRUE);
         }
         else
@@ -3805,7 +3923,7 @@ nautilus_files_view_update_status_overlay (NautilusFilesView *self)
                 adw_status_page_set_icon_name (status_page, "edit-find-symbolic");
 #ifdef __APPLE__
                 adw_status_page_set_description (status_page,
-                                                 _("Try other words, or search inside a folder"));
+                                                 _("Try different words, or search inside a folder"));
 #else
                 adw_status_page_set_description (status_page,
                                                  _("More locations can be added to search in the settings"));
@@ -7039,6 +7157,8 @@ const GActionEntry view_entries[] =
     { .name = "open-scripts-folder", .activate = action_open_scripts_folder },
     { .name = "open-item-location", .activate = action_open_item_location },
     { .name = "show-package-contents", .activate = action_show_package_contents },
+    { .name = "uninstall-app", .activate = action_uninstall_app },
+    { .name = "uninstall-app-and-data", .activate = action_uninstall_app_and_data },
     { .name = "open-with-default-application", .activate = action_open_with_default_application },
     { .name = "open-with-other-application", .activate = action_open_with_other_application },
     {
@@ -7570,6 +7690,7 @@ nautilus_files_view_update_actions_state (NautilusFilesView *self)
     g_simple_action_set_enabled (G_SIMPLE_ACTION (action),
                                  list_len_is_one (selection) &&
                                  nautilus_file_is_mac_app (selection->data));
+
 
     item_opens_in_view = selection != NULL;
 
@@ -8113,6 +8234,16 @@ update_selection_menu (NautilusFilesView *self,
 
         g_free (item_label);
     }
+
+    /* Only for an app that can be removed: not for those that come with MacOS. */
+    object = gtk_builder_get_object (builder, "open-with-application-section");
+    nautilus_menu_item_change_attribute (G_MENU_MODEL (object),
+                                         "uninstall-submenu",
+                                         "hidden-when",
+                                         list_len_is_one (selection) &&
+                                         nautilus_file_is_mac_app (selection->data) &&
+                                         nautilus_file_can_trash (selection->data) ?
+                                         NULL : "action-missing");
 
     /* The "Open" submenu should be hidden if the item doesn't open in the view. */
     object = gtk_builder_get_object (builder, "open-with-application-section");

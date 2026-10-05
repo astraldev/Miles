@@ -804,9 +804,9 @@ update_places (NautilusSidebar *sidebar)
             g_autofree char *uri = g_filename_to_uri (sidebar->cloud_folders[i], NULL, NULL);
 
             add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-                       NAUTILUS_SIDEBAR_SECTION_CLOUD,
+                       NAUTILUS_SIDEBAR_SECTION_MOUNTS,
                        name, start_icon, NULL, uri,
-                       NULL, NULL, NULL, NULL, i,
+                       NULL, NULL, NULL, NULL, i + 1,
                        NULL);
         }
         g_object_unref (start_icon);
@@ -3497,6 +3497,15 @@ list_box_sort_func (GtkListBoxRow *row1,
     {
         return place_type_1 - place_type_2;
     }
+
+#ifdef __APPLE__
+    /* The startup disk, then the cloud folders: by name the disk would come between them. */
+    if (section_type_1 == NAUTILUS_SIDEBAR_SECTION_MOUNTS &&
+        place_type_1 == NAUTILUS_SIDEBAR_ROW_BUILT_IN)
+    {
+        return index_1 - index_2;
+    }
+#endif
 
     if (section_type_1 == NAUTILUS_SIDEBAR_SECTION_MOUNTS)
     {

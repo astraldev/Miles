@@ -311,6 +311,8 @@ nautilus_deps = [
 
 if host_machine.system() == 'darwin'
   libnautilus_sources += [
+    'macos/nautilus-mac-app-data.c',
+    'macos/nautilus-mac-app-data.h',
     'macos/nautilus-mac-app-icon.m',
     'macos/nautilus-mac-app-icon.h',
     'macos/nautilus-mac-appearance.c',

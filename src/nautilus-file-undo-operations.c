@@ -1813,8 +1813,8 @@ trash_retrieve_files_ready (GObject      *source,
             GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (application));
 
             nautilus_show_ok_dialog (_("Could Not Undo"),
-                                     _("MacOS keeps Files out of the Trash. "
-                                       "Allow Full Disk Access for it in System Settings."),
+                                     _("Files needs Full Disk Access to take a file back out of the Trash. "
+                                       "Allow it in System Settings."),
                                      window != NULL ? GTK_WIDGET (window) : NULL);
         }
     }
