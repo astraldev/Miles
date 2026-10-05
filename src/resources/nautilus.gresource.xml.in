@@ -50,6 +50,7 @@
     <file>style.css</file>
 
     <!-- Icons -->
+    <file alias="icons/scalable/apps/nautilus-mac-app.svg" preprocess="xml-stripblanks">../../macos/bundle/AppIcon.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/arrow-next-symbolic-rtl.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/arrow-next-symbolic.svg</file>
     <file preprocess="xml-stripblanks">icons/scalable/actions/cancel-operation-symbolic.svg</file>

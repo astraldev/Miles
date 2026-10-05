@@ -1773,6 +1773,7 @@ nautilus_window_show_about_dialog (NautilusWindow *window)
      * The port is not GNOME's, and has to say so: its issues and questions are not for GNOME.
      */
     adw_about_dialog_set_application_name (ADW_ABOUT_DIALOG (dialog), NAUTILUS_MACOS_APP_NAME);
+    adw_about_dialog_set_application_icon (ADW_ABOUT_DIALOG (dialog), "nautilus-mac-app");
     adw_about_dialog_set_developer_name (ADW_ABOUT_DIALOG (dialog), "Ekure Edem");
     adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (dialog),
                                     "© 1999 The Files Authors\n© 2026 Ekure Edem (MacOS port)");
