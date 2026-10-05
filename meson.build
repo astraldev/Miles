@@ -114,6 +114,8 @@ gio = dependency('gio-2.0', version: glib_ver)
 gio_unix = dependency('gio-unix-2.0', version: glib_ver)
 glib = dependency('glib-2.0', version: glib_ver)
 if host_machine.system() == 'darwin'
+  add_languages('objc', native: false)
+  add_project_arguments('-Wno-unused-parameter', language: 'objc')
   subdir('macos/shims/glycin')
 else
   glycin = dependency('glycin-2', version: '>= 2')
