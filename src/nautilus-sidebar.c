@@ -114,6 +114,10 @@ struct _NautilusSidebar
 
     NautilusBookmarkList *bookmark_list;
 
+#ifdef __APPLE__
+    GStrv cloud_folders;
+#endif
+
     GActionGroup *row_actions;
 
 #ifdef HAVE_CLOUDPROVIDERS
@@ -786,6 +790,25 @@ update_places (NautilusSidebar *sidebar)
                    disk_name != NULL ? disk_name : _("Computer"), start_icon, NULL, "file:///",
                    NULL, NULL, NULL, NULL, 0,
                    NULL);
+        g_object_unref (start_icon);
+    }
+
+    {
+        g_strfreev (sidebar->cloud_folders);
+        sidebar->cloud_folders = nautilus_mac_get_cloud_folders ();
+
+        start_icon = g_themed_icon_new_with_default_fallbacks ("folder-remote-symbolic");
+        for (guint i = 0; sidebar->cloud_folders[i] != NULL; i++)
+        {
+            g_autofree char *name = nautilus_mac_get_cloud_folder_name (sidebar->cloud_folders[i]);
+            g_autofree char *uri = g_filename_to_uri (sidebar->cloud_folders[i], NULL, NULL);
+
+            add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
+                       NAUTILUS_SIDEBAR_SECTION_CLOUD,
+                       name, start_icon, NULL, uri,
+                       NULL, NULL, NULL, NULL, i,
+                       NULL);
+        }
         g_object_unref (start_icon);
     }
 #endif
@@ -3617,6 +3640,43 @@ update_location (NautilusSidebar *self)
     nautilus_sidebar_set_location (self, location);
 }
 
+#ifdef __APPLE__
+/* A cloud service may have been set up or removed while the user was elsewhere. */
+static void
+on_window_active_changed (NautilusSidebar *sidebar,
+                          GParamSpec      *pspec,
+                          GtkWindow       *window)
+{
+    g_auto (GStrv) cloud_folders = NULL;
+
+    if (!gtk_window_is_active (window))
+    {
+        return;
+    }
+
+    cloud_folders = nautilus_mac_get_cloud_folders ();
+    if (sidebar->cloud_folders == NULL ||
+        !g_strv_equal ((const char * const *) cloud_folders,
+                       (const char * const *) sidebar->cloud_folders))
+    {
+        update_places (sidebar);
+    }
+}
+
+static void
+on_root_changed (NautilusSidebar *sidebar)
+{
+    GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (sidebar));
+
+    if (GTK_IS_WINDOW (root))
+    {
+        g_signal_connect_object (root, "notify::is-active",
+                                 G_CALLBACK (on_window_active_changed), sidebar,
+                                 G_CONNECT_SWAPPED);
+    }
+}
+#endif
+
 static void
 nautilus_sidebar_init (NautilusSidebar *sidebar)
 {
@@ -3624,6 +3684,10 @@ nautilus_sidebar_init (NautilusSidebar *sidebar)
     gboolean show_desktop;
     GtkEventController *controller;
     GtkGesture *gesture;
+
+#ifdef __APPLE__
+    g_signal_connect (sidebar, "notify::root", G_CALLBACK (on_root_changed), NULL);
+#endif
 
     create_volume_monitor (sidebar);
 
@@ -3825,6 +3889,9 @@ nautilus_sidebar_dispose (GObject *object)
 
     g_clear_object (&sidebar->window_slot);
     g_clear_object (&sidebar->slot_signal_group);
+#ifdef __APPLE__
+    g_clear_pointer (&sidebar->cloud_folders, g_strfreev);
+#endif
 
     g_clear_pointer (&sidebar->popover, gtk_widget_unparent);
 

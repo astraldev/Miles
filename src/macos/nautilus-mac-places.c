@@ -99,15 +99,18 @@ nautilus_mac_location_is_place (GFile *location)
     return FALSE;
 }
 
-char *
-nautilus_mac_get_startup_disk_name (void)
+/* The name Finder shows, as "Macintosh HD" for / or "iCloud Drive" for its folder. */
+static char *
+get_name_from_macos (const char *path,
+                     CFStringRef key)
 {
-    CFURLRef root = CFURLCreateWithFileSystemPath (NULL, CFSTR ("/"), kCFURLPOSIXPathStyle, true);
+    CFURLRef url = CFURLCreateFromFileSystemRepresentation (NULL, (const UInt8 *) path,
+                                                            strlen (path), true);
     CFStringRef name = NULL;
     char buffer[256];
     char *result = NULL;
 
-    if (CFURLCopyResourcePropertyForKey (root, kCFURLVolumeNameKey, &name, NULL) && name != NULL)
+    if (CFURLCopyResourcePropertyForKey (url, key, &name, NULL) && name != NULL)
     {
         if (CFStringGetCString (name, buffer, sizeof (buffer), kCFStringEncodingUTF8))
         {
@@ -117,9 +120,81 @@ nautilus_mac_get_startup_disk_name (void)
         CFRelease (name);
     }
 
-    CFRelease (root);
+    CFRelease (url);
 
     return result;
+}
+
+char *
+nautilus_mac_get_startup_disk_name (void)
+{
+    return get_name_from_macos ("/", kCFURLVolumeNameKey);
+}
+
+/* The apps of cloud services keep the user's files in these, as normal folders. */
+GStrv
+nautilus_mac_get_cloud_folders (void)
+{
+    g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
+    g_autofree char *icloud = g_build_filename (g_get_home_dir (), "Library", "Mobile Documents",
+                                                "com~apple~CloudDocs", NULL);
+    g_autofree char *storage = g_build_filename (g_get_home_dir (), "Library", "CloudStorage", NULL);
+    g_autoptr (GDir) dir = g_dir_open (storage, 0, NULL);
+    const char *name;
+
+    if (g_file_test (icloud, G_FILE_TEST_IS_DIR))
+    {
+        g_strv_builder_add (builder, icloud);
+    }
+
+    while (dir != NULL && (name = g_dir_read_name (dir)) != NULL)
+    {
+        if (name[0] != '.')
+        {
+            g_strv_builder_take (builder, g_build_filename (storage, name, NULL));
+        }
+    }
+
+    return g_strv_builder_end (builder);
+}
+
+gboolean
+nautilus_mac_location_is_in_cloud (GFile *location)
+{
+    const char *path = g_file_peek_path (location);
+    const char *home = g_get_home_dir ();
+
+    if (path == NULL || !g_str_has_prefix (path, home))
+    {
+        return FALSE;
+    }
+
+    path += strlen (home);
+
+    return g_str_has_prefix (path, "/Library/CloudStorage/") ||
+           g_str_has_prefix (path, "/Library/Mobile Documents/");
+}
+
+char *
+nautilus_mac_get_cloud_folder_name (const char *path)
+{
+    g_autofree char *folder = g_path_get_basename (path);
+    g_autofree char *name = get_name_from_macos (path, kCFURLLocalizedNameKey);
+    char *account;
+
+    if (name != NULL && !g_str_equal (name, folder))
+    {
+        return g_steal_pointer (&name);
+    }
+
+    /* MacOS has no name for these, and they are named "Service-account". */
+    account = strchr (folder, '-');
+    if (account != NULL)
+    {
+        *account = '\0';
+    }
+
+    return g_strdup (g_str_equal (folder, "GoogleDrive") ? "Google Drive" : folder);
 }
 
 /* Finder shows the apps of MacOS in Applications. On disk they are apart. */

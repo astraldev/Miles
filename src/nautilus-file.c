@@ -67,6 +67,7 @@
 
 #ifdef __APPLE__
 #include "macos/nautilus-mac-app-icon.h"
+#include "macos/nautilus-mac-places.h"
 #endif
 
 #ifdef HAVE_SELINUX
@@ -4642,6 +4643,15 @@ get_automatic_emblem_keywords (NautilusFile *file)
     {
         keywords = g_list_prepend (keywords, NAUTILUS_FILE_EMBLEM_NAME_SYMBOLIC_LINK);
     }
+
+#ifdef __APPLE__
+    g_autoptr (GFile) location = nautilus_file_get_location (file);
+
+    if (nautilus_mac_location_is_in_cloud (location))
+    {
+        keywords = g_list_prepend (keywords, "weather-overcast-symbolic");
+    }
+#endif
 
     if (!nautilus_file_can_read (file))
     {

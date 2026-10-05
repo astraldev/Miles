@@ -28,6 +28,9 @@ char *   nautilus_mac_place_get_path          (guint  index);
 GIcon *  nautilus_mac_place_get_symbolic_icon (guint  index);
 gboolean nautilus_mac_location_is_place       (GFile *location);
 char *   nautilus_mac_get_startup_disk_name   (void);
+GStrv    nautilus_mac_get_cloud_folders       (void);
+char *   nautilus_mac_get_cloud_folder_name   (const char *path);
+gboolean nautilus_mac_location_is_in_cloud    (GFile *location);
 GFile *  nautilus_mac_get_other_apps_location (GFile    *location,
                                                gboolean *is_system);
 
