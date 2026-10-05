@@ -212,6 +212,7 @@ handle_entry (Walk        *walk,
 {
     gboolean descends = (entry->type == VDIR && walk->recursive);
     g_autofree char *path = NULL;
+    g_autofree char *valid_name = NULL;
     double rank;
 
     if (entry->name == NULL || entry->error != 0)
@@ -227,7 +228,13 @@ handle_entry (Walk        *walk,
         return;
     }
 
-    rank = nautilus_query_matches_string (walk->query, entry->name);
+    /* A server can have names that are not UTF-8, which matching needs. */
+    if (!g_utf8_validate (entry->name, -1, NULL))
+    {
+        valid_name = g_utf8_make_valid (entry->name, -1);
+    }
+
+    rank = nautilus_query_matches_string (walk->query, valid_name != NULL ? valid_name : entry->name);
     if (rank < 0 && !descends)
     {
         return;

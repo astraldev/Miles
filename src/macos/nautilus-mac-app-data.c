@@ -68,6 +68,22 @@ get_identifier (const char *app_path)
     return identifier;
 }
 
+/* It becomes a file name, and comes from the app: it must not lead out of its folder. */
+static gboolean
+is_identifier (const char *identifier)
+{
+    for (const char *c = identifier; *c != '\0'; c++)
+    {
+        if (!g_ascii_isalnum (*c) && strchr ("-_.", *c) == NULL)
+        {
+            return FALSE;
+        }
+    }
+
+    return identifier[0] != '.' && strchr (identifier, '.') != NULL &&
+           strstr (identifier, "..") == NULL;
+}
+
 static GList *
 add_if_exists (GList      *data,
                const char *folder,
@@ -94,7 +110,7 @@ nautilus_mac_app_get_data (GFile *app)
     GList *data = NULL;
 
     /* A name that is not an identifier could be the folder of another app. */
-    if (identifier != NULL && strchr (identifier, '.') != NULL)
+    if (identifier != NULL && is_identifier (identifier))
     {
         for (guint i = 0; i < G_N_ELEMENTS (by_identifier); i++)
         {
@@ -102,7 +118,7 @@ nautilus_mac_app_get_data (GFile *app)
         }
     }
 
-    if (name != NULL && g_str_has_suffix (name, ".app") && strlen (name) > strlen (".app"))
+    if (name != NULL && name[0] != '.' && g_str_has_suffix (name, ".app"))
     {
         name[strlen (name) - strlen (".app")] = '\0';
 
