@@ -1,11 +1,16 @@
 name: Release
 
 # A tag like 51.0.1-mac.1 makes a draft release with the disk image.
-# Run by hand, it only builds the disk image and keeps it with the run.
+# Run by hand, it builds the branch and keeps the disk image with the run, or drafts the
+# release of a tag that is named.
 on:
   push:
     tags: ['*-mac.*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: A tag to build and draft a release for. Empty builds the branch.
+        required: false
 
 permissions:
   contents: write
@@ -17,14 +22,19 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 90
     env:
-      HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
+      TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Install dependencies
         run: |
+          # The runner's Homebrew is old, and its OpenSSL is in the way of the new one.
+          brew update
+          brew unlink openssl@1.1 || true
           brew install meson ninja pkgconf gettext \
             gtk4 libadwaita gnome-autoar libarchive icu4c tinysparql \
             gsettings-desktop-schemas gdk-pixbuf iso-codes xkeyboard-config \
@@ -62,14 +72,14 @@ jobs:
           path: build/*.dmg
 
       - name: Draft the release
-        if: github.ref_type == 'tag'
+        if: env.TAG != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           # The list of what the app carries, and where the source of each is.
           cp build/Miles.app/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md build/
-          gh release create "$GITHUB_REF_NAME" build/*.dmg build/THIRD-PARTY-NOTICES.md \
-            --draft --generate-notes --title "Miles $GITHUB_REF_NAME"
+          gh release create "$TAG" build/*.dmg build/THIRD-PARTY-NOTICES.md \
+            --verify-tag --draft --generate-notes --title "Miles $TAG"
 
       - name: Keep the logs
         if: failure()
