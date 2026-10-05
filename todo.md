@@ -2,16 +2,16 @@
 
 What is left. What is done and decided is in `port-progress.md`.
 
-## Reported on screen
+## Deferred by the owner
 
-- [ ] Changing the accent colour in System Settings does not change the folder icons. The handler runs when the notification is posted by hand. It now listens for a second notification and reads the setting again after 0.3 and 1.5 s, in case it was read too early (not committed). To be tried again: run with `G_MESSAGES_DEBUG=nautilus-mac` and the log says what arrives and what is read
-- [ ] Network: try it in the window against the local test servers (`.deps/stop-test-servers.sh` stops them): servers listed under "Available on Current Network", connecting, browsing, folders shown as folders
-- [ ] Downloads: the "No Permission" page shows at once, with no dialog and none of the previous folder's files left
-- [ ] Graphite accent: bark is not the same colour (decided). Yaru has no grey variant. Pick one: sage, blue as for Multicolour, or make a grey one by taking the colour out of Yaru's folders
+- [ ] Accent colour: a real switch in System Settings has not been tried since the fix. The handler works when the change is simulated. Run with `G_MESSAGES_DEBUG=nautilus-mac` and the log says what arrives and what is read
+- [ ] Graphite accent: bark is not the same colour. Yaru has no grey variant. Pick one: make a grey one by taking the colour out of Yaru's folders (turning one icon grey with `sips` works and keeps its transparency), blue as for Multicolour, or sage
 
 ## Check on screen
 
-- [ ] Yaru's `-dark` variants are not installed or used. Does dark appearance need them?
+- [ ] Double-click on a `.zip` extracts it in place, with no Finder window
+- [ ] A folder the account may not read shows "No Permission", with no dialog and no "admin" message
+- [ ] Applications and Applications/Utilities have a banner at the top, and its button opens the folder with Apple's apps
 - [ ] Disks and volumes: what shows when a drive is plugged in
 
 ## GNOME 51
@@ -40,10 +40,10 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Network, trash and recent (gvfs)
 
-- [ ] Found servers have "Remove" in their menu as recent ones do. It does nothing for them
 - [ ] Windows shares are found by nobody (`_smb._tcp` is not looked for, as `smb://` is left out)
 - [ ] Trash: a file trashed from the top folder of a drive has no put-back record, so it cannot be restored. Check what Finder does with those
-- [ ] Trash: try "Restore" and undo of "Move to Trash" in the window
+- [ ] Trash: "Restore" and undo of "Move to Trash" need the Trash to be readable, so Full Disk Access. Try both in the window once it is granted
+- [ ] `.rar` and `.jar` are not offered for extraction (macOS does not know `.rar`, and a `.jar` is left alone)
 - [ ] Saved passwords: gvfs wants libsecret and a Secret Service. Mac has the Keychain instead
 - [ ] Trash shows empty until the app has Full Disk Access: macOS blocks `~/.Trash` for every app but Finder, and never asks
 - [ ] Recent is empty until files are opened from Nautilus, and opened files are not added to it ("no command line for the application")
@@ -71,7 +71,7 @@ What is left. What is done and decided is in `port-progress.md`.
 - [ ] A relocatable `Files.app` has to find its data relative to itself: the bundled icon theme's folder is fixed at build time (`NAUTILUS_DATADIR`), and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
 - [ ] `Info.plist` needs `NSLocalNetworkUsageDescription` and `NSBonjourServices` (the five service types in `nautilus-mac-bonjour.c`), or the bundled app may not look for servers
 - [ ] Bundle Adwaita too: Yaru falls back to it for the icons it lacks, and today it comes from Homebrew
-- [ ] Homebrew tap formula. It cannot download during a build, so it has to supply the pinned sources itself: libportal, gnome-desktop, libgxdp, blueprint-compiler, gvfs, Yaru
+- [ ] Homebrew tap formula. It cannot download during a build, so it has to supply the pinned sources itself: libportal, gnome-desktop, libgxdp, blueprint-compiler, dbus, gvfs, Yaru
 - [ ] Signing and notarization
 - [ ] `mac-release` branch and release tags (`51.0.1-mac.1`)
 

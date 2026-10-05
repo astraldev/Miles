@@ -49,11 +49,18 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - Sidebar: Applications, Documents, Downloads, Movies, Music, Pictures as fixed places in their own section with a divider (`src/mac/nautilus-mac-places.c`, `nautilus-sidebar.c`). They cannot be dragged or bookmarked twice
 - Yaru icon theme is bundled with the app: `macos/scripts/install-yaru.sh` puts it in the app's own data folder (`share/nautilus/icons`) during `ninja install`, pinned to a Yaru commit, and Nautilus adds that folder to the icon search path itself. If the theme is missing, the app refuses to start
 - macOS accent colour picks the Yaru colour variant, at startup and when it is changed in System Settings (`src/mac/nautilus-mac-appearance.c`): Multicolour and Blue to blue, Purple to purple, Pink to magenta, Red to red, Orange to Yaru's own, Yellow to yellow, Green to viridian, Graphite to bark
+- Dark appearance uses Yaru's `-dark` variant of the same colour, whose folders are lighter. It follows macOS, also while the app runs
 - Grid zoom steps are even: 48, 72, 112, 168, 256, each about 1.5 times the one before (upstream: 48, 64, 96, 168, 256)
+- The startup disk has a row in the sidebar, under its own name ("Macintosh HD"). It is in the drives section at the bottom, after a divider, ahead of the drives that come and go
+- Preferences opens with Command-comma, as in other mac apps (upstream: Control-comma)
+- Archives are extracted by Nautilus itself, on double-click and with "Extract": macOS's own Archive Utility showed its result in Finder. Zip, tar, gzip, bzip2, xz and 7z are known as archives on mac
+- Undo of "Move to Trash" says why when macOS keeps Nautilus out of the Trash, where it did nothing
+- Text is a step larger: the base font is set to 13 pt, where GTK takes 12 pt from macOS (`set_macos_font_size()` in `nautilus-application.c`)
+- Dialogs that open inside the window (Properties, ...) draw right: GTK's renderer left most of the window undrawn on macOS, so full redraws are forced (`GSK_DEBUG=full-redraw`, set in `main()`)
 - File type icons: with Yaru, the types macOS knows get their own icon (.docx, .pdf, .json, .zip, .md, ...)
 - Read-only, not-accessible and link badges: 51 ships its own icons for them
 
-Checked on screen on 51 by the owner: sidebar folders and divider, app icons, launching apps and "Show Package Contents", zoom steps, the "No Permission" page.
+Checked on screen on 51 by the owner: sidebar folders and divider, app icons, launching apps and "Show Package Contents", zoom steps, the "No Permission" page (Downloads), dialogs inside the window, Network (found servers, connecting, browsing), the Macintosh HD row, Command-comma for Preferences, the dark folders, and the 13 pt font.
 
 ### Apps
 
@@ -61,6 +68,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - Double-click on an app launches it (`/usr/bin/open`). Right-click has "Show Package Contents" to browse inside
 - Dragging over an app does not launch it, and dropping on one is refused
 - Apps launched from Nautilus do not get its private bus
+- Applications and Applications/Utilities have a banner: the apps that come with macOS are in `/System/Applications`, which Finder shows as part of Applications. Its button opens that folder. Without it Utilities only says "Folder is Empty"
 
 ### Search
 
@@ -84,6 +92,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 ### Permissions
 
 - A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/mac/nautilus-mac-privacy.c`). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest. No error dialog comes with it, and the files of the folder shown before are cleared
+- A folder the user's account may not read (another user's home, ...) shows "No Permission" too, with no button. Upstream reopens it as `admin://`, which asks for a password through PolKit: that is Linux only, so on mac it said "admin locations are not supported"
 - Startup prints no "display server connection" message, and the build has no warnings in Nautilus's own code but one upstream deprecation
 
 ### Reviews
@@ -103,6 +112,8 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - No thumbnails for now: the type icons are enough
 - Graphite accent is not bark. What it is instead is open
 - glycin stays a stand-in: no Rust in the build
+- No "open as administrator": it would need a helper that runs as root
+- Applications is not merged with `/System/Applications` the way Finder does it. A banner points there
 
 ## Known and accepted
 
