@@ -4,10 +4,10 @@
 
 # Files for MacOS (Miles)
 
-**GNOME's file manager, at home on the Mac.**
+**An unofficial port of GNOME Files to the Mac.**
 
 [![Based on Files 51.0.1](https://img.shields.io/badge/based%20on-Files%2051.0.1-4a86cf)](https://gitlab.gnome.org/GNOME/nautilus)
-[![MacOS, Apple silicon](https://img.shields.io/badge/MacOS-Apple%20silicon-black?logo=apple)](#building)
+[![MacOS, Apple silicon](https://img.shields.io/badge/MacOS-Apple%20silicon-black)](#building)
 [![Licence: GPL 3.0 or later](https://img.shields.io/badge/licence-GPL%203.0%2B-green)](LICENSE)
 ![Status: work in progress](https://img.shields.io/badge/status-work%20in%20progress-orange)
 
@@ -20,11 +20,11 @@
 This is a port of [Files](https://apps.gnome.org/Nautilus/), also known as Nautilus, to MacOS. It looks and works the way Files does on GNOME, and follows MacOS wherever the Mac has its own way of doing things: the Trash, apps, privacy prompts and cloud folders.
 
 > [!NOTE]
-> This is not a GNOME project. For Files itself, see the [original README](https://gitlab.gnome.org/GNOME/nautilus/-/blob/main/README.md).
+> This is not a GNOME project. It is a version of Files 51.0.1 modified by Ekure Edem in 2026, and is not made, endorsed or supported by the GNOME Project or by Apple Inc. For Files itself, see the [original README](https://gitlab.gnome.org/GNOME/nautilus/-/blob/main/README.md).
 
 ## Credits
 
-Files for MacOS uses the **[Yaru](https://github.com/ubuntu/yaru)** icon theme by the Ubuntu community. The icons are bundled with the app under CC BY-SA 4.0.
+Files for MacOS uses the **[Yaru](https://github.com/ubuntu/yaru)** icon theme by the Ubuntu community: [Yaru Icons](http://snwh.org/). The icons are bundled with the app, unmodified, under CC BY-SA 4.0.
 
 ## Changed Features
 
@@ -114,3 +114,17 @@ ninja -C build dmg
 ```
 
 The disk image needs `dmgbuild`, which `pip install dmgbuild` installs.
+
+## Licence
+
+Files for MacOS is free software under the [GNU General Public License](LICENSE), version 3 or later, as Files is.
+
+The app you download carries the libraries it needs. Their licences are inside it, in `Contents/Resources/licenses`, with a list that names each package, its version, its licence and where its source is. The same list is beside each release. The source of the app itself is this repository, with the scripts that build it and the patches it applies.
+
+You may replace any of the libraries in the app with your own build. Sign the app again afterwards, or MacOS will not run it:
+
+```bash
+codesign --force --deep --sign - Miles.app
+```
+
+GNOME and the GNOME foot are trademarks of the GNOME Foundation. Mac, MacOS, Finder and iCloud Drive are trademarks of Apple Inc. Google Drive and OneDrive are trademarks of their owners.
