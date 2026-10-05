@@ -1038,85 +1038,6 @@ nautilus_application_identify_to_portal (GApplication *app)
                             NULL, NULL, NULL);
 }
 
-#ifdef __APPLE__
-/* Where macos/scripts/install-yaru.sh puts the icon theme bundled with the app. */
-#define BUNDLED_ICONS_DIR NAUTILUS_DATADIR "/icons"
-
-static gboolean
-bundled_icon_theme_exists (const char *name)
-{
-    g_autofree char *index = g_build_filename (BUNDLED_ICONS_DIR, name, "index.theme", NULL);
-
-    return g_file_test (index, G_FILE_TEST_EXISTS);
-}
-
-static void
-update_macos_icon_theme (void)
-{
-    gboolean dark = adw_style_manager_get_dark (adw_style_manager_get_default ());
-    g_autofree char *name = g_strconcat (nautilus_mac_get_accent_icon_theme (),
-                                         dark ? "-dark" : "", NULL);
-    g_autofree char *current_name = NULL;
-
-    g_object_get (gtk_settings_get_default (), "gtk-icon-theme-name", &current_name, NULL);
-    if (g_strcmp0 (name, current_name) == 0)
-    {
-        return;
-    }
-
-    if (!bundled_icon_theme_exists (name))
-    {
-        /* The theme is installed with the app: without it this install is broken. */
-        g_error ("The icon theme %s is missing from %s", name, BUNDLED_ICONS_DIR);
-    }
-
-    g_object_set (gtk_settings_get_default (), "gtk-icon-theme-name", name, NULL);
-}
-
-#define MACOS_FONT_SIZE 13
-
-static void
-set_macos_font_size (void)
-{
-    GtkSettings *settings = gtk_settings_get_default ();
-    g_autofree char *font_name = NULL;
-    g_autofree char *sized_font_name = NULL;
-    PangoFontDescription *description;
-
-    g_object_get (settings, "gtk-font-name", &font_name, NULL);
-
-    description = pango_font_description_from_string (font_name);
-    pango_font_description_set_size (description, MACOS_FONT_SIZE * PANGO_SCALE);
-    sized_font_name = pango_font_description_to_string (description);
-    pango_font_description_free (description);
-
-    g_object_set (settings, "gtk-font-name", sized_font_name, NULL);
-}
-
-static void
-set_macos_icon_theme (void)
-{
-    GtkIconTheme *icon_theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
-    g_auto (GStrv) search_path = gtk_icon_theme_get_search_path (icon_theme);
-    g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
-    g_auto (GStrv) bundled_first = NULL;
-
-    /* Part of the app: searched first, so a theme of the same name elsewhere cannot replace it. */
-    g_strv_builder_add (builder, BUNDLED_ICONS_DIR);
-    if (search_path != NULL)
-    {
-        g_strv_builder_addv (builder, (const char **) search_path);
-    }
-    bundled_first = g_strv_builder_end (builder);
-    gtk_icon_theme_set_search_path (icon_theme, (const char * const *) bundled_first);
-
-    update_macos_icon_theme ();
-    nautilus_mac_watch_accent_colour (update_macos_icon_theme);
-    g_signal_connect (adw_style_manager_get_default (), "notify::dark",
-                      G_CALLBACK (update_macos_icon_theme), NULL);
-}
-#endif
-
 static void
 nautilus_application_startup (GApplication *app)
 {
@@ -1161,8 +1082,7 @@ nautilus_application_startup (GApplication *app)
     gtk_window_set_default_icon_name (APPLICATION_ID);
 
 #ifdef __APPLE__
-    set_macos_icon_theme ();
-    set_macos_font_size ();
+    nautilus_mac_appearance_init (GTK_APPLICATION (app));
 
     /* Losing Nautilus's own bus only costs gvfs. */
     if (g_application_get_dbus_connection (app) != NULL)

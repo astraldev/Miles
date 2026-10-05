@@ -17,13 +17,10 @@
 
 #pragma once
 
-#include <glib.h>
+#include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-typedef void (*NautilusMacAppearanceFunc) (void);
-
-const char * nautilus_mac_get_accent_icon_theme (void);
-void         nautilus_mac_watch_accent_colour   (NautilusMacAppearanceFunc func);
+void nautilus_mac_appearance_init (GtkApplication *application);
 
 G_END_DECLS
