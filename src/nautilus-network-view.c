@@ -11,6 +11,9 @@
 #include "nautilus-file.h"
 #include "nautilus-global-preferences.h"
 #include "nautilus-list-base-private.h"
+#ifdef __APPLE__
+#include "mac/nautilus-mac-bonjour.h"
+#endif
 #include "nautilus-network-cell.h"
 #include "nautilus-scheme.h"
 #include "nautilus-view-item.h"
@@ -60,6 +63,13 @@ get_section (NautilusViewItem *item)
     }
 
     g_autoptr (GFile) location = nautilus_file_get_location (file);
+
+#ifdef __APPLE__
+    if (nautilus_mac_bonjour_is_file_name (nautilus_file_get_name (file)))
+    {
+        return SECTION_AVAILABLE;
+    }
+#endif
 
     if (g_file_has_uri_scheme (location, SCHEME_NETWORK))
     {

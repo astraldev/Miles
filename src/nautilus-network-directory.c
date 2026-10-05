@@ -12,6 +12,9 @@
 #include "nautilus-file-private.h"
 #include "nautilus-file-utilities.h"
 #include "nautilus-internal-place-file.h"
+#ifdef __APPLE__
+#include "mac/nautilus-mac-bonjour.h"
+#endif
 #include "nautilus-recent-servers.h"
 #include "nautilus-scheme.h"
 
@@ -29,6 +32,10 @@ struct _NautilusNetworkDirectory
     NautilusRecentServers *recent_servers;
     GList *recent_server_files;
     gboolean recent_servers_done_loading;
+
+#ifdef __APPLE__
+    NautilusMacBonjour *bonjour;
+#endif
 
     GList /*<owned NetworkCallback>*/ *callback_list;
 };
@@ -536,6 +543,9 @@ nautilus_network_directory_finalize (GObject *object)
     g_clear_object (&self->computer_backend_directory);
     g_clear_object (&self->network_backend_directory);
     g_clear_object (&self->recent_servers);
+#ifdef __APPLE__
+    g_clear_object (&self->bonjour);
+#endif
 
     G_OBJECT_CLASS (nautilus_network_directory_parent_class)->finalize (object);
 }
@@ -572,6 +582,15 @@ nautilus_network_directory_init (NautilusNetworkDirectory *self)
                              G_CALLBACK (on_recent_servers_changed), self, G_CONNECT_SWAPPED);
     g_signal_connect_object (self->recent_servers, "removed",
                              G_CALLBACK (on_recent_servers_removed), self, G_CONNECT_SWAPPED);
+
+#ifdef __APPLE__
+    /* The servers it finds are listed the way recent ones are. */
+    self->bonjour = nautilus_mac_bonjour_new ();
+    g_signal_connect_object (self->bonjour, "added",
+                             G_CALLBACK (on_recent_servers_added), self, G_CONNECT_SWAPPED);
+    g_signal_connect_object (self->bonjour, "removed",
+                             G_CALLBACK (on_recent_servers_removed), self, G_CONNECT_SWAPPED);
+#endif
 }
 
 static void
