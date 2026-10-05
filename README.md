@@ -11,7 +11,7 @@
 [![Licence: GPL 3.0 or later](https://img.shields.io/badge/licence-GPL%203.0%2B-green)](LICENSE)
 ![Status: work in progress](https://img.shields.io/badge/status-work%20in%20progress-orange)
 
-[What's different](#changed-features) · [What's missing](#missing-features) · [What may come](#future) · [Build it](#building)
+[Install](#install) · [What's different](#changed-features) · [What's missing](#missing-features) · [What may come](#future) · [Build it](#building)
 
 </div>
 
@@ -21,6 +21,20 @@ This is a port of [Files](https://apps.gnome.org/Nautilus/), also known as Nauti
 
 > [!NOTE]
 > This is not a GNOME project. It is a version of Files 51.0.1 modified by Ekure Edem in 2026, and is not made, endorsed or supported by the GNOME Project or by Apple Inc. For Files itself, see the [original README](https://gitlab.gnome.org/GNOME/nautilus/-/blob/main/README.md).
+
+## Install
+
+With [Homebrew](https://brew.sh), on a Mac with Apple silicon:
+
+```bash
+brew install astraldev/tap/miles
+```
+
+Then open it, and keep it in the Dock to find it again:
+
+```bash
+open "$(brew --prefix miles)/Miles.app"
+```
 
 ## Credits
 
@@ -90,7 +104,7 @@ These may come later. None of them is promised.
 - The colour tags of Finder
 - Restore for every file, when several were moved to the Trash at once
 - All texts translated in the app you download, also those that come from GTK
-- A signed app that opens without a warning, and installs with Homebrew
+- A signed app that opens without a warning
 
 ## Building
 
