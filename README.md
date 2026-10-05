@@ -91,7 +91,6 @@ These may come later. None of them is promised.
 - Restore for every file, when several were moved to the Trash at once
 - All texts translated in the app you download, also those that come from GTK
 - A signed app that opens without a warning, and installs with Homebrew
-- A build for Intel Macs
 
 ## Building
 
