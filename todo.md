@@ -5,7 +5,8 @@ What is left. What is done and decided is in `port-progress.md`.
 ## Reported on screen
 
 - [ ] Changing the accent colour in System Settings does not change the folder icons. The handler runs when the notification is posted by hand. It now listens for a second notification and reads the setting again after 0.3 and 1.5 s, in case it was read too early (not committed). To be tried again: run with `G_MESSAGES_DEBUG=nautilus-mac` and the log says what arrives and what is read
-- [ ] Network is not right. What was tried and what happened is not known yet. Connecting by address works with the `gio` tool on gvfs 1.62 (sftp)
+- [ ] Network: try it in the window against the local test servers (`.deps/stop-test-servers.sh` stops them): servers listed under "Available on Current Network", connecting, browsing, folders shown as folders
+- [ ] Downloads: the "No Permission" page shows at once, with no dialog and none of the previous folder's files left
 - [ ] Graphite accent: bark is not the same colour (decided). Yaru has no grey variant. Pick one: sage, blue as for Multicolour, or make a grey one by taking the colour out of Yaru's folders
 
 ## Check on screen
@@ -39,10 +40,12 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Network, trash and recent (gvfs)
 
-- [ ] Servers do not show up by themselves: gvfs finds them with avahi, which mac lacks. Rewrite that backend on Apple's `dns_sd.h` (Bonjour)
+- [ ] Found servers have "Remove" in their menu as recent ones do. It does nothing for them
+- [ ] Windows shares are found by nobody (`_smb._tcp` is not looked for, as `smb://` is left out)
+- [ ] Trash: a file trashed from the top folder of a drive has no put-back record, so it cannot be restored. Check what Finder does with those
+- [ ] Trash: try "Restore" and undo of "Move to Trash" in the window
 - [ ] Saved passwords: gvfs wants libsecret and a Secret Service. Mac has the Keychain instead
 - [ ] Trash shows empty until the app has Full Disk Access: macOS blocks `~/.Trash` for every app but Finder, and never asks
-- [ ] Trash: no "Restore" and no "Trashed on" date. macOS keeps the original place in `~/.Trash/.DS_Store` (put-back records), which needs a parser, and the date as the file's "date added"
 - [ ] Recent is empty until files are opened from Nautilus, and opened files are not added to it ("no command line for the application")
 - [ ] Scripts and "open in terminal" started from Nautilus still get its private bus in their environment
 - [ ] If Nautilus crashes, the bus and daemons keep running. The next launch reuses them, nothing stops them
@@ -50,12 +53,11 @@ What is left. What is done and decided is in `port-progress.md`.
 ## Permissions
 
 - [ ] The view does not notice when access is granted: the user has to reload, and for Full Disk Access restart the app. Offer "Quit and Reopen"
-- [ ] The error dialog "You do not have the permissions necessary..." still shows next to the "No Permission" page
 - [ ] The grant is tied to the app's identity, so today it goes to the terminal. Needs the signed `Files.app`. Check that the gvfs daemons get it through the app that started them
 
 ## System integration
 
-- [ ] "Failed to initialize display server connection" at startup (file picker portal, X11/Wayland only)
+- [ ] Files cannot be dropped on a tab: upstream only sets that up on Wayland
 - [ ] Window does not always come to the front when started from a terminal
 - [ ] autofs check: confirm `statfs` does not trigger the mount
 - [ ] Starred files (tinysparql) not tested
@@ -67,7 +69,7 @@ What is left. What is done and decided is in `port-progress.md`.
 - [ ] Wire `macos/bundle/Info.plist.in` and the entitlements into the build to produce `Files.app`
 - [ ] App icon (`.icns`)
 - [ ] A relocatable `Files.app` has to find its data relative to itself: the bundled icon theme's folder is fixed at build time (`NAUTILUS_DATADIR`), and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
-- [ ] Ship `dbus-daemon` in the app. Today it comes from Homebrew, with its path fixed at build time
+- [ ] `Info.plist` needs `NSLocalNetworkUsageDescription` and `NSBonjourServices` (the five service types in `nautilus-mac-bonjour.c`), or the bundled app may not look for servers
 - [ ] Bundle Adwaita too: Yaru falls back to it for the icons it lacks, and today it comes from Homebrew
 - [ ] Homebrew tap formula. It cannot download during a build, so it has to supply the pinned sources itself: libportal, gnome-desktop, libgxdp, blueprint-compiler, gvfs, Yaru
 - [ ] Signing and notarization

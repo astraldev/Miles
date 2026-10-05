@@ -2455,6 +2455,8 @@ update_info_internal (NautilusFile *file,
     GIcon *icon;
 #ifdef __APPLE__
     g_autoptr (GIcon) app_icon = NULL;
+    g_autofree char *mac_content_type = NULL;
+    g_autoptr (GIcon) mac_icon = NULL;
 #endif
     const char *filesystem_id;
     const char *trash_orig_path;
@@ -2797,8 +2799,23 @@ update_info_internal (NautilusFile *file,
         changed = TRUE;
     }
 
+#ifdef __APPLE__
+    /* gvfs names folders by MIME type, which GIO does not know on macOS. */
+    mime_type = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE);
+    if (mime_type != NULL && strchr (mime_type, '/') != NULL)
+    {
+        mac_content_type = g_content_type_from_mime_type (mime_type);
+    }
+#endif
+
     icon = g_file_info_get_icon (info);
 #ifdef __APPLE__
+    if (mac_content_type != NULL)
+    {
+        mac_icon = g_content_type_get_icon (mac_content_type);
+        icon = mac_icon;
+    }
+
     name = update_name ? g_file_info_get_name (info) : file->details->name;
     if (file_type == G_FILE_TYPE_DIRECTORY && name != NULL && g_str_has_suffix (name, ".app"))
     {
@@ -2836,6 +2853,12 @@ update_info_internal (NautilusFile *file,
     {
         mime_type = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE);
     }
+#ifdef __APPLE__
+    if (mac_content_type != NULL)
+    {
+        mime_type = mac_content_type;
+    }
+#endif
     if (g_strcmp0 (file->details->mime_type, mime_type) != 0)
     {
         changed = TRUE;

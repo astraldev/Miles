@@ -1107,6 +1107,7 @@ nautilus_application_startup (GApplication *app)
         nautilus_application_identify_to_portal (app);
     }
 
+#ifndef __APPLE__
     /* Initialize GDK display (for wayland-x11-interop protocol) before GTK does
      * it during the chain-up. */
     g_autoptr (GError) error = NULL;
@@ -1123,6 +1124,7 @@ nautilus_application_startup (GApplication *app)
         g_message ("Failed to initialize display server connection: %s",
                    error->message);
     }
+#endif
 
     /* Chain up to the GtkApplication implementation early, so that gtk_init()
      * is called for us.

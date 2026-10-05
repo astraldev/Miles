@@ -1723,6 +1723,11 @@ trash_retrieve_files_to_restore_thread (GTask        *task,
         {
             /* Retrieve the original file uri */
             origpath = g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_TRASH_ORIG_PATH);
+            if (origpath == NULL)
+            {
+                continue;
+            }
+
             origfile = g_file_new_for_path (origpath);
 
             lookupvalue = g_hash_table_lookup (self->trashed, origfile);

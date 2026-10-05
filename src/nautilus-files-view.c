@@ -284,6 +284,7 @@ typedef struct
 static void     display_selection_info_idle_callback (gpointer data);
 static void     load_directory (NautilusFilesView *view,
                                 NautilusDirectory *directory);
+static void     transition_emit_delayed_signals_if_pending (NautilusFilesView *self);
 static void on_clipboard_owner_changed (GdkClipboard *clipboard,
                                         gpointer      user_data);
 static void     nautilus_files_view_update_actions_state (NautilusFilesView *self);
@@ -4764,10 +4765,21 @@ load_error_callback (NautilusDirectory *directory,
 {
     NautilusFilesView *view = NAUTILUS_FILES_VIEW (callback_data);
 
+    /* The files of the previous location are still shown: they are not in this one. */
+    transition_emit_delayed_signals_if_pending (view);
+
     /* FIXME: By doing a stop, we discard some pending files. Is
      * that OK?
      */
     nautilus_files_view_stop_loading (view);
+
+#ifdef __APPLE__
+    /* The "No Permission" page says it, and a dialog would cover it. */
+    if (nautilus_mac_location_is_blocked (view->location))
+    {
+        return;
+    }
+#endif
 
     nautilus_report_error_loading_directory (view->directory_as_file,
                                              error,

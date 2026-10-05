@@ -73,13 +73,18 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - `macos/scripts/install-gvfs.sh` builds gvfs into the prefix during `ninja install`, pinned to a commit, with the patches in `macos/patches/`
 - Nautilus starts its own D-Bus session bus (`src/mac/nautilus-mac-session-bus.c`, `macos/data/dbus-session.conf.in`) and stops it on quit. gvfs daemons start on demand and exit with the bus. A second launch joins the running app
 - The bus's sockets are in `~/.cache/nautilus`, since macOS sweeps `/tmp`. Two launches at once do not start two buses. A dead bus does not kill Nautilus, and a stuck one does not keep it from quitting
+- `dbus-daemon` is built with the app, from a wrap pinned to dbus 1.16.2. Homebrew's is not used
 - Network view opens. Connect by address works for `sftp://`, `dav://`, `davs://`, `ftp://`, `afp://` (tested with the `gio` tool against test servers, not through the window)
+- Servers on the local network show up by themselves, under "Available on Current Network" (`src/mac/nautilus-mac-bonjour.c`). It asks macOS's own Bonjour service (`dns_sd.h`) for sftp, AFP, WebDAV and FTP servers, in Nautilus and not in gvfs, and lists them the way recent servers are listed. This Mac itself is left out
+- Folders on a server show as folders: gvfs names them by MIME type, which GIO does not know on mac, so the type is translated
 - Trash reads the macOS trash folders (`~/.Trash`, `.Trashes/<uid>` on other drives). Listing, opening and deleting for good work (tested against a test home folder)
+- Trash knows where a file came from and when it was trashed, so "Restore" works: macOS has no call for it, so the gvfs patch reads the put-back records Finder keeps in the trash folder's `.DS_Store` file, and takes the date from the file's "date added". Tested on a disk image: a file whose name clashed in the trash went back to its folder under its own name. The reader was run 230,000 times on damaged files under sanitizers
 - Recent works
 
 ### Permissions
 
-- A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/mac/nautilus-mac-privacy.c`). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest
+- A folder macOS blocks (Trash, Downloads, ...) shows "No Permission" and a button "Open System Settings" in place of "Folder is Empty" (`src/mac/nautilus-mac-privacy.c`). The button opens the Files and Folders page for Desktop, Documents, Downloads and other drives, and the Full Disk Access page for the rest. No error dialog comes with it, and the files of the folder shown before are cleared
+- Startup prints no "display server connection" message, and the build has no warnings in Nautilus's own code but one upstream deprecation
 
 ### Reviews
 

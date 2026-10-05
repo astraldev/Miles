@@ -697,8 +697,8 @@ static void
 set_transient_for (GdkSurface *child_surface,
                    const char *parent_handle)
 {
-    GdkDisplay *display;
-    const char *prefix;
+    G_GNUC_UNUSED GdkDisplay *display;
+    G_GNUC_UNUSED const char *prefix;
 
     display = gdk_surface_get_display (child_surface);
 

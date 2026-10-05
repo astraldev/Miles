@@ -1050,6 +1050,7 @@ action_tab_move_new_window (GSimpleAction *action,
     adw_tab_view_transfer_page (window->tab_view, page, new_view, 0);
 }
 
+#ifdef GDK_WINDOWING_WAYLAND
 static GdkDragAction
 extra_drag_value_cb (AdwTabBar    *self,
                      AdwTabPage   *page,
@@ -1092,6 +1093,7 @@ extra_drag_drop_cb (AdwTabBar    *self,
 
     return nautilus_dnd_perform_drop (view, value, action, target_location);
 }
+#endif
 
 const GActionEntry win_entries[] =
 {
