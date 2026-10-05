@@ -39,7 +39,7 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - glycin (Rust) replaced by a stand-in on gdk-pixbuf, `macos/shims/glycin/`. It loads the icons that come from a file: app icons, and the picture a user picks as a custom icon
 - blueprint-compiler pulled as a wrap with a patch, nothing to install
 - libgxdp: upstream's wrap, one unused include dropped from `nautilus-portal.c`
-- Spotlight provider moved to 51's provider base class. It lost its own thread hand-over code, about 100 lines
+- Search: 51 gives providers a base class. The walker is written against it
 - File type filter: 51 matches types in one function, which goes to the port's UTI matching on mac
 - gvfs updated to 1.62.0, the version that goes with 51. `mac-gnome-49` keeps 1.58.5
 
@@ -73,10 +73,10 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 
 ### Search
 
-- Spotlight search provider, in the place localsearch has on Linux (`src/macos/nautilus-search-engine-spotlight.c`)
+- Files are found by name with a walker of the port's own (`src/macos/nautilus-search-engine-walker.c`). It asks macOS for a folder's files in bulk (`getattrlistbulk`) from 4 threads, where GIO reads one file at a time. `~/Documents` (800,000 files): 2 s with hidden files off, 8 s with them on, against 49 s before. Its results match `find` file for file. A search in a folder comes to it through upstream's simple engine. "Search Everywhere" goes to it in the place localsearch has on Linux, and looks through the home folder, `/Applications` and `/System/Applications`
 - File type filter works on mac: the filter's MIME types are turned into the UTIs GIO uses there
 - The texts about "search locations" are reworded on mac, and their "Search Settings" button is gone: both belong to GNOME's indexer. The note under the search bar no longer shows for a folder on this Mac
-- Research on a search that does not need Spotlight: a mac walker on `getattrlistbulk` with about 4 threads, breadth-first. Measured on `~/Documents` (810,000 entries): 4.4 s, against 49 s for the current walk
+- The walker does not go into apps, hidden folders (unless hidden files are shown, so `~/Library` is left out), links, or the volumes macOS keeps for itself, which repeat the startup disk's files. Searching `/` takes 32 s
 
 ### Network, trash and recent (gvfs)
 
@@ -109,7 +109,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - `main` mirrors GNOME untouched. `mac-development` holds the port, and upstream releases are merged into it. `mac-release` comes later
 - Yaru is bundled with the app, not optional
 - Sidebar folders are fixed and match macOS's own
-- Search must not depend on Spotlight. "Search everywhere" will skip `~/Library`, `node_modules` and folders like them on its first pass
+- No Spotlight. A provider for it was written and is removed: its index can be off or lack folders, as on the dev Mac, and the walker is fast enough alone. The price is search in file contents, which only an index gives
 - gvfs is ported, not replaced by native code
 - `smb://` (Windows shares) is left out: it needs samba and its large dependency chain. So they are not looked for on the network either
 - Stock extensions stay off. No AirDrop or Share menu. "Open in terminal" would be nice, not needed

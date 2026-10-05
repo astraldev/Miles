@@ -16,7 +16,7 @@ What is left. What is done and decided is in `port-progress.md`.
 - [ ] App icons follow a switch between light and dark while the app runs. If they stay as they were, refresh them a second time a moment later
 - [ ] App icons follow a change of "Icon & widget style" once the window is active again, one after the other
 - [ ] Applications and Applications/Utilities have a banner at the top, and its button opens the folder with Apple's apps. That folder has one that leads back
-- [ ] Search texts: the empty "Search Everywhere" page says "Find files and folders on this Mac", a search everywhere that finds nothing says "Try other words, or search inside a folder", and neither has a "Search Settings" button. Searching in a folder shows no "Folder Not in Search Locations" note
+- [ ] Search texts: the empty "Search Everywhere" page says "Find your files and apps by name", a search everywhere that finds nothing says "Try other words, or search inside a folder", and neither has a "Search Settings" button. Searching in a folder shows no "Folder Not in Search Locations" note
 - [ ] A folder showing "No Permission" loads by itself once access is given and the window is active again (Downloads: allow it in System Settings, click back on the window)
 - [ ] Starred files: star a file, find it under Starred, and again after a restart (tinysparql keeps them, not tested)
 - [ ] Disks and volumes: what shows when a drive is plugged in
@@ -27,12 +27,10 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Search
 
-- [ ] "Search everywhere" only uses Spotlight. With a broken Spotlight index it finds nothing useful
-- [ ] Replace the slow folder walk (49 s for `~/Documents`) with the mac walker, and use it for "search everywhere" too
-- [ ] "Search everywhere" skips `~/Library`, `node_modules` and other nested folders like them on its first pass. They are lazy: searched only after the main results, or when searching inside one of them directly
-- [ ] Work out the list of lazy folders (candidates: `~/Library`, `node_modules`, `.git`, build output folders, the inside of app bundles)
-- [ ] Spotlight provider is untested in home folders (the index on the dev Mac is empty)
-- [ ] "Search everywhere" with a Folders or Files filter never returns apps: Spotlight types an `.app` as a package, not a folder (one-line fix in the Spotlight type clause)
+- [ ] Search in file contents is gone with Spotlight. The "Full Text" choice in the search popover is still shown and does nothing: hide it
+- [ ] The walker's threads have not been run under a sanitizer. Tested by stopping 35 searches midway, with no crash
+- [ ] The walker's type filter goes by the file's name, not its content, so a file without an extension passes no type filter
+- [ ] "Search Everywhere" looks through the home folder and the apps. Other drives are not searched
 - [ ] Type filter: a type macOS does not know matches nothing. 118 of the 207 MIME types in the filter groups are unknown to macOS, so some files are missed (.mkv in Video, .rtf in Documents, .psd in Picture)
 - [ ] Type filter: the "Other Type…" list is empty on mac
 - [ ] Empty files are typed as text on mac, so an empty `.mp4` shows under Text File, not Video
