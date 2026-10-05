@@ -36,10 +36,6 @@
 #include <libportal-gtk4/portal-gtk4.h>
 #include <nautilus-extension.h>
 
-#ifdef __APPLE__
-#include "macos/nautilus-mac-bonjour.h"
-#include "macos/nautilus-mac-privacy.h"
-#endif
 #include "nautilus-application.h"
 #include "nautilus-app-chooser.h"
 #include "nautilus-batch-rename-dialog.h"
@@ -82,6 +78,11 @@
 #include "nautilus-view-item.h"
 #include "nautilus-view-model.h"
 #include "nautilus-window-slot.h"
+
+#ifdef __APPLE__
+#include "macos/nautilus-mac-bonjour.h"
+#include "macos/nautilus-mac-privacy.h"
+#endif
 
 /* Minimum starting update interval */
 #define UPDATE_INTERVAL_MIN 100

@@ -30,13 +30,14 @@
 #include "nautilus-file.h"
 #include "nautilus-icon-names.h"
 #include "nautilus-scheme.h"
-#ifdef __APPLE__
-#include "macos/nautilus-mac-places.h"
-#endif
 
 #include <gio/gio.h>
 #include <string.h>
 #include <errno.h>
+
+#ifdef __APPLE__
+#include "macos/nautilus-mac-places.h"
+#endif
 
 #define MAX_BOOKMARK_LENGTH 80
 #define LOAD_JOB 1

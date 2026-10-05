@@ -16,15 +16,16 @@
 #include "nautilus-query.h"
 #include "nautilus-search-engine-model.h"
 #include "nautilus-search-engine-localsearch.h"
-#ifdef __APPLE__
-#include "macos/nautilus-search-engine-spotlight.h"
-#endif
 #include "nautilus-search-engine-recent.h"
 #include "nautilus-search-engine-simple.h"
 #include "nautilus-search-hit.h"
 #include "nautilus-search-provider.h"
 
 #include <glib/gi18n.h>
+
+#ifdef __APPLE__
+#include "macos/nautilus-search-engine-spotlight.h"
+#endif
 
 struct _NautilusSearchEngine
 {

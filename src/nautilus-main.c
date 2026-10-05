@@ -30,10 +30,6 @@
 #include "nautilus-application.h"
 #include "nautilus-resources.h"
 
-#ifdef __APPLE__
-#include "macos/nautilus-mac-session-bus.h"
-#endif
-
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 
@@ -44,6 +40,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef __APPLE__
+#include "macos/nautilus-mac-session-bus.h"
+#endif
 
 int
 main (int   argc,

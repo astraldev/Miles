@@ -11,13 +11,14 @@
 #include "nautilus-file.h"
 #include "nautilus-global-preferences.h"
 #include "nautilus-list-base-private.h"
-#ifdef __APPLE__
-#include "macos/nautilus-mac-bonjour.h"
-#endif
 #include "nautilus-network-cell.h"
 #include "nautilus-scheme.h"
 #include "nautilus-view-item.h"
 #include "nautilus-view-model.h"
+
+#ifdef __APPLE__
+#include "macos/nautilus-mac-bonjour.h"
+#endif
 
 struct _NautilusNetworkView
 {

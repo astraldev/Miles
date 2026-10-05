@@ -31,12 +31,13 @@
 #include "nautilus-file.h"
 #include "nautilus-file-undo-manager.h"
 #include "nautilus-batch-rename-dialog.h"
+#include "nautilus-scheme.h"
+#include "nautilus-tag-manager.h"
+
 #ifdef __APPLE__
 #include "macos/nautilus-mac-privacy.h"
 #include "nautilus-ui-utilities.h"
 #endif
-#include "nautilus-scheme.h"
-#include "nautilus-tag-manager.h"
 
 
 /* Since we use g_get_current_time for setting "orig_trash_time" in the undo

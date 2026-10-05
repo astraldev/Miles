@@ -12,11 +12,12 @@
 #include "nautilus-file-private.h"
 #include "nautilus-file-utilities.h"
 #include "nautilus-internal-place-file.h"
+#include "nautilus-recent-servers.h"
+#include "nautilus-scheme.h"
+
 #ifdef __APPLE__
 #include "macos/nautilus-mac-bonjour.h"
 #endif
-#include "nautilus-recent-servers.h"
-#include "nautilus-scheme.h"
 
 
 struct _NautilusNetworkDirectory

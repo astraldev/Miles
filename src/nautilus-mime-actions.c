@@ -27,9 +27,6 @@
 #include <glib/gstdio.h>
 #include <string.h>
 
-#ifdef __APPLE__
-#include "macos/nautilus-mac-session-bus.h"
-#endif
 #include "nautilus-application.h"
 #include "nautilus-enums.h"
 #include "nautilus-file.h"
@@ -41,6 +38,10 @@
 #include "nautilus-signaller.h"
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
+
+#ifdef __APPLE__
+#include "macos/nautilus-mac-session-bus.h"
+#endif
 
 typedef enum
 {

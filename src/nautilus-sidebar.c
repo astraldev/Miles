@@ -38,12 +38,13 @@
 #include "nautilus-trash-monitor.h"
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
-#ifdef __APPLE__
-#include "macos/nautilus-mac-places.h"
-#endif
 
 #ifdef GDK_WINDOWING_X11
 #include <gdk/x11/gdkx.h>
+#endif
+
+#ifdef __APPLE__
+#include "macos/nautilus-mac-places.h"
 #endif
 
 #pragma GCC diagnostic ignored "-Wshadow"
