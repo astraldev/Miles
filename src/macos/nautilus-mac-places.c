@@ -124,18 +124,29 @@ nautilus_mac_get_startup_disk_name (void)
 
 /* Finder shows the apps of MacOS in Applications. On disk they are apart. */
 GFile *
-nautilus_mac_get_system_apps_location (GFile *location)
+nautilus_mac_get_other_apps_location (GFile    *location,
+                                      gboolean *is_system)
 {
+    const char *folders[] = { "/Applications", "/Applications/Utilities" };
     const char *path = g_file_peek_path (location);
-    g_autofree char *system_path = NULL;
 
-    if (g_strcmp0 (path, "/Applications") != 0 &&
-        g_strcmp0 (path, "/Applications/Utilities") != 0)
+    for (guint i = 0; i < G_N_ELEMENTS (folders); i++)
     {
-        return NULL;
+        g_autofree char *system_folder = g_strconcat ("/System", folders[i], NULL);
+
+        if (g_strcmp0 (path, folders[i]) == 0)
+        {
+            *is_system = TRUE;
+
+            return g_file_new_for_path (system_folder);
+        }
+        if (g_strcmp0 (path, system_folder) == 0)
+        {
+            *is_system = FALSE;
+
+            return g_file_new_for_path (folders[i]);
+        }
     }
 
-    system_path = g_strconcat ("/System", path, NULL);
-
-    return g_file_new_for_path (system_path);
+    return NULL;
 }

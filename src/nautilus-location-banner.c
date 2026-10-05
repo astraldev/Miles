@@ -44,6 +44,7 @@ typedef enum
 {
     NAUTILUS_LOCATION_BANNER_NONE,
     NAUTILUS_LOCATION_BANNER_MAC_SYSTEM_APPS,
+    NAUTILUS_LOCATION_BANNER_MAC_USER_APPS,
     NAUTILUS_LOCATION_BANNER_SCRIPTS,
     NAUTILUS_LOCATION_BANNER_SHARING,
     NAUTILUS_LOCATION_BANNER_TEMPLATES,
@@ -56,15 +57,16 @@ static void set_mode (AdwBanner                 *banner,
 
 #ifdef __APPLE__
 static void
-on_mac_system_apps_clicked (AdwBanner *banner)
+on_mac_other_apps_clicked (AdwBanner *banner)
 {
     GtkWidget *slot = gtk_widget_get_ancestor (GTK_WIDGET (banner), NAUTILUS_TYPE_WINDOW_SLOT);
     GFile *location = nautilus_window_slot_get_location (NAUTILUS_WINDOW_SLOT (slot));
-    g_autoptr (GFile) system_apps = nautilus_mac_get_system_apps_location (location);
+    gboolean is_system;
+    g_autoptr (GFile) other_apps = nautilus_mac_get_other_apps_location (location, &is_system);
 
-    if (system_apps != NULL)
+    if (other_apps != NULL)
     {
-        nautilus_window_slot_open_location_full (NAUTILUS_WINDOW_SLOT (slot), system_apps, NULL);
+        nautilus_window_slot_open_location_full (NAUTILUS_WINDOW_SLOT (slot), other_apps, NULL);
     }
 }
 #endif
@@ -185,11 +187,13 @@ get_mode_for_location (GFile *location)
     file = nautilus_file_get (location);
 
 #ifdef __APPLE__
-    g_autoptr (GFile) system_apps = nautilus_mac_get_system_apps_location (location);
+    gboolean is_system;
+    g_autoptr (GFile) other_apps = nautilus_mac_get_other_apps_location (location, &is_system);
 
-    if (system_apps != NULL)
+    if (other_apps != NULL)
     {
-        return NAUTILUS_LOCATION_BANNER_MAC_SYSTEM_APPS;
+        return is_system ? NAUTILUS_LOCATION_BANNER_MAC_SYSTEM_APPS :
+                           NAUTILUS_LOCATION_BANNER_MAC_USER_APPS;
     }
 #endif
 
@@ -256,7 +260,17 @@ set_mode (AdwBanner                  *banner,
 #ifdef __APPLE__
             adw_banner_set_title (banner, _("The apps that come with MacOS are in another folder"));
             button_label = _("_Show Them");
-            callback = G_CALLBACK (on_mac_system_apps_clicked);
+            callback = G_CALLBACK (on_mac_other_apps_clicked);
+#endif
+        }
+        break;
+
+        case NAUTILUS_LOCATION_BANNER_MAC_USER_APPS:
+        {
+#ifdef __APPLE__
+            adw_banner_set_title (banner, _("The apps you installed are in another folder"));
+            button_label = _("_Show Them");
+            callback = G_CALLBACK (on_mac_other_apps_clicked);
 #endif
         }
         break;

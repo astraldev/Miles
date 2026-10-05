@@ -28,6 +28,7 @@ char *   nautilus_mac_place_get_path          (guint  index);
 GIcon *  nautilus_mac_place_get_symbolic_icon (guint  index);
 gboolean nautilus_mac_location_is_place       (GFile *location);
 char *   nautilus_mac_get_startup_disk_name   (void);
-GFile *  nautilus_mac_get_system_apps_location (GFile *location);
+GFile *  nautilus_mac_get_other_apps_location (GFile    *location,
+                                               gboolean *is_system);
 
 G_END_DECLS
