@@ -23,6 +23,11 @@
 
 G_BEGIN_DECLS
 
-GList * nautilus_mac_app_get_data (GFile *app);
+GList *  nautilus_mac_app_get_data                 (GFile *app);
+void     nautilus_mac_app_trash_with_finder        (GFile               *app,
+                                                    GAsyncReadyCallback  callback,
+                                                    gpointer             user_data);
+gboolean nautilus_mac_app_trash_with_finder_finish (GAsyncResult  *result,
+                                                    GError       **error);
 
 G_END_DECLS

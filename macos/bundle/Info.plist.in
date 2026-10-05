@@ -48,6 +48,9 @@
 	<key>NSFileProviderDomainUsageDescription</key>
 	<string>@APP_NAME@ shows and manages the files in your cloud folders.</string>
 
+	<key>NSAppleEventsUsageDescription</key>
+	<string>@APP_NAME@ asks Finder to move an app to the Trash when that needs an administrator's password.</string>
+
 	<!-- The types src/macos/nautilus-mac-bonjour.c looks for. -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>@APP_NAME@ finds and connects to file servers on your local network.</string>

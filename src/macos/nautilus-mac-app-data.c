@@ -140,3 +140,72 @@ nautilus_mac_app_get_data (GFile *app)
 
     return g_list_reverse (data);
 }
+
+static void
+on_finder_done (GObject      *source,
+                GAsyncResult *result,
+                gpointer      user_data)
+{
+    g_autoptr (GTask) task = user_data;
+    g_autofree char *message = NULL;
+    GError *error = NULL;
+
+    if (!g_subprocess_communicate_utf8_finish (G_SUBPROCESS (source), result, NULL, &message, &error))
+    {
+        g_task_return_error (task, error);
+    }
+    else if (g_subprocess_get_successful (G_SUBPROCESS (source)))
+    {
+        g_task_return_boolean (task, TRUE);
+    }
+    else
+    {
+        /*
+         * -128 is what AppleScript gives when the user cancels.
+         */
+        gboolean cancelled = (strstr (message, "(-128)") != NULL);
+
+        g_task_return_new_error (task, G_IO_ERROR,
+                                 cancelled ? G_IO_ERROR_CANCELLED : G_IO_ERROR_FAILED,
+                                 "%s", g_strstrip (message));
+    }
+}
+
+/*
+ * Finder asks for an administrator's password where the account may not move an app.
+ */
+void
+nautilus_mac_app_trash_with_finder (GFile               *app,
+                                    GAsyncReadyCallback  callback,
+                                    gpointer             user_data)
+{
+    g_autofree char *path = g_file_get_path (app);
+    GTask *task = g_task_new (app, NULL, callback, user_data);
+    g_autoptr (GSubprocess) osascript = NULL;
+    GError *error = NULL;
+
+    osascript = g_subprocess_new (G_SUBPROCESS_FLAGS_STDOUT_SILENCE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
+                                  &error,
+                                  "/usr/bin/osascript",
+                                  "-e", "on run arguments",
+                                  "-e", "tell application \"Finder\" to delete (POSIX file (item 1 of arguments) as alias)",
+                                  "-e", "end run",
+                                  path,
+                                  NULL);
+    if (osascript == NULL)
+    {
+        g_task_return_error (task, error);
+        g_object_unref (task);
+
+        return;
+    }
+
+    g_subprocess_communicate_utf8_async (osascript, NULL, NULL, on_finder_done, task);
+}
+
+gboolean
+nautilus_mac_app_trash_with_finder_finish (GAsyncResult  *result,
+                                           GError       **error)
+{
+    return g_task_propagate_boolean (G_TASK (result), error);
+}

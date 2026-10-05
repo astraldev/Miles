@@ -1663,22 +1663,69 @@ action_move_to_trash (GSimpleAction *action,
 typedef struct
 {
     NautilusFilesView *view;
+    GtkWindow *window;
     GList *locations;
 } Uninstall;
 
 static void
 uninstall_free (Uninstall *uninstall)
 {
+    g_clear_object (&uninstall->window);
     g_list_free_full (uninstall->locations, g_object_unref);
     g_free (uninstall);
 }
 
 static void
+on_app_trashed_by_finder (GObject      *source,
+                          GAsyncResult *result,
+                          gpointer      user_data)
+{
+    Uninstall *uninstall = user_data;
+    g_autoptr (GError) error = NULL;
+
+    if (nautilus_mac_app_trash_with_finder_finish (result, &error))
+    {
+        if (uninstall->locations != NULL)
+        {
+            nautilus_file_operations_trash_or_delete_async (uninstall->locations, uninstall->window,
+                                                            NULL, NULL, NULL);
+        }
+    }
+    else if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    {
+        AdwDialog *dialog = adw_alert_dialog_new (_("The App Could Not Be Moved to the Trash"),
+                                                  error->message);
+
+        adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "close", _("_Close"));
+        adw_dialog_present (dialog, GTK_WIDGET (uninstall->window));
+    }
+
+    uninstall_free (uninstall);
+}
+
+static void
 on_uninstall_confirmed (Uninstall *uninstall)
 {
-    nautilus_file_operations_trash_or_delete_async (uninstall->locations,
-                                                    nautilus_files_view_get_containing_window (uninstall->view),
-                                                    NULL, NULL, NULL);
+    GFile *app = uninstall->locations->data;
+    g_autofree char *path = g_file_get_path (app);
+    GtkWindow *window = nautilus_files_view_get_containing_window (uninstall->view);
+
+    /*
+     * An app of the system or of another account: Finder can move it, with a password.
+     */
+    if (path != NULL && g_access (path, W_OK) != 0)
+    {
+        Uninstall *with_finder = g_new0 (Uninstall, 1);
+
+        with_finder->window = g_object_ref (window);
+        with_finder->locations = g_list_copy_deep (uninstall->locations->next,
+                                                   (GCopyFunc) g_object_ref, NULL);
+        nautilus_mac_app_trash_with_finder (app, on_app_trashed_by_finder, with_finder);
+
+        return;
+    }
+
+    nautilus_file_operations_trash_or_delete_async (uninstall->locations, window, NULL, NULL, NULL);
 }
 
 /*
