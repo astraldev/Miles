@@ -24,6 +24,10 @@
 #include <gdk/x11/gdkx.h>
 #endif
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-drag.h"
+#endif
+
 /* 1 page worth of scroll in 100ms zooms in or out when the ctrl key is held */
 #define SCROLL_TO_ZOOM_INTERVAL 100
 
@@ -472,6 +476,23 @@ on_item_drag_prepare (GtkDragSource *source,
     return gdk_content_provider_new_typed (GDK_TYPE_FILE_LIST, file_list);
 }
 
+#ifdef __APPLE__
+static void
+on_item_drag_begin (GtkDragSource *source,
+                    GdkDrag       *drag)
+{
+    g_auto (GValue) value = G_VALUE_INIT;
+
+    g_value_init (&value, GDK_TYPE_FILE_LIST);
+    if (gdk_content_provider_get_value (gdk_drag_get_content (drag), &value, NULL))
+    {
+        g_autoptr (GSList) locations = gdk_file_list_get_files (g_value_get_boxed (&value));
+
+        nautilus_mac_drag_set_files (locations);
+    }
+}
+#endif
+
 static void
 hover_timer (gpointer user_data)
 {
@@ -895,6 +916,9 @@ setup_cell_common (GObject          *listitem,
     gtk_widget_add_controller (GTK_WIDGET (cell), controller);
     gtk_event_controller_set_propagation_phase (controller, GTK_PHASE_CAPTURE);
     g_signal_connect (controller, "prepare", G_CALLBACK (on_item_drag_prepare), cell);
+#ifdef __APPLE__
+    g_signal_connect (controller, "drag-begin", G_CALLBACK (on_item_drag_begin), NULL);
+#endif
 
     /* TODO: Implement GDK_ACTION_ASK */
     drop_target = gtk_drop_target_new (G_TYPE_INVALID, GDK_ACTION_ALL);
