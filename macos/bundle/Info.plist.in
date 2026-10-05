@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>@APP_NAME@</string>
 	<key>CFBundleIdentifier</key>
-	<string>io.github.astraldev.nautilus-mac</string>
+	<string>com.astralco.Miles</string>
 	<key>CFBundleExecutable</key>
 	<string>nautilus</string>
 	<key>CFBundleIconFile</key>

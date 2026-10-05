@@ -70,7 +70,7 @@
 #include "nautilus-window-slot.h"
 
 #ifdef __APPLE__
-#define MACOS_PORT_URL "https://github.com/astraldev/nautilus-mac"
+#define MACOS_PORT_URL "https://github.com/astraldev/Miles"
 #endif
 
 static void nautilus_window_initialize_actions (NautilusWindow *window);
