@@ -62,6 +62,12 @@ add_file_to_recent (NautilusFile *file,
     recent_data.mime_type = g_strdup (nautilus_file_get_mime_type (file));
     recent_data.app_name = g_strdup (g_get_application_name ());
     recent_data.app_exec = g_strdup (g_app_info_get_commandline (application));
+#ifdef __APPLE__
+    if (recent_data.app_exec == NULL)
+    {
+        recent_data.app_exec = g_strdup ("/usr/bin/open %u");
+    }
+#endif
 
     recent_data.groups = NULL;
     recent_data.is_private = FALSE;

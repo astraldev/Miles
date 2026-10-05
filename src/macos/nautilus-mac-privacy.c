@@ -99,6 +99,79 @@ is_listed_folder (const char *path)
     return FALSE;
 }
 
+/* The folders MacOS asks about when an app opens them: looking inside is left to the user. */
+gboolean
+nautilus_mac_location_is_guarded (GFile *location)
+{
+    const GUserDirectory directories[] =
+    {
+        G_USER_DIRECTORY_DESKTOP,
+        G_USER_DIRECTORY_DOCUMENTS,
+        G_USER_DIRECTORY_DOWNLOAD,
+    };
+    const char *guarded[] = { ".Trash", "Library/Mobile Documents" };
+    const char *guarded_parents[] =
+    {
+        "Library/CloudStorage/", "Library/Containers/", "Library/Group Containers/",
+        "Library/Mobile Documents/",
+    };
+    const char *libraries[] = { ".photoslibrary", ".musiclibrary", ".tvlibrary" };
+    const char *path = g_file_peek_path (location);
+    const char *home = g_get_home_dir ();
+    const char *in_home;
+
+    if (path == NULL)
+    {
+        return FALSE;
+    }
+
+    for (guint i = 0; i < G_N_ELEMENTS (directories); i++)
+    {
+        if (g_strcmp0 (path, g_get_user_special_dir (directories[i])) == 0)
+        {
+            return TRUE;
+        }
+    }
+
+    for (guint i = 0; i < G_N_ELEMENTS (libraries); i++)
+    {
+        if (g_str_has_suffix (path, libraries[i]))
+        {
+            return TRUE;
+        }
+    }
+
+    if (g_str_has_prefix (path, "/Volumes/"))
+    {
+        return strchr (path + strlen ("/Volumes/"), '/') == NULL;
+    }
+
+    if (!g_str_has_prefix (path, home) || path[strlen (home)] != '/')
+    {
+        return FALSE;
+    }
+
+    in_home = path + strlen (home) + 1;
+
+    for (guint i = 0; i < G_N_ELEMENTS (guarded); i++)
+    {
+        if (g_str_equal (in_home, guarded[i]))
+        {
+            return TRUE;
+        }
+    }
+
+    for (guint i = 0; i < G_N_ELEMENTS (guarded_parents); i++)
+    {
+        if (g_str_has_prefix (in_home, guarded_parents[i]))
+        {
+            return strchr (in_home + strlen (guarded_parents[i]), '/') == NULL;
+        }
+    }
+
+    return FALSE;
+}
+
 void
 nautilus_mac_open_privacy_settings (GFile *location)
 {

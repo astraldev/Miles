@@ -69,6 +69,10 @@
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
 
+#ifdef __APPLE__
+#define MACOS_PORT_URL "https://github.com/astraldev/nautilus-mac"
+#endif
+
 static void nautilus_window_initialize_actions (NautilusWindow *window);
 static void nautilus_window_sync_location_widgets (NautilusWindow *window);
 static void update_cursor (NautilusWindow *window);
@@ -1764,6 +1768,22 @@ nautilus_window_show_about_dialog (NautilusWindow *window)
     adw_about_dialog_set_designers (ADW_ABOUT_DIALOG (dialog), designers);
     adw_about_dialog_set_documenters (ADW_ABOUT_DIALOG (dialog), documenters);
     adw_about_dialog_set_support_url (ADW_ABOUT_DIALOG (dialog), "https://discourse.gnome.org/tag/nautilus");
+#ifdef __APPLE__
+    /* The port is not GNOME's: its issues and questions are not for GNOME. */
+    adw_about_dialog_set_website (ADW_ABOUT_DIALOG (dialog), MACOS_PORT_URL);
+    adw_about_dialog_set_issue_url (ADW_ABOUT_DIALOG (dialog), MACOS_PORT_URL "/issues");
+    adw_about_dialog_set_support_url (ADW_ABOUT_DIALOG (dialog), MACOS_PORT_URL "/issues");
+    adw_about_dialog_add_credit_section (ADW_ABOUT_DIALOG (dialog), _("MacOS Port"),
+                                         (const char *[]) { "Ekure Edem https://github.com/astraldev", NULL });
+    adw_about_dialog_add_credit_section (ADW_ABOUT_DIALOG (dialog), _("Icons"),
+                                         (const char *[]) { "Yaru, by the Ubuntu community https://github.com/ubuntu/yaru", NULL });
+    adw_about_dialog_add_legal_section (ADW_ABOUT_DIALOG (dialog), "Yaru",
+                                        "© The Yaru authors",
+                                        GTK_LICENSE_CUSTOM,
+                                        "The icons are licensed under the "
+                                        "<a href=\"https://creativecommons.org/licenses/by-sa/4.0/\">"
+                                        "Creative Commons Attribution-ShareAlike 4.0 International License</a>.");
+#endif
     /* Translators should localize the following string which will be displayed at the bottom of
      * the about box to give credit to the translator(s). */
     adw_about_dialog_set_translator_credits (ADW_ABOUT_DIALOG (dialog), _("translator-credits"));

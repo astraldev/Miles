@@ -325,6 +325,8 @@ if host_machine.system() == 'darwin'
     'macos/nautilus-mac-privacy.h',
     'macos/nautilus-mac-session-bus.c',
     'macos/nautilus-mac-session-bus.h',
+    'macos/nautilus-mac-type-icon.c',
+    'macos/nautilus-mac-type-icon.h',
     'macos/nautilus-search-engine-walker.c',
     'macos/nautilus-search-engine-walker.h',
   ]

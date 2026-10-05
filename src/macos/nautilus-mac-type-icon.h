@@ -21,9 +21,6 @@
 
 G_BEGIN_DECLS
 
-gboolean nautilus_mac_location_is_blocked   (GFile *location);
-gboolean nautilus_mac_location_is_denied    (GFile *location);
-gboolean nautilus_mac_location_is_guarded   (GFile *location);
-void     nautilus_mac_open_privacy_settings (GFile *location);
+GIcon * nautilus_mac_get_type_icon (const char *content_type);
 
 G_END_DECLS

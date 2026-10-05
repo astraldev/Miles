@@ -68,6 +68,8 @@
 #ifdef __APPLE__
 #include "macos/nautilus-mac-app-icon.h"
 #include "macos/nautilus-mac-places.h"
+#include "macos/nautilus-mac-privacy.h"
+#include "macos/nautilus-mac-type-icon.h"
 #endif
 
 #ifdef HAVE_SELINUX
@@ -2458,6 +2460,7 @@ update_info_internal (NautilusFile *file,
     g_autoptr (GIcon) app_icon = NULL;
     g_autofree char *mac_content_type = NULL;
     g_autoptr (GIcon) mac_icon = NULL;
+    g_autoptr (GIcon) mac_type_icon = NULL;
 #endif
     const char *filesystem_id;
     const char *trash_orig_path;
@@ -2820,6 +2823,21 @@ update_info_internal (NautilusFile *file,
         {
             mac_icon = g_content_type_get_icon (mac_content_type);
             icon = mac_icon;
+        }
+    }
+
+    {
+        const char *content_type = mac_content_type != NULL ? mac_content_type : mime_type;
+        g_autoptr (GIcon) type_icon = content_type != NULL ? g_content_type_get_icon (content_type) : NULL;
+
+        /* Only where the icon is the one of the type, not one chosen for the file. */
+        if (icon != NULL && type_icon != NULL && g_icon_equal (icon, type_icon))
+        {
+            mac_type_icon = nautilus_mac_get_type_icon (content_type);
+            if (mac_type_icon != NULL)
+            {
+                icon = mac_type_icon;
+            }
         }
     }
 
@@ -5013,6 +5031,16 @@ gboolean
 nautilus_file_should_show_directory_item_count (NautilusFile *file)
 {
     g_return_val_if_fail (NAUTILUS_IS_FILE (file), FALSE);
+
+#ifdef __APPLE__
+    /* Counting opens the folder, and MacOS would ask for each one a folder shows. */
+    g_autoptr (GFile) guarded_location = nautilus_file_get_location (file);
+
+    if (nautilus_mac_location_is_guarded (guarded_location))
+    {
+        return FALSE;
+    }
+#endif
 
     /* Don't count items in autofs directories to avoid triggering automount. */
     if (file->details->is_mountpoint)
