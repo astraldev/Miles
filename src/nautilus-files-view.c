@@ -184,6 +184,10 @@ struct _NautilusFilesView
     guint update_interval;
     guint64 last_queued;
 
+#ifdef __APPLE__
+    gboolean shows_no_permission;
+#endif
+
     gulong files_added_handler_id;
     gulong files_changed_handler_id;
     gulong load_error_handler_id;
@@ -3679,6 +3683,7 @@ nautilus_files_view_set_location (NautilusFilesView *self,
     }
 }
 
+#ifndef __APPLE__
 static GtkWidget *
 build_search_settings_button (void)
 {
@@ -3690,6 +3695,7 @@ build_search_settings_button (void)
 
     return button;
 }
+#endif
 
 static GtkWidget *
 build_search_everywhere_button (void)
@@ -3723,12 +3729,47 @@ build_privacy_settings_button (NautilusFilesView *self)
 
     return button;
 }
+/* Access is given in System Settings or in a prompt of MacOS, so look when coming back. */
+static void
+on_window_active_changed (NautilusFilesView *self,
+                          GParamSpec        *pspec,
+                          GtkWindow         *window)
+{
+    if (gtk_window_is_active (window) &&
+        self->shows_no_permission &&
+        !nautilus_mac_location_is_blocked (self->location) &&
+        !nautilus_mac_location_is_denied (self->location))
+    {
+        gtk_widget_activate_action (GTK_WIDGET (self), "slot.reload", NULL);
+    }
+}
+
+static void
+set_shows_no_permission (NautilusFilesView *self,
+                         gboolean           shows_no_permission)
+{
+    GtkRoot *window = gtk_widget_get_root (GTK_WIDGET (self));
+
+    self->shows_no_permission = shows_no_permission;
+
+    if (shows_no_permission && GTK_IS_WINDOW (window))
+    {
+        g_signal_handlers_disconnect_by_func (window, on_window_active_changed, self);
+        g_signal_connect_object (window, "notify::is-active",
+                                 G_CALLBACK (on_window_active_changed), self,
+                                 G_CONNECT_SWAPPED);
+    }
+}
 #endif
 
 static void
 nautilus_files_view_update_status_overlay (NautilusFilesView *self)
 {
     AdwStatusPage *status_page = ADW_STATUS_PAGE (self->empty_view_page);
+
+#ifdef __APPLE__
+    set_shows_no_permission (self, FALSE);
+#endif
 
     if (!self->loading &&
         nautilus_files_view_is_empty (self))
@@ -3742,12 +3783,14 @@ nautilus_files_view_update_status_overlay (NautilusFilesView *self)
             adw_status_page_set_title (status_page, _("No Permission"));
             adw_status_page_set_description (status_page, _("Allow access in System Settings."));
             adw_status_page_set_child (status_page, build_privacy_settings_button (self));
+            set_shows_no_permission (self, TRUE);
         }
         else if (nautilus_mac_location_is_denied (self->location))
         {
             adw_status_page_set_icon_name (status_page, "folder-symbolic");
             adw_status_page_set_title (status_page, _("No Permission"));
             adw_status_page_set_description (status_page, _("You do not have permission to open this folder."));
+            set_shows_no_permission (self, TRUE);
         }
         else
 #endif
@@ -3760,9 +3803,14 @@ nautilus_files_view_update_status_overlay (NautilusFilesView *self)
             if (global_search)
             {
                 adw_status_page_set_icon_name (status_page, "edit-find-symbolic");
+#ifdef __APPLE__
+                adw_status_page_set_description (status_page,
+                                                 _("Try other words, or search inside a folder"));
+#else
                 adw_status_page_set_description (status_page,
                                                  _("More locations can be added to search in the settings"));
                 adw_status_page_set_child (status_page, build_search_settings_button ());
+#endif
             }
             else
             {

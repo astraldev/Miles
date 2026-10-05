@@ -161,6 +161,7 @@ real_update_search_information (SearchInfoData *search_info_data)
                                    _("External Drive"));
         gtk_widget_set_visible (editor->search_info_button, TRUE);
     }
+#ifndef __APPLE__
     else if (!nautilus_localsearch_directory_is_tracked (editor->location))
     {
         adw_status_page_set_title (ADW_STATUS_PAGE (editor->status_page),
@@ -192,6 +193,7 @@ real_update_search_information (SearchInfoData *search_info_data)
                                              );
         }
     }
+#endif
 }
 
 static void
