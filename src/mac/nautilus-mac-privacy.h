@@ -22,6 +22,7 @@
 G_BEGIN_DECLS
 
 gboolean nautilus_mac_location_is_blocked   (GFile *location);
+gboolean nautilus_mac_location_is_denied    (GFile *location);
 void     nautilus_mac_open_privacy_settings (GFile *location);
 
 G_END_DECLS

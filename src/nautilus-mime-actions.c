@@ -730,6 +730,10 @@ get_activation_action (NautilusFile *file)
 
     if (nautilus_file_is_archive (file))
     {
+#ifdef __APPLE__
+        /* Return early so as not to open Finder. */
+        return ACTIVATION_ACTION_EXTRACT;
+#endif
         g_autoptr (GAppInfo) app_info = nautilus_mime_get_default_application_for_file (file);
 
         if (app_info != NULL)
@@ -1737,6 +1741,7 @@ activate_files_internal (ActivateParameters *parameters)
             file = NAUTILUS_FILE (l->data);
             uri = nautilus_file_get_activation_uri (file);
             location = g_file_new_for_uri (uri);
+#ifndef __APPLE__
             if (g_file_is_native (location) &&
                 (nautilus_file_is_in_admin (file) ||
                  !nautilus_file_can_read (file) ||
@@ -1745,6 +1750,7 @@ activate_files_internal (ActivateParameters *parameters)
                 g_free (uri);
                 uri = g_strconcat (SCHEME_ADMIN "://", g_file_peek_path (location), NULL);
             }
+#endif
 
             location_with_permissions = g_file_new_for_uri (uri);
 

@@ -211,6 +211,7 @@ if host_machine.system() == 'darwin'
     default_options: [
       'message_bus=true',
       'tools=false',
+      'traditional_activation=false',
       'modular_tests=disabled',
       'doxygen_docs=disabled',
       'ducktype_docs=disabled',

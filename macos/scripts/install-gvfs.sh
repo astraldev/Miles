@@ -60,6 +60,9 @@ for patch in "$patches_dir"/gvfs-*.patch; do
     git -C "$src_dir" apply "$patch"
 done
 
+# For the dbus that was just installed there.
+export PKG_CONFIG_PATH="$installed_prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+
 echo "Building gvfs"
 rm -rf "$build_dir"
 # shellcheck disable=SC2086

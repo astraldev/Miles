@@ -774,6 +774,21 @@ update_places (NautilusSidebar *sidebar)
     add_user_folder_places (sidebar);
 #endif
 
+#ifdef __APPLE__
+    {
+        g_autofree char *disk_name = nautilus_mac_get_startup_disk_name ();
+
+        /* A built-in row sorts before the drives that come and go. */
+        start_icon = g_themed_icon_new_with_default_fallbacks ("drive-harddisk-symbolic");
+        add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
+                   NAUTILUS_SIDEBAR_SECTION_MOUNTS,
+                   disk_name != NULL ? disk_name : _("Computer"), start_icon, NULL, "file:///",
+                   NULL, NULL, NULL, NULL, 0,
+                   NULL);
+        g_object_unref (start_icon);
+    }
+#endif
+
     /* Network view */
     start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_VIEW);
     add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,

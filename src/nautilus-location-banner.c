@@ -33,11 +33,17 @@
 #include "nautilus-scheme.h"
 #include "nautilus-trash-monitor.h"
 
+#ifdef __APPLE__
+#include "mac/nautilus-mac-places.h"
+#include "nautilus-window-slot.h"
+#endif
+
 #define USER_SHARE_CONNECTIONS "enabled-connections"
 
 typedef enum
 {
     NAUTILUS_LOCATION_BANNER_NONE,
+    NAUTILUS_LOCATION_BANNER_MAC_SYSTEM_APPS,
     NAUTILUS_LOCATION_BANNER_SCRIPTS,
     NAUTILUS_LOCATION_BANNER_SHARING,
     NAUTILUS_LOCATION_BANNER_TEMPLATES,
@@ -47,6 +53,21 @@ typedef enum
 
 static void set_mode (AdwBanner                 *banner,
                       NautilusLocationBannerMode mode);
+
+#ifdef __APPLE__
+static void
+on_mac_system_apps_clicked (AdwBanner *banner)
+{
+    GtkWidget *slot = gtk_widget_get_ancestor (GTK_WIDGET (banner), NAUTILUS_TYPE_WINDOW_SLOT);
+    GFile *location = nautilus_window_slot_get_location (NAUTILUS_WINDOW_SLOT (slot));
+    g_autoptr (GFile) system_apps = nautilus_mac_get_system_apps_location (location);
+
+    if (system_apps != NULL)
+    {
+        nautilus_window_slot_open_location_full (NAUTILUS_WINDOW_SLOT (slot), system_apps, NULL);
+    }
+}
+#endif
 
 static void
 on_sharing_clicked (AdwBanner *banner)
@@ -163,6 +184,15 @@ get_mode_for_location (GFile *location)
 
     file = nautilus_file_get (location);
 
+#ifdef __APPLE__
+    g_autoptr (GFile) system_apps = nautilus_mac_get_system_apps_location (location);
+
+    if (system_apps != NULL)
+    {
+        return NAUTILUS_LOCATION_BANNER_MAC_SYSTEM_APPS;
+    }
+#endif
+
     if (nautilus_should_use_templates_directory () &&
         nautilus_file_is_user_special_directory (file, G_USER_DIRECTORY_TEMPLATES))
     {
@@ -218,6 +248,16 @@ set_mode (AdwBanner                  *banner,
         {
             adw_banner_set_revealed (banner, FALSE);
             return;
+        }
+        break;
+
+        case NAUTILUS_LOCATION_BANNER_MAC_SYSTEM_APPS:
+        {
+#ifdef __APPLE__
+            adw_banner_set_title (banner, _("The apps that come with MacOS are in another folder"));
+            button_label = _("_Show Them");
+            callback = G_CALLBACK (on_mac_system_apps_clicked);
+#endif
         }
         break;
 

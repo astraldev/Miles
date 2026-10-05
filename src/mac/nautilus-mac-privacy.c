@@ -34,15 +34,15 @@ get_folder_path (GFile *location)
     return g_file_get_path (location);
 }
 
-gboolean
-nautilus_mac_location_is_blocked (GFile *location)
+static int
+get_open_error (GFile *location)
 {
     g_autofree char *path = get_folder_path (location);
     DIR *dir;
 
     if (path == NULL)
     {
-        return FALSE;
+        return 0;
     }
 
     dir = opendir (path);
@@ -50,11 +50,23 @@ nautilus_mac_location_is_blocked (GFile *location)
     {
         closedir (dir);
 
-        return FALSE;
+        return 0;
     }
 
-    /* macOS privacy gives EPERM, file permissions give EACCES. */
-    return errno == EPERM;
+    return errno;
+}
+
+/* macOS privacy gives EPERM, file permissions give EACCES. */
+gboolean
+nautilus_mac_location_is_blocked (GFile *location)
+{
+    return get_open_error (location) == EPERM;
+}
+
+gboolean
+nautilus_mac_location_is_denied (GFile *location)
+{
+    return get_open_error (location) == EACCES;
 }
 
 /* The folders macOS lists one by one. The rest need Full Disk Access. */

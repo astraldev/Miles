@@ -37,6 +37,7 @@
 #include <nautilus-extension.h>
 
 #ifdef __APPLE__
+#include "mac/nautilus-mac-bonjour.h"
 #include "mac/nautilus-mac-privacy.h"
 #endif
 #include "nautilus-application.h"
@@ -3741,6 +3742,12 @@ nautilus_files_view_update_status_overlay (NautilusFilesView *self)
             adw_status_page_set_description (status_page, _("Allow access in System Settings."));
             adw_status_page_set_child (status_page, build_privacy_settings_button (self));
         }
+        else if (nautilus_mac_location_is_denied (self->location))
+        {
+            adw_status_page_set_icon_name (status_page, "folder-symbolic");
+            adw_status_page_set_title (status_page, _("No Permission"));
+            adw_status_page_set_description (status_page, _("You do not have permission to open this folder."));
+        }
         else
 #endif
         if (NAUTILUS_IS_SEARCH_DIRECTORY (self->directory))
@@ -4775,7 +4782,8 @@ load_error_callback (NautilusDirectory *directory,
 
 #ifdef __APPLE__
     /* The "No Permission" page says it, and a dialog would cover it. */
-    if (nautilus_mac_location_is_blocked (view->location))
+    if (nautilus_mac_location_is_blocked (view->location) ||
+        nautilus_mac_location_is_denied (view->location))
     {
         return;
     }
@@ -7894,6 +7902,12 @@ nautilus_files_view_update_actions_state (NautilusFilesView *self)
         {
             can_remove_recent_server = FALSE;
         }
+#ifdef __APPLE__
+        if (nautilus_mac_bonjour_is_file_name (nautilus_file_get_name (file)))
+        {
+            can_remove_recent_server = FALSE;
+        }
+#endif
     }
 
     action = g_action_map_lookup_action (G_ACTION_MAP (view_action_group),

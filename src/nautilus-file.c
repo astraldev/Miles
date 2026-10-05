@@ -2812,8 +2812,14 @@ update_info_internal (NautilusFile *file,
 #ifdef __APPLE__
     if (mac_content_type != NULL)
     {
-        mac_icon = g_content_type_get_icon (mac_content_type);
-        icon = mac_icon;
+        g_autoptr (GIcon) unknown_type_icon = g_content_type_get_icon (mime_type);
+
+        /* Keep an icon that was chosen for the file, as for a server or the trash. */
+        if (icon == NULL || g_icon_equal (icon, unknown_type_icon))
+        {
+            mac_icon = g_content_type_get_icon (mac_content_type);
+            icon = mac_icon;
+        }
     }
 
     name = update_name ? g_file_info_get_name (info) : file->details->name;
@@ -7325,6 +7331,39 @@ gboolean
 nautilus_file_is_archive (NautilusFile *file)
 {
     const char *mime_type = nautilus_file_get_mime_type (file);
+
+#ifdef __APPLE__
+    /* macOS has its own names for file types, and GIO maps these three to MIME types autoar lacks. */
+    static const struct
+    {
+        const char *content_type;
+        const char *mime_type;
+    } archive_types[] =
+    {
+        { "org.gnu.gnu-zip-archive", "application/gzip" },
+        { "org.gnu.gnu-zip-tar-archive", "application/x-compressed-tar" },
+        { "public.bzip2-archive", "application/x-bzip" },
+    };
+    g_autofree char *translated_mime_type = NULL;
+
+    if (mime_type == NULL)
+    {
+        return FALSE;
+    }
+
+    for (guint i = 0; i < G_N_ELEMENTS (archive_types); i++)
+    {
+        if (g_str_equal (mime_type, archive_types[i].content_type))
+        {
+            return autoar_check_mime_type_supported (archive_types[i].mime_type);
+        }
+    }
+
+    translated_mime_type = g_content_type_get_mime_type (mime_type);
+
+    return translated_mime_type != NULL &&
+           autoar_check_mime_type_supported (translated_mime_type);
+#endif
 
     return autoar_check_mime_type_supported (mime_type);
 }

@@ -287,7 +287,11 @@ nautilus_path_bar_init (NautilusPathBar *self)
     GtkEventController *controller;
     g_autoptr (GError) error = NULL;
 
+#ifdef __APPLE__
+    self->os_name = g_strdup ("MacOS");
+#else
     self->os_name = g_get_os_info (G_OS_INFO_KEY_NAME);
+#endif
 
     self->scrolled = gtk_scrolled_window_new ();
     /* Scroll horizontally only and don't use internal scrollbar. */

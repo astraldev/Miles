@@ -22,6 +22,8 @@
 
 #include "nautilus-file-utilities.h"
 
+#include <CoreFoundation/CoreFoundation.h>
+
 typedef struct
 {
     /* A fixed path, or NULL to ask for @directory. */
@@ -100,4 +102,45 @@ nautilus_mac_location_is_place (GFile *location)
     }
 
     return FALSE;
+}
+
+char *
+nautilus_mac_get_startup_disk_name (void)
+{
+    CFURLRef root = CFURLCreateWithFileSystemPath (NULL, CFSTR ("/"), kCFURLPOSIXPathStyle, true);
+    CFStringRef name = NULL;
+    char buffer[256];
+    char *result = NULL;
+
+    if (CFURLCopyResourcePropertyForKey (root, kCFURLVolumeNameKey, &name, NULL) && name != NULL)
+    {
+        if (CFStringGetCString (name, buffer, sizeof (buffer), kCFStringEncodingUTF8))
+        {
+            result = g_strdup (buffer);
+        }
+
+        CFRelease (name);
+    }
+
+    CFRelease (root);
+
+    return result;
+}
+
+/* Finder shows the apps of macOS in Applications. On disk they are apart. */
+GFile *
+nautilus_mac_get_system_apps_location (GFile *location)
+{
+    const char *path = g_file_peek_path (location);
+    g_autofree char *system_path = NULL;
+
+    if (g_strcmp0 (path, "/Applications") != 0 &&
+        g_strcmp0 (path, "/Applications/Utilities") != 0)
+    {
+        return NULL;
+    }
+
+    system_path = g_strconcat ("/System", path, NULL);
+
+    return g_file_new_for_path (system_path);
 }

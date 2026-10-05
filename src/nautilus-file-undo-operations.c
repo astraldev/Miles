@@ -31,6 +31,10 @@
 #include "nautilus-file.h"
 #include "nautilus-file-undo-manager.h"
 #include "nautilus-batch-rename-dialog.h"
+#ifdef __APPLE__
+#include "mac/nautilus-mac-privacy.h"
+#include "nautilus-ui-utilities.h"
+#endif
 #include "nautilus-scheme.h"
 #include "nautilus-tag-manager.h"
 
@@ -1796,6 +1800,24 @@ trash_retrieve_files_ready (GObject      *source,
     NautilusFileUndoInfoTrash *self = NAUTILUS_FILE_UNDO_INFO_TRASH (source);
     g_autoptr (GError) error = NULL;
     gboolean success = g_task_propagate_boolean (G_TASK (res), &error);
+
+#ifdef __APPLE__
+    if (!success)
+    {
+        g_autoptr (GFile) trash = g_file_new_for_uri (SCHEME_TRASH ":///");
+
+        if (nautilus_mac_location_is_blocked (trash))
+        {
+            GApplication *application = g_application_get_default ();
+            GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (application));
+
+            nautilus_show_ok_dialog (_("Could Not Undo"),
+                                     _("MacOS keeps Files out of the Trash. "
+                                       "Allow Full Disk Access for it in System Settings."),
+                                     window != NULL ? GTK_WIDGET (window) : NULL);
+        }
+    }
+#endif
 
     /* Here we must do what's necessary for the callback */
     file_undo_info_transfer_callback (NULL, success, self);
