@@ -10,6 +10,7 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Check on screen
 
+- [ ] "Uninstall" in an app's menu opens a submenu, "Keep Settings and Data" and "Remove Settings and Data". Each asks first; the second lists the settings and data it found. Not shown for the apps that come with macOS. macOS may refuse to move an app's folder in `~/Library/Containers`: see what it says then
 - [ ] Files and folders in a cloud folder have a small cloud mark on their icon. A cloud service set up while the app runs gets its sidebar row when the window is active again
 - [ ] Search in the window: in a folder, and "Search Everywhere"
 - [ ] Double-click on a `.zip` extracts it in place, with no Finder window
@@ -18,7 +19,7 @@ What is left. What is done and decided is in `port-progress.md`.
 - [ ] App icons follow a switch between light and dark while the app runs. If they stay as they were, refresh them a second time a moment later
 - [ ] App icons follow a change of "Icon & widget style" once the window is active again, one after the other
 - [ ] Applications and Applications/Utilities have a banner at the top, and its button opens the folder with Apple's apps. That folder has one that leads back
-- [ ] Search texts: the empty "Search Everywhere" page says "Find your files and apps by name", a search everywhere that finds nothing says "Try other words, or search inside a folder", and neither has a "Search Settings" button. Searching in a folder shows no "Folder Not in Search Locations" note
+- [ ] Search texts: the empty "Search Everywhere" page says "Find your files and apps by name", a search everywhere that finds nothing says "Try different words, or search inside a folder", and neither has a "Search Settings" button. Searching in a folder shows no "Folder Not in Search Locations" note
 - [ ] A folder showing "No Permission" loads by itself once access is given and the window is active again (Downloads: allow it in System Settings, click back on the window)
 - [ ] Starred files: star a file, find it under Starred, and again after a restart (tinysparql keeps them, not tested)
 - [ ] Disks and volumes: what shows when a drive is plugged in
