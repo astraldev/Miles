@@ -39,6 +39,9 @@
 
 /* 0 if the bus was already running. */
 static GPid bus_pid = 0;
+/* The bus that was already running: one a crashed Nautilus left, unless another one runs. */
+static GPid found_bus_pid = 0;
+static gboolean owns_found_bus = FALSE;
 
 static char *original_gio_modules = NULL;
 static gboolean set_runtime_dir = FALSE;
@@ -87,9 +90,11 @@ create_runtime_dir (void)
 }
 
 static gboolean
-bus_is_running (const char *socket_path)
+bus_is_running (const char *socket_path,
+                GPid       *pid)
 {
     struct sockaddr_un address = { .sun_family = AF_UNIX };
+    socklen_t pid_size = sizeof (*pid);
     gboolean is_running;
     int fd;
 
@@ -106,9 +111,39 @@ bus_is_running (const char *socket_path)
     }
 
     is_running = (connect (fd, (struct sockaddr *) &address, sizeof (address)) == 0);
+    if (is_running && pid != NULL &&
+        getsockopt (fd, SOL_LOCAL, LOCAL_PEERPID, pid, &pid_size) != 0)
+    {
+        *pid = 0;
+    }
     close (fd);
 
     return is_running;
+}
+
+static void
+stop_bus (GPid     pid,
+          gboolean is_child)
+{
+    kill (pid, SIGTERM);
+
+    for (int waited_ms = 0;
+         is_child ? waitpid (pid, NULL, WNOHANG) == 0 : kill (pid, 0) == 0;
+         waited_ms += 10)
+    {
+        /* A bus that ignores the signal must not hang Nautilus. */
+        if (waited_ms >= BUS_STOP_TIMEOUT_MS)
+        {
+            kill (pid, SIGKILL);
+            if (is_child)
+            {
+                waitpid (pid, NULL, 0);
+            }
+            break;
+        }
+
+        g_usleep (10 * G_TIME_SPAN_MILLISECOND);
+    }
 }
 
 static gboolean
@@ -141,7 +176,7 @@ spawn_bus (const char *bus_address,
 
     for (int waited_ms = 0; waited_ms < BUS_START_TIMEOUT_MS; waited_ms += 10)
     {
-        if (bus_is_running (socket_path))
+        if (bus_is_running (socket_path, NULL))
         {
             return TRUE;
         }
@@ -158,7 +193,8 @@ spawn_bus (const char *bus_address,
     }
 
     g_warning ("The session bus did not start");
-    nautilus_mac_session_bus_stop ();
+    stop_bus (bus_pid, TRUE);
+    bus_pid = 0;
 
     return FALSE;
 }
@@ -209,7 +245,7 @@ nautilus_mac_session_bus_start (void)
         flock (lock_fd, LOCK_EX);
     }
 
-    is_running = bus_is_running (socket_path);
+    is_running = bus_is_running (socket_path, &found_bus_pid);
     if (!is_running)
     {
         g_unlink (socket_path);
@@ -256,27 +292,27 @@ nautilus_mac_session_bus_get_launch_environ (void)
 }
 
 void
+nautilus_mac_session_bus_take_over (void)
+{
+    owns_found_bus = TRUE;
+}
+
+void
 nautilus_mac_session_bus_stop (void)
 {
-    if (bus_pid == 0)
+    if (bus_pid != 0)
+    {
+        stop_bus (bus_pid, TRUE);
+    }
+    else if (owns_found_bus && found_bus_pid != 0)
+    {
+        stop_bus (found_bus_pid, FALSE);
+    }
+    else
     {
         return;
     }
 
-    kill (bus_pid, SIGTERM);
-
-    for (int waited_ms = 0; waitpid (bus_pid, NULL, WNOHANG) == 0; waited_ms += 10)
-    {
-        /* A bus that ignores the signal must not hang Nautilus. */
-        if (waited_ms >= BUS_STOP_TIMEOUT_MS)
-        {
-            kill (bus_pid, SIGKILL);
-            waitpid (bus_pid, NULL, 0);
-            break;
-        }
-
-        g_usleep (10 * G_TIME_SPAN_MILLISECOND);
-    }
-
     bus_pid = 0;
+    found_bus_pid = 0;
 }

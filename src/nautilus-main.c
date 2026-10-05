@@ -83,6 +83,12 @@ main (int   argc,
         g_application_hold (G_APPLICATION (application));
     }
 
+#ifdef __APPLE__
+    /* Only the instance that runs the app starts up. One that hands over to it does not. */
+    g_signal_connect (application, "startup",
+                      G_CALLBACK (nautilus_mac_session_bus_take_over), NULL);
+#endif
+
     retval = g_application_run (G_APPLICATION (application),
                                 argc, argv);
 
