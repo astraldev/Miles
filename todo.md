@@ -10,12 +10,14 @@ What is left. What is done and decided is in `port-progress.md`.
 
 ## Check on screen
 
+- [ ] The app: `open .deps/prefix/Applications/Miles.app`. It starts with no terminal, is called Miles in the menu bar and the Dock, and macOS asks for folders in its name
+- [ ] About: the port's author, Yaru under Icons and under Legal, and the links going to the GitHub repo
+- [ ] Type icons: Python, plain text, shell scripts, C and C++ files, Java, Ruby, PHP, JavaScript, logs and patches have their own icon
+- [ ] Recent: open a file from the window, find it under Recent
 - [ ] "Uninstall" in an app's menu opens a submenu, "Keep Settings and Data" and "Remove Settings and Data". Each asks first; the second lists the settings and data it found. Not shown for the apps that come with macOS. macOS may refuse to move an app's folder in `~/Library/Containers`: see what it says then
-- [ ] Files and folders in a cloud folder have a small cloud mark on their icon. A cloud service set up while the app runs gets its sidebar row when the window is active again
 - [ ] Search in the window: in a folder, and "Search Everywhere"
 - [ ] Double-click on a `.zip` extracts it in place, with no Finder window
 - [ ] A folder the account may not read shows "No Permission", with no dialog and no "admin" message
-- [ ] Zoom steps of 1.35: 48, 64, 88, 120, 160
 - [ ] App icons follow a switch between light and dark while the app runs. If they stay as they were, refresh them a second time a moment later
 - [ ] App icons follow a change of "Icon & widget style" once the window is active again, one after the other
 - [ ] Applications and Applications/Utilities have a banner at the top, and its button opens the folder with Apple's apps. That folder has one that leads back
@@ -24,33 +26,24 @@ What is left. What is done and decided is in `port-progress.md`.
 - [ ] Starred files: star a file, find it under Starred, and again after a restart (tinysparql keeps them, not tested)
 - [ ] Disks and volumes: what shows when a drive is plugged in
 
-## GNOME 51
-
-- [ ] The memory audit did not cover the files changed by the merge
-
 ## Search
 
 - [ ] Search in file contents is gone with Spotlight. The "Full Text" choice in the search popover is still shown and does nothing: hide it
-- [ ] The walker's threads have not been run under a sanitizer. Tested by stopping 35 searches midway, with no crash
 - [ ] The walker's type filter goes by the file's name, not its content, so a file without an extension passes no type filter
-- [ ] "Search Everywhere" looks through the home folder and the apps. Other drives are not searched
 - [ ] Type filter: a type macOS does not know matches nothing. 118 of the 207 MIME types in the filter groups are unknown to macOS, so some files are missed (.mkv in Video, .rtf in Documents, .psd in Picture)
 - [ ] Type filter: the "Other Type…" list is empty on mac
 - [ ] Empty files are typed as text on mac, so an empty `.mp4` shows under Text File, not Video
 
 ## Icons
 
-- [ ] A few types have an icon in Yaru under another name than GIO asks for on mac: Python (`text-x-python-script` asked, `text-x-python` there), plain text (`text-*` asked)
-- [ ] Credit Yaru in the app (About dialog or bundle). The licence files are already installed with the icons
 
 ## Network, trash and recent (gvfs)
 
 - [ ] Trash: a file trashed from the top folder of a drive has no put-back record, so it cannot be restored. Check what Finder does with those
+- [ ] Trash: when several files are trashed at once, macOS writes a put-back record for the first one only (seen on a disk image: three at once gave one record, three a second apart gave three). The others cannot be restored. Check the home trash, and try `NSWorkspace recycleURLs:`, which takes them as one batch
+- [ ] From the audit, not fixed yet: the Uninstall dialog keeps a pointer to its view, which can be gone if the tab closes under it; the bus's process number is read at start and signalled at exit without a second look; Bonjour names are shown without checking they are UTF-8; the sidebar connects its window hook again on every re-root; a few unchecked CoreFoundation returns
 - [ ] Trash: "Restore" and undo of "Move to Trash" need the Trash to be readable, so Full Disk Access. Try both in the window once it is granted
-- [ ] `.rar` and `.jar` are not offered for extraction (macOS does not know `.rar`, and a `.jar` is left alone)
-- [ ] Saved passwords: gvfs keeps them with libsecret, which mac lacks, so a server asks for its password every time. Possible with the Keychain: gvfs has all of it in one file of three functions (`daemon/gvfskeyring.c`, 274 lines), and the Keychain's "internet password" has the same fields (server, user, protocol, port). A third gvfs patch of about 150 lines, in C (`Security.framework`). Until the app is signed, macOS asks to allow each gvfs helper after every rebuild
 - [ ] Trash shows empty until the app has Full Disk Access: macOS blocks `~/.Trash` for every app but Finder, and never asks
-- [ ] Recent is empty until files are opened from Nautilus, and opened files are not added to it ("no command line for the application")
 - [ ] Scripts and "open in terminal" started from Nautilus still get its private bus in their environment
 - [ ] The bus's socket path may be at most 104 characters, a limit of macOS. It is in `~/.cache/nautilus`, so a home folder path of about 80 characters breaks the bus, and with it network, trash and recent
 
@@ -69,10 +62,10 @@ What is left. What is done and decided is in `port-progress.md`.
 - [ ] Pipeline: `.github/workflows/build.yml` builds on an Apple silicon runner. It is written and has not run yet: push it and fix what fails
 - [ ] Apple silicon build of `Files.app` from the pipeline, as a download. Decide on Intel: a second build, a universal one, or none
 - [ ] `.dmg` with `Files.app` and a link to Applications, built by the pipeline
-- [ ] Wire `macos/bundle/Info.plist.in` and the entitlements into the build to produce `Files.app`
-- [ ] App icon (`.icns`)
-- [ ] A relocatable `Files.app` has to find its data relative to itself: the bundled icon theme's folder is fixed at build time (`NAUTILUS_DATADIR`), and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
-- [ ] `Info.plist` needs `NSLocalNetworkUsageDescription` and `NSBonjourServices` (the five service types in `nautilus-mac-bonjour.c`), or the bundled app may not look for servers
+- [ ] App icon: it is one fixed picture (`macos/bundle/AppIcon.svg`). The dark, clear and tinted styles of macOS need an Icon Composer `.icon` file
+- [ ] A build on this Mac only runs on macOS 26 or newer, as Homebrew's libraries are built for the system they are installed on. The pipeline has to build on the oldest runner
+- [ ] The app's name: Miles for now, set in one place (`macos_app_name` in `meson.build`). Nomtilus and GMacFiles were the other ideas. Texts inside the window still say Files
+- [ ] The app runs in place: it uses the libraries and data of the prefix it was built for, so it cannot be copied to another Mac. A relocatable app has to carry its libraries and find its data relative to itself: the bundled icon theme's folder is fixed at build time (`NAUTILUS_DATADIR`), and gvfs's files hold absolute paths (`.mount`, `.service`, rpath)
 - [ ] Bundle Adwaita too: Yaru falls back to it for the icons it lacks, and today it comes from Homebrew
 - [ ] Homebrew tap formula. It cannot download during a build, so it has to supply the pinned sources itself: libportal, gnome-desktop, libgxdp, blueprint-compiler, dbus, gvfs, Yaru
 - [ ] Signing and notarization

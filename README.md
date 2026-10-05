@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="data/icons/hicolor/scalable/apps/org.gnome.Nautilus.svg" width="128" alt="Files icon">
+<img src="macos/bundle/AppIcon.svg" width="128" alt="App icon">
 
 # Files for MacOS
 
@@ -8,7 +8,7 @@
 
 [![Based on Files 51.0.1](https://img.shields.io/badge/based%20on-Files%2051.0.1-4a86cf)](https://gitlab.gnome.org/GNOME/nautilus)
 [![MacOS, Apple silicon](https://img.shields.io/badge/MacOS-Apple%20silicon-black?logo=apple)](#building)
-[![Licence: GPL 2.0 or later](https://img.shields.io/badge/licence-GPL%202.0%2B-green)](LICENSE)
+[![Licence: GPL 3.0 or later](https://img.shields.io/badge/licence-GPL%203.0%2B-green)](LICENSE)
 ![Status: work in progress](https://img.shields.io/badge/status-work%20in%20progress-orange)
 
 [What's different](#changed-features) · [What's missing](#missing-features) · [Build it](#building)
@@ -21,8 +21,6 @@ This is a port of [Files](https://apps.gnome.org/Nautilus/), also known as Nauti
 
 > [!NOTE]
 > This is not a GNOME project. For Files itself, see the [original README](https://gitlab.gnome.org/GNOME/nautilus/-/blob/main/README.md).
-
-Files for MacOS runs from a source build today. There is no app to download yet.
 
 ## Credits
 

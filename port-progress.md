@@ -59,6 +59,9 @@ To build: Homebrew's Python has to come first on `PATH` (blueprint-compiler need
 - Text is a step larger: the base font is set to 13 pt, where GTK takes 12 pt from macOS (`set_font_size()` in `nautilus-mac-appearance.c`)
 - Dialogs that open inside the window (Properties, ...) draw right: GTK's renderer left most of the window undrawn on macOS, so full redraws are forced (`GSK_DEBUG=full-redraw`, set in `main()`)
 - File type icons: with Yaru, the types macOS knows get their own icon (.docx, .pdf, .json, .zip, .md, ...)
+- Eighteen types have their icon in Yaru under another name than GIO asks for, and are mapped to it (`src/macos/nautilus-mac-type-icon.c`): Python, plain text, shell scripts, C and C++ sources and headers, Java, Ruby, PHP, JavaScript, logs, patches
+- About names the port's author and Yaru, with its licence, and its links go to the port's repo on GitHub and not to GNOME
+- A file opened from the window is added to Recent: an app of macOS has no command line, and the item was refused without one
 - Read-only, not-accessible and link badges: 51 ships its own icons for them
 
 Checked on screen on 51 by the owner: sidebar folders and divider, app icons, launching apps and "Show Package Contents", zoom steps, the "No Permission" page (Downloads), dialogs inside the window, Network (found servers, connecting, browsing), the Macintosh HD row, Command-comma for Preferences, the dark folders, the 13 pt font, the app icons from macOS (Books, Phone, their size next to folders), and the iCloud Drive and Google Drive rows (opening Google Drive, My Drive and the files in it).
@@ -91,7 +94,7 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - Servers on the local network show up by themselves, under "Available on Current Network" (`src/macos/nautilus-mac-bonjour.c`). It asks macOS's own Bonjour service (`dns_sd.h`) for sftp, AFP, WebDAV and FTP servers, in Nautilus and not in gvfs, and lists them the way recent servers are listed. This Mac itself is left out
 - Folders on a server show as folders: gvfs names them by MIME type, which GIO does not know on mac, so the type is translated
 - Trash reads the macOS trash folders (`~/.Trash`, `.Trashes/<uid>` on other drives). Listing, opening and deleting for good work (tested against a test home folder)
-- Trash knows where a file came from and when it was trashed, so "Restore" works: macOS has no call for it, so the gvfs patch reads the put-back records Finder keeps in the trash folder's `.DS_Store` file, and takes the date from the file's "date added". Tested on a disk image: a file whose name clashed in the trash went back to its folder under its own name. The reader was run 230,000 times on damaged files under sanitizers
+- Trash knows where a file came from and when it was trashed, so "Restore" works: macOS has no call for it, so the gvfs patch reads the put-back records Finder keeps in the trash folder's `.DS_Store` file, and takes the date from the file's "date added". Tested on a disk image: a file whose name clashed in the trash went back to its folder under its own name. The reader was run 1.1 million times on damaged files under sanitizers. It is a file of this repo (`macos/patches/gvfs-trashmac.h`) that the install script copies into gvfs, so the patch itself is about 130 lines of small hooks. A `.DS_Store` on a drive is not trusted: the reader stops after as many nodes as the file has blocks, reads no more than 8 MB, and refuses a put-back path that leaves the drive
 - Recent works
 
 ### Permissions
@@ -100,6 +103,13 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - A folder showing "No Permission" is looked at again when the window becomes active, and reloads if it can be read now: access is given in System Settings or in a prompt of macOS, both outside the window. For Full Disk Access macOS itself offers "Quit & Reopen"
 - A folder the user's account may not read (another user's home, ...) shows "No Permission" too, with no button. Upstream reopens it as `admin://`, which asks for a password through PolKit: that is Linux only, so on mac it said "admin locations are not supported"
 - Startup prints no "display server connection" message, and the build has no warnings in Nautilus's own code but one upstream deprecation
+
+### The app
+
+- `ninja install` makes `Miles.app` in `<prefix>/Applications` (`macos/scripts/install-app.sh`, `macos/bundle/Info.plist.in`): the nautilus binary, an Info.plist with the texts macOS shows when it asks for a folder or the local network, and an icon made from the SVG. It is signed for this Mac only
+- Started from Finder there is no environment, so `main()` says where the schemas and icons are (`XDG_DATA_DIRS`, from the prefix and Homebrew's at build time)
+- With the app, macOS gives permissions to Miles and not to the terminal
+- The name is set in one place, `macos_app_name` in `meson.build`
 
 ### Reviews
 
@@ -119,6 +129,9 @@ Checked on screen on 51 by the owner: sidebar folders and divider, app icons, la
 - Graphite accent is not bark. What it is instead is open
 - glycin stays a stand-in: no Rust in the build
 - No "open as administrator": it would need a helper that runs as root
+- No saved passwords for servers: it would be a third gvfs patch, and a server only asks once per session
+- `.rar` and `.jar` are not offered for extraction
+- "Search Everywhere" does not look on other drives
 - Applications is not merged with `/System/Applications` the way Finder does it. A banner points there
 
 ## Known and accepted
