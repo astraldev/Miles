@@ -206,8 +206,25 @@ conf.set_quoted('VERSION', version_string)
 
 conf.set('ENABLE_LOCALSEARCH', host_machine.system() != 'darwin')
 if host_machine.system() == 'darwin'
-  # macOS has no session bus. Nautilus starts its own, for gvfs.
-  conf.set_quoted('NAUTILUS_DBUS_DAEMON', find_program('dbus-daemon').full_path())
+  # macOS has no session bus. Nautilus starts its own, for gvfs, with the dbus-daemon built here.
+  subproject('dbus',
+    default_options: [
+      'message_bus=true',
+      'tools=false',
+      'modular_tests=disabled',
+      'doxygen_docs=disabled',
+      'ducktype_docs=disabled',
+      'xml_docs=disabled',
+      'qt_help=disabled',
+      'launchd=disabled',
+      'x11_autolaunch=disabled',
+      'systemd=disabled',
+      'selinux=disabled',
+      'apparmor=disabled',
+      'libaudit=disabled',
+    ],
+  )
+  conf.set_quoted('NAUTILUS_DBUS_DAEMON', join_paths(prefix, get_option('bindir'), 'dbus-daemon'))
   conf.set_quoted('NAUTILUS_GIO_MODULE_DIR', join_paths(prefix, libdir, 'gio', 'modules'))
 endif
 conf.set('HAVE_SELINUX', selinux.found())

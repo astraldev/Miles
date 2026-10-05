@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://gitlab.freedesktop.org/dbus/dbus.git
+# 1.16.2
+revision = 958bf9db2100553bcd2fe2a854e1ebb42e886054
+depth = 1
