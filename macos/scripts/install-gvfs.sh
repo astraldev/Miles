@@ -33,7 +33,7 @@ patches_dir=$(cd "$(dirname "$0")/../patches" && pwd)
 
 stamp=$installed_prefix/share/nautilus/.gvfs-commit
 # The stamp also names the options and the patches, so changing them rebuilds.
-installed="$GVFS_COMMIT $(echo $GVFS_OPTIONS) $(cat "$patches_dir"/gvfs-*.patch | cksum)"
+installed="$GVFS_COMMIT $(echo $GVFS_OPTIONS) $(cat "$patches_dir"/gvfs-* | cksum)"
 
 if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$installed" ]; then
     echo "gvfs is up to date"
@@ -59,6 +59,7 @@ git -C "$src_dir" clean --quiet -fd
 for patch in "$patches_dir"/gvfs-*.patch; do
     git -C "$src_dir" apply "$patch"
 done
+cp "$patches_dir/gvfs-trashmac.h" "$src_dir/daemon/trashlib/trashmac.h"
 
 # For the dbus that was just installed there.
 export PKG_CONFIG_PATH="$installed_prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
