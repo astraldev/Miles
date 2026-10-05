@@ -17,6 +17,11 @@
 
 ---
 
+<p align="center">
+  <img src="macos/screenshots/applications-light.png" width="49%" alt="The Applications folder in Miles, in the light appearance">
+  <img src="macos/screenshots/utilities-dark.png" width="49%" alt="The Utilities folder of MacOS in Miles, in the dark appearance">
+</p>
+
 This is a port of [Files](https://apps.gnome.org/Nautilus/), also known as Nautilus, to MacOS. It looks and works the way Files does on GNOME, and follows MacOS wherever the Mac has its own way of doing things: the Trash, apps, privacy prompts and cloud folders.
 
 > [!NOTE]
