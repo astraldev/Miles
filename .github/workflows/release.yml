@@ -31,7 +31,7 @@ jobs:
         run: |
           # The runner's Homebrew is old, and its OpenSSL is in the way of the new one.
           brew update
-          brew unlink openssl@1.1 || true
+          brew install --overwrite openssl@3
           brew install meson ninja pkgconf gettext \
             gtk4 libadwaita gnome-autoar libarchive icu4c tinysparql \
             gsettings-desktop-schemas gdk-pixbuf iso-codes xkeyboard-config \
