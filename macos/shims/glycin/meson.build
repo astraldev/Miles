@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Ekure Edem
+
 glycin_shim = static_library('glycin-shim',
   'glycin-shim.c',
   dependencies: [

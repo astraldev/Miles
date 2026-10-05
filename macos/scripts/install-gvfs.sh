@@ -1,5 +1,8 @@
 #!/bin/sh
 #
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Ekure Edem
+#
 # Builds gvfs into the prefix on macOS, for network locations.
 # Meson runs it at install. By hand: install-gvfs.sh <prefix>
 

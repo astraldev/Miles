@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2026 Ekure Edem
+ *
  * Nautilus is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of the
@@ -34,7 +36,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-/* The address given to dbus-daemon replaces the one here. */
+/* After dbus's session.conf. The address given to dbus-daemon replaces the one here. */
 #define BUS_CONFIG \
         "<busconfig>" \
         "<type>session</type>" \

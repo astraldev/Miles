@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (C) 2026 Ekure Edem */
+
 #include "glycin.h"
 #include "glycin-gtk4.h"
 

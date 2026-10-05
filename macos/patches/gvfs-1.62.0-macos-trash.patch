@@ -1,3 +1,6 @@
+Makes gvfs's trash backend use the trash of MacOS, with the code in gvfs-trashmac.h.
+The files it changes are GPL-3.0-only.
+
 diff --git a/daemon/trashlib/trashexpunge.c b/daemon/trashlib/trashexpunge.c
 index db3e70ca4..094ddc1b8 100644
 --- a/daemon/trashlib/trashexpunge.c

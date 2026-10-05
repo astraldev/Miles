@@ -1,4 +1,7 @@
-/* The trash of MacOS, for gvfs's trash backend. install-gvfs.sh copies this into daemon/trashlib. */
+/* SPDX-License-Identifier: LGPL-2.0-or-later
+ * Copyright (C) 2026 Ekure Edem
+ *
+ * The trash of MacOS, for gvfs's trash backend. install-gvfs.sh copies this into daemon/trashlib. */
 
 #include <string.h>
 #include <sys/attr.h>

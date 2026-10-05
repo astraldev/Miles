@@ -1,5 +1,8 @@
 #!/bin/sh
 #
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Ekure Edem
+#
 # Makes the app around the installed nautilus, in <prefix>/Applications.
 # Meson runs it at install: install-app.sh <app name>
 # The app runs in place: it uses the libraries and data of the prefix it was built for.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The app's icon. An apple as the sole of a footprint: a file manager from GNOME, on the Mac.
-     Laid out on Apple's icon grid: a 1024 canvas, an 824 tile with a corner radius of 185.4. -->
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0
+     Copyright (C) 2026 Ekure Edem -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">

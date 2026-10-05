@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The window of the disk image: the app goes on the left, Applications on the right. -->
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0
+     Copyright (C) 2026 Ekure Edem -->
 <svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -13,7 +14,6 @@
   </defs>
   <rect width="660" height="400" fill="url(#sky)"/>
   <rect width="660" height="400" fill="url(#glow)"/>
-  <!-- Footprints, walking from the app to Applications. -->
   <g fill="#ffffff" fill-opacity="0.9">
     <g transform="translate(286 196) rotate(78) scale(0.085)">
       <path d="M 0 -72 C 34.2 -93.6 91.8 -81 91.8 -14.4 C 91.8 41.4 54 84.6 25.2 84.6 C 12.6 84.6 9 78.3 0 78.3 C -9 78.3 -12.6 84.6 -25.2 84.6 C -54 84.6 -91.8 41.4 -91.8 -14.4 C -91.8 -81 -34.2 -93.6 0 -72 Z"/>
