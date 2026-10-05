@@ -70,6 +70,7 @@ main (int   argc,
 
 #ifdef __APPLE__
     nautilus_mac_session_bus_start ();
+    g_setenv ("GSK_DEBUG", "full-redraw", FALSE);
 #endif
 
     nautilus_register_resource ();

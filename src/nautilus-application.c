@@ -702,8 +702,13 @@ nautilus_init_application_actions (NautilusApplication *app)
                                           "app.help", "F1");
     nautilus_application_set_accelerator (G_APPLICATION (app),
                                           "app.quit", "<Primary>q");
+#ifdef __APPLE__
+    nautilus_application_set_accelerator (G_APPLICATION (app),
+                                          "app.preferences", "<Meta>comma");
+#else
     nautilus_application_set_accelerator (G_APPLICATION (app),
                                           "app.preferences", "<Primary>comma");
+#endif
 }
 
 static void
@@ -1045,11 +1050,12 @@ bundled_icon_theme_exists (const char *name)
     return g_file_test (index, G_FILE_TEST_EXISTS);
 }
 
-/* Uses the bundled icon theme variant for the macOS accent colour. Runs again when it changes. */
 static void
 update_macos_icon_theme (void)
 {
-    const char *name = nautilus_mac_get_accent_icon_theme ();
+    gboolean dark = adw_style_manager_get_dark (adw_style_manager_get_default ());
+    g_autofree char *name = g_strconcat (nautilus_mac_get_accent_icon_theme (),
+                                         dark ? "-dark" : "", NULL);
     g_autofree char *current_name = NULL;
 
     g_object_get (gtk_settings_get_default (), "gtk-icon-theme-name", &current_name, NULL);
@@ -1067,7 +1073,26 @@ update_macos_icon_theme (void)
     g_object_set (gtk_settings_get_default (), "gtk-icon-theme-name", name, NULL);
 }
 
-/* GTK has no icon theme setting on macOS, and Adwaita has few file icons: use our own. */
+#define MACOS_FONT_SIZE 13
+
+static void
+set_macos_font_size (void)
+{
+    GtkSettings *settings = gtk_settings_get_default ();
+    g_autofree char *font_name = NULL;
+    g_autofree char *sized_font_name = NULL;
+    PangoFontDescription *description;
+
+    g_object_get (settings, "gtk-font-name", &font_name, NULL);
+
+    description = pango_font_description_from_string (font_name);
+    pango_font_description_set_size (description, MACOS_FONT_SIZE * PANGO_SCALE);
+    sized_font_name = pango_font_description_to_string (description);
+    pango_font_description_free (description);
+
+    g_object_set (settings, "gtk-font-name", sized_font_name, NULL);
+}
+
 static void
 set_macos_icon_theme (void)
 {
@@ -1087,6 +1112,8 @@ set_macos_icon_theme (void)
 
     update_macos_icon_theme ();
     nautilus_mac_watch_accent_colour (update_macos_icon_theme);
+    g_signal_connect (adw_style_manager_get_default (), "notify::dark",
+                      G_CALLBACK (update_macos_icon_theme), NULL);
 }
 #endif
 
@@ -1135,6 +1162,7 @@ nautilus_application_startup (GApplication *app)
 
 #ifdef __APPLE__
     set_macos_icon_theme ();
+    set_macos_font_size ();
 
     /* Losing Nautilus's own bus only costs gvfs. */
     if (g_application_get_dbus_connection (app) != NULL)
