@@ -65,7 +65,11 @@ jobs:
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" build/*.dmg --draft --generate-notes --title "Miles $GITHUB_REF_NAME"
+        run: |
+          # The list of what the app carries, and where the source of each is.
+          cp build/Miles.app/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md build/
+          gh release create "$GITHUB_REF_NAME" build/*.dmg build/THIRD-PARTY-NOTICES.md \
+            --draft --generate-notes --title "Miles $GITHUB_REF_NAME"
 
       - name: Keep the logs
         if: failure()

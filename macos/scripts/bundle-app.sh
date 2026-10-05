@@ -1,5 +1,8 @@
 #!/bin/sh
 #
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Ekure Edem
+#
 # Makes an app that carries all it needs, in Contents/Resources, laid out as in the prefix.
 # "ninja app" runs it: bundle-app.sh <prefix> <app name> <build folder>
 
@@ -16,6 +19,7 @@ resources=$app/Contents/Resources
 libs=$resources/lib
 share=$resources/share
 licences=$resources/licenses
+notices=$licences/THIRD-PARTY-NOTICES.md
 
 # A line for each program and library: the file, where it came from, its path to the libraries.
 queue=$(mktemp)
@@ -32,18 +36,60 @@ add_file () {
 copy_licences () {
     mkdir -p "$licences/$2"
     find "$1" -maxdepth 1 -type f \
-         \( -iname 'LICEN[CS]E*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' -o -iname 'NOTICE*' \) \
+         \( -iname 'LICEN[CS]E*' -o -iname 'COPYING*' -o -iname 'COPYRIGHT*' -o -iname 'NOTICE*' \
+            -o -iname '*GPL*' -o -iname 'MIT*' -o -iname 'BSD*' -o -iname 'AUTHORS*' \) \
          -exec cp {} "$licences/$2/" \;
 }
 
+add_notice () {
+    printf '| %s | %s | %s | %s |\n' "$1" "$2" "$3" "$4" >> "$notices"
+}
+
+# A field of a Homebrew formula, which may go on over several lines.
+formula_field () {
+    awk -v field="$1" '
+        !found && $1 == field && /^  [a-z]/ { found = 1; sub(/^  [a-z]+ /, "") }
+        found {
+            sub(/ *#.*/, "")
+            printf "%s", $0
+            depth += gsub(/[\[{(]/, "&") - gsub(/[\]})]/, "&")
+            if (depth <= 0 && $0 !~ /,$/) exit
+        }
+    ' "$2" | tr -d '"' | tr -s ' '
+}
+
+# The licence of a Homebrew package, the formula it was built by, and its line in the notices.
 copy_brew_licences () {
     case $1 in
-        "$brew_prefix"/Cellar/*)
-            package=${1#"$brew_prefix"/Cellar/}
-            version=${package#*/}
-            copy_licences "$brew_prefix/Cellar/${package%%/*}/${version%%/*}" "${package%%/*}-${version%%/*}"
-            ;;
+        "$brew_prefix"/Cellar/*) ;;
+        *) return ;;
     esac
+
+    package=${1#"$brew_prefix"/Cellar/}
+    version=${package#*/}
+    package=${package%%/*}
+    version=${version%%/*}
+    formula=$brew_prefix/Cellar/$package/$version/.brew/$package.rb
+
+    if [ -d "$licences/$package-$version" ]; then
+        return
+    fi
+
+    copy_licences "$brew_prefix/Cellar/$package/$version" "$package-$version"
+    if [ -f "$formula" ]; then
+        cp "$formula" "$licences/$package-$version/"
+        add_notice "$package" "$version" "$(formula_field license "$formula")" "$(formula_field url "$formula")"
+    else
+        add_notice "$package" "$version" "see its folder" "https://formulae.brew.sh/formula/$package"
+    fi
+}
+
+wrap_field () {
+    sed -n "s/^$2 = //p" "$source_dir/subprojects/$1.wrap" | head -1
+}
+
+script_field () {
+    sed -n "s/^$2=//p" "$source_dir/macos/scripts/$1" | head -1
 }
 
 find_library () {
@@ -67,7 +113,34 @@ echo "Copying the app's files"
 rm -rf "$app"
 cp -R "$prefix/Applications/$name.app" "$app"
 mkdir -p "$resources/bin" "$resources/libexec" "$libs/gio/modules" "$libs/gdk-pixbuf-2.0" \
-         "$share/dbus-1/services" "$share/glib-2.0/schemas" "$share/icons"
+         "$share/dbus-1/services" "$share/glib-2.0/schemas" "$share/icons" "$licences"
+
+app_version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$app/Contents/Info.plist")
+commit=$(git -C "$source_dir" rev-parse HEAD 2> /dev/null || echo "see the release")
+sed -e "s/@NAME@/$name/g" -e "s/@VERSION@/$app_version/g" -e "s/@COMMIT@/$commit/g" \
+    "$source_dir/macos/bundle/THIRD-PARTY-NOTICES.md.in" > "$notices"
+
+copy_licences "$source_dir" nautilus
+copy_licences "$build_dir/gvfs/src" gvfs
+for subproject in dbus gnome-desktop libportal; do
+    copy_licences "$source_dir/subprojects/$subproject" "$subproject"
+done
+# libgxdp names its licence, and has no copy of it.
+mkdir -p "$licences/libgxdp"
+cp "$source_dir/libnautilus-extension/LICENSE" "$licences/libgxdp/LGPL-2.1.txt"
+
+add_notice "$name (Nautilus)" "$app_version" "GPL-3.0-or-later" "https://github.com/astraldev/Miles at $commit"
+add_notice "gvfs" "$(script_field install-gvfs.sh GVFS_COMMIT)" \
+           "LGPL-2.0-or-later, its trash backend GPL-3.0-only" \
+           "$(script_field install-gvfs.sh GVFS_URL), with macos/patches"
+add_notice "dbus" "$(wrap_field dbus revision)" "AFL-2.1 OR GPL-2.0-or-later" "$(wrap_field dbus url)"
+add_notice "gnome-desktop" "$(wrap_field gnome-desktop revision)" "GPL-2.0-or-later AND LGPL-2.1-or-later" \
+           "$(wrap_field gnome-desktop url), with subprojects/packagefiles"
+add_notice "libgxdp" "$(wrap_field libgxdp revision)" "LGPL-2.1-or-later" "$(wrap_field libgxdp url)"
+add_notice "libportal" "$(wrap_field libportal revision)" "LGPL-3.0-only" \
+           "$(wrap_field libportal url), with subprojects/packagefiles"
+add_notice "Yaru Icons" "$(script_field install-yaru.sh YARU_COMMIT)" "CC-BY-SA-4.0" \
+           "$(script_field install-yaru.sh YARU_URL), see http://snwh.org/"
 
 add_file "$app/Contents/MacOS/nautilus" "$prefix/bin/nautilus" "@executable_path/../Resources/lib"
 add_file "$resources/bin/dbus-daemon" "$prefix/bin/dbus-daemon" "@executable_path/../lib"
@@ -104,12 +177,6 @@ for theme in adwaita-icon-theme/share/icons/Adwaita hicolor-icon-theme/share/ico
 done
 rm -rf "$share/icons/Adwaita/cursors"
 copy_brew_licences "$(realpath "$brew_prefix/opt/gsettings-desktop-schemas")/"
-
-copy_licences "$source_dir" nautilus
-copy_licences "$build_dir/gvfs/src" gvfs
-for subproject in dbus gnome-desktop libgxdp libportal; do
-    copy_licences "$source_dir/subprojects/$subproject" "$subproject"
-done
 
 echo "Copying the libraries"
 

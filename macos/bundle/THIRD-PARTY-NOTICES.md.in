@@ -1,0 +1,28 @@
+# Third-party notices
+
+@NAME@ is an unofficial port of GNOME Files (Nautilus) @VERSION@ to MacOS, modified by Ekure Edem in 2026. It is not made, endorsed or supported by the GNOME Project or by Apple Inc.
+
+@NAME@ is free software under the GNU General Public License, version 3 or later, and comes with no warranty. Its source is at https://github.com/astraldev/Miles, with the scripts that build this app and the patches it applies to the packages below. This app was built from commit @COMMIT@.
+
+## What this app carries
+
+Each package below is in this app. Its licence is in the folder of its name, next to this file, with the Homebrew formula it was built by where it has one. Its source is at the address given, at the version or commit given.
+
+You may replace any of these libraries with your own build of it. They are in `Contents/Resources/lib`. Sign the app again afterwards, or MacOS will not run it:
+
+    codesign --force --deep --sign - @NAME@.app
+
+## Credits their licences ask for
+
+- Portions of this software are copyright © The FreeType Project (www.freetype.org). All rights reserved.
+- This software is based in part on the work of the Independent JPEG Group.
+- ICU is copyright © Unicode, Inc. and others, under the Unicode License. Unicode and the Unicode Logo are registered trademarks of Unicode, Inc.
+- The icons are Yaru Icons (http://snwh.org/), under the Creative Commons Attribution-ShareAlike 4.0 International License. They are not modified: the cursors are left out, and the index of each theme is made anew.
+- The certificates are Mozilla's list of certificate authorities, under the Mozilla Public License 2.0.
+
+GNOME and the GNOME foot are trademarks of the GNOME Foundation. Mac, MacOS, Finder and iCloud Drive are trademarks of Apple Inc. Google Drive and OneDrive are trademarks of their owners.
+
+## Packages
+
+| Package | Version or commit | Licence | Source |
+|---|---|---|---|
