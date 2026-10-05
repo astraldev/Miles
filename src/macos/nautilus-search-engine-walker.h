@@ -19,13 +19,16 @@
 
 #include "nautilus-search-provider.h"
 
-#include <glib-object.h>
-
 G_BEGIN_DECLS
 
-#define NAUTILUS_TYPE_SEARCH_ENGINE_SPOTLIGHT (nautilus_search_engine_spotlight_get_type ())
-G_DECLARE_FINAL_TYPE (NautilusSearchEngineSpotlight, nautilus_search_engine_spotlight, NAUTILUS, SEARCH_ENGINE_SPOTLIGHT, NautilusSearchProvider)
+#define NAUTILUS_TYPE_SEARCH_ENGINE_WALKER (nautilus_search_engine_walker_get_type ())
 
-NautilusSearchEngineSpotlight* nautilus_search_engine_spotlight_new (void);
+G_DECLARE_FINAL_TYPE (NautilusSearchEngineWalker, nautilus_search_engine_walker,
+                      NAUTILUS, SEARCH_ENGINE_WALKER, NautilusSearchProvider)
+
+NautilusSearchEngineWalker * nautilus_search_engine_walker_new    (void);
+void                         nautilus_search_engine_walker_search (gpointer  provider,
+                                                                   GFile    *location,
+                                                                   gboolean  recursive);
 
 G_END_DECLS

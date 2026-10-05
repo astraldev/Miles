@@ -885,7 +885,7 @@ nautilus_window_slot_constructed (GObject *object)
     adw_status_page_set_icon_name (self->global_search_page, "edit-find-symbolic");
     adw_status_page_set_title (self->global_search_page, _("Search Everywhere"));
 #ifdef __APPLE__
-    adw_status_page_set_description (self->global_search_page, _("Find files and folders on this Mac"));
+    adw_status_page_set_description (self->global_search_page, _("Find your files and apps by name"));
     gtk_stack_add_child (GTK_STACK (self->stack), GTK_WIDGET (self->global_search_page));
 #else
     adw_status_page_set_description (self->global_search_page, _("Find files and folders in all search locations"));

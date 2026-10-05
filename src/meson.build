@@ -323,10 +323,10 @@ if host_machine.system() == 'darwin'
     'macos/nautilus-mac-privacy.h',
     'macos/nautilus-mac-session-bus.c',
     'macos/nautilus-mac-session-bus.h',
-    'macos/nautilus-search-engine-spotlight.c',
-    'macos/nautilus-search-engine-spotlight.h',
+    'macos/nautilus-search-engine-walker.c',
+    'macos/nautilus-search-engine-walker.h',
   ]
-  nautilus_deps += dependency('appleframeworks', modules: ['AppKit', 'CoreServices', 'SystemConfiguration'])
+  nautilus_deps += dependency('appleframeworks', modules: ['AppKit', 'SystemConfiguration'])
 endif
 
 libnautilus = static_library(
