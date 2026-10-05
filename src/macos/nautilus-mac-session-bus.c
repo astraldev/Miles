@@ -21,6 +21,7 @@
 
 #include <config.h>
 #include "nautilus-mac-session-bus.h"
+#include "nautilus-mac-paths.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -33,7 +34,20 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define BUS_CONFIG_FILE NAUTILUS_DATADIR "/dbus-session.conf"
+/* The address given to dbus-daemon replaces the one here. */
+#define BUS_CONFIG \
+        "<busconfig>" \
+        "<type>session</type>" \
+        "<keep_umask/>" \
+        "<listen>unix:tmpdir=/tmp</listen>" \
+        "<auth>EXTERNAL</auth>" \
+        "<servicedir>%s</servicedir>" \
+        "<policy context=\"default\">" \
+        "<allow send_destination=\"*\" eavesdrop=\"true\"/>" \
+        "<allow eavesdrop=\"true\"/>" \
+        "<allow own=\"*\"/>" \
+        "</policy>" \
+        "</busconfig>"
 #define BUS_START_TIMEOUT_MS 3000
 #define BUS_STOP_TIMEOUT_MS 1000
 
@@ -51,18 +65,19 @@ static void
 add_gio_modules (void)
 {
     const char *modules = g_getenv ("GIO_EXTRA_MODULES");
+    g_autofree char *gvfs_modules = nautilus_mac_get_install_path (NAUTILUS_GIO_MODULE_DIR);
     g_autofree char *with_gvfs = NULL;
 
     original_gio_modules = g_strdup (modules);
 
     if (modules == NULL || *modules == '\0')
     {
-        g_setenv ("GIO_EXTRA_MODULES", NAUTILUS_GIO_MODULE_DIR, TRUE);
+        g_setenv ("GIO_EXTRA_MODULES", gvfs_modules, TRUE);
 
         return;
     }
 
-    with_gvfs = g_strconcat (NAUTILUS_GIO_MODULE_DIR, G_SEARCHPATH_SEPARATOR_S, modules, NULL);
+    with_gvfs = g_strconcat (gvfs_modules, G_SEARCHPATH_SEPARATOR_S, modules, NULL);
     g_setenv ("GIO_EXTRA_MODULES", with_gvfs, TRUE);
 }
 
@@ -146,15 +161,72 @@ stop_bus (GPid     pid,
     }
 }
 
+/* These files hold full paths, and the app may have been moved. */
+static char *
+copy_install_files (const char *built_in_dir,
+                    const char *runtime_dir,
+                    const char *name)
+{
+    g_autofree char *source_dir = nautilus_mac_get_install_path (built_in_dir);
+    char *target_dir = g_build_filename (runtime_dir, name, NULL);
+    g_autoptr (GDir) sources = g_dir_open (source_dir, 0, NULL);
+    g_autoptr (GDir) targets = NULL;
+    /* Quoted for the command line, escaped for the key file. */
+    g_autofree char *quoted_prefix = g_shell_quote (nautilus_mac_get_prefix ());
+    g_autoptr (GString) prefix = g_string_new (quoted_prefix);
+    const char *file_name;
+
+    g_string_replace (prefix, "\\", "\\\\", 0);
+    g_mkdir (target_dir, 0700);
+
+    /* What an earlier version of the app left. */
+    targets = g_dir_open (target_dir, 0, NULL);
+    while (targets != NULL && (file_name = g_dir_read_name (targets)) != NULL)
+    {
+        g_autofree char *target = g_build_filename (target_dir, file_name, NULL);
+
+        g_unlink (target);
+    }
+
+    while (sources != NULL && (file_name = g_dir_read_name (sources)) != NULL)
+    {
+        g_autofree char *source = g_build_filename (source_dir, file_name, NULL);
+        g_autofree char *target = g_build_filename (target_dir, file_name, NULL);
+        g_autofree char *contents = NULL;
+
+        if (g_file_get_contents (source, &contents, NULL, NULL))
+        {
+            g_autoptr (GString) moved = g_string_new (contents);
+
+            g_string_replace (moved, NAUTILUS_PREFIX, prefix->str, 0);
+            g_file_set_contents (target, moved->str, moved->len, NULL);
+        }
+    }
+
+    return target_dir;
+}
+
 static gboolean
 spawn_bus (const char *bus_address,
-           const char *socket_path)
+           const char *socket_path,
+           const char *runtime_dir)
 {
+    g_autofree char *daemon = nautilus_mac_get_install_path (NAUTILUS_DBUS_DAEMON);
+    g_autofree char *services_dir = copy_install_files (NAUTILUS_BUS_SERVICES_DIR,
+                                                        runtime_dir, "bus-services");
+    g_autofree char *mounts_dir = copy_install_files (NAUTILUS_GVFS_MOUNTS_DIR,
+                                                      runtime_dir, "gvfs-mounts");
+    g_autofree char *config = g_markup_printf_escaped (BUS_CONFIG, services_dir);
+    g_autofree char *config_path = g_build_filename (runtime_dir, "bus.conf", NULL);
+    g_autofree char *config_argument = g_strconcat ("--config-file=", config_path, NULL);
     g_autofree char *address_argument = g_strconcat ("--address=", bus_address, NULL);
+    g_autofree char *certificates = nautilus_mac_get_install_path (NAUTILUS_DATADIR "/certificates.pem");
+    /* gvfs is started by the bus, and gets its environment. */
+    g_auto (GStrv) envp = g_environ_setenv (g_get_environ (), "GVFS_MOUNTABLE_DIR", mounts_dir, TRUE);
     const char *argv[] =
     {
-        NAUTILUS_DBUS_DAEMON,
-        "--config-file=" BUS_CONFIG_FILE,
+        daemon,
+        config_argument,
         address_argument,
         "--nofork",
         "--nopidfile",
@@ -162,7 +234,15 @@ spawn_bus (const char *bus_address,
     };
     g_autoptr (GError) error = NULL;
 
-    if (!g_spawn_async (NULL, (char **) argv, NULL,
+    g_file_set_contents (config_path, config, -1, NULL);
+
+    /* Only an app that carries its files has them: see bundle-app.sh. */
+    if (g_file_test (certificates, G_FILE_TEST_EXISTS))
+    {
+        envp = g_environ_setenv (envp, "GVFS_TLS_CERTIFICATES", certificates, TRUE);
+    }
+
+    if (!g_spawn_async (NULL, (char **) argv, envp,
                         G_SPAWN_DO_NOT_REAP_CHILD |
                         G_SPAWN_STDOUT_TO_DEV_NULL |
                         G_SPAWN_STDERR_TO_DEV_NULL,
@@ -249,7 +329,7 @@ nautilus_mac_session_bus_start (void)
     if (!is_running)
     {
         g_unlink (socket_path);
-        is_running = spawn_bus (bus_address, socket_path);
+        is_running = spawn_bus (bus_address, socket_path, runtime_dir);
     }
 
     if (lock_fd >= 0)

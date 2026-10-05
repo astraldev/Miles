@@ -319,6 +319,8 @@ if host_machine.system() == 'darwin'
     'macos/nautilus-mac-appearance.h',
     'macos/nautilus-mac-bonjour.c',
     'macos/nautilus-mac-bonjour.h',
+    'macos/nautilus-mac-paths.c',
+    'macos/nautilus-mac-paths.h',
     'macos/nautilus-mac-places.c',
     'macos/nautilus-mac-places.h',
     'macos/nautilus-mac-privacy.c',

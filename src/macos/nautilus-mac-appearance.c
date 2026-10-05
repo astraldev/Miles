@@ -24,15 +24,27 @@
 #include "nautilus-directory-private.h"
 #include "nautilus-file.h"
 #include "nautilus-icon-info.h"
+#include "nautilus-mac-paths.h"
 
 #include <adwaita.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-/* Where macos/scripts/install-yaru.sh puts the icon theme bundled with the app. */
-#define BUNDLED_ICONS_DIR NAUTILUS_DATADIR "/icons"
-
 #define FONT_SIZE 13
 #define APP_ICON_STAGGER_MS 20
+
+/* Where macos/scripts/install-yaru.sh puts the icon theme bundled with the app. */
+static const char *
+get_bundled_icons_dir (void)
+{
+    static char *icons_dir = NULL;
+
+    if (icons_dir == NULL)
+    {
+        icons_dir = nautilus_mac_get_install_path (NAUTILUS_DATADIR "/icons");
+    }
+
+    return icons_dir;
+}
 
 /* "AppleAccentColor" to Yaru variant. install-yaru.sh must list each one. */
 static const struct
@@ -92,7 +104,7 @@ update_icon_theme (void)
 {
     gboolean dark = adw_style_manager_get_dark (adw_style_manager_get_default ());
     g_autofree char *name = g_strconcat (get_accent_icon_theme (), dark ? "-dark" : "", NULL);
-    g_autofree char *index = g_build_filename (BUNDLED_ICONS_DIR, name, "index.theme", NULL);
+    g_autofree char *index = g_build_filename (get_bundled_icons_dir (), name, "index.theme", NULL);
     g_autofree char *current_name = NULL;
 
     g_object_get (gtk_settings_get_default (), "gtk-icon-theme-name", &current_name, NULL);
@@ -104,7 +116,7 @@ update_icon_theme (void)
     if (!g_file_test (index, G_FILE_TEST_EXISTS))
     {
         /* The theme is installed with the app: without it this install is broken. */
-        g_error ("The icon theme %s is missing from %s", name, BUNDLED_ICONS_DIR);
+        g_error ("The icon theme %s is missing from %s", name, get_bundled_icons_dir ());
     }
 
     g_object_set (gtk_settings_get_default (), "gtk-icon-theme-name", name, NULL);
@@ -153,7 +165,7 @@ watch_icon_theme (void)
     g_auto (GStrv) bundled_first = NULL;
 
     /* Part of the app: searched first, so a theme of the same name elsewhere cannot replace it. */
-    g_strv_builder_add (builder, BUNDLED_ICONS_DIR);
+    g_strv_builder_add (builder, get_bundled_icons_dir ());
     if (search_path != NULL)
     {
         g_strv_builder_addv (builder, (const char **) search_path);

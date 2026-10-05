@@ -210,13 +210,14 @@ conf.set('ENABLE_LOCALSEARCH', host_machine.system() != 'darwin')
 if host_machine.system() == 'darwin'
   macos_app_name = 'Miles'
 
-  # Started from Finder, the app has no environment that says where schemas and icons are.
+  conf.set_quoted('NAUTILUS_PREFIX', prefix)
+
   brew = find_program('brew', required: false)
-  macos_data_dirs = [join_paths(prefix, datadir)]
+  macos_data_dirs = ['/usr/local/share', '/usr/share']
   if brew.found()
-    macos_data_dirs += join_paths(run_command(brew, '--prefix', check: true).stdout().strip(), 'share')
+    macos_data_dirs = [join_paths(run_command(brew, '--prefix', check: true).stdout().strip(), 'share')] + macos_data_dirs
   endif
-  conf.set_quoted('NAUTILUS_MACOS_DATA_DIRS', ':'.join(macos_data_dirs + ['/usr/local/share', '/usr/share']))
+  conf.set_quoted('NAUTILUS_MACOS_SYSTEM_DATA_DIRS', ':'.join(macos_data_dirs))
 
   # macOS has no session bus. Nautilus starts its own, for gvfs, with the dbus-daemon built here.
   subproject('dbus',
@@ -239,6 +240,8 @@ if host_machine.system() == 'darwin'
   )
   conf.set_quoted('NAUTILUS_DBUS_DAEMON', join_paths(prefix, get_option('bindir'), 'dbus-daemon'))
   conf.set_quoted('NAUTILUS_GIO_MODULE_DIR', join_paths(prefix, libdir, 'gio', 'modules'))
+  conf.set_quoted('NAUTILUS_BUS_SERVICES_DIR', join_paths(prefix, datadir, 'dbus-1', 'services'))
+  conf.set_quoted('NAUTILUS_GVFS_MOUNTS_DIR', join_paths(prefix, datadir, 'gvfs', 'mounts'))
 endif
 conf.set('HAVE_SELINUX', selinux.found())
 conf.set('HAVE_CLOUDPROVIDERS', cloudproviders.found())
@@ -324,19 +327,27 @@ if host_machine.system() == 'darwin'
   meson.add_install_script('macos/scripts/install-gvfs.sh')
 
   configure_file(
-    input: 'macos/data/dbus-session.conf.in',
-    output: 'dbus-session.conf',
-    configuration: {'servicedir': join_paths(prefix, datadir, 'dbus-1', 'services')},
-    install_dir: join_paths(datadir, 'nautilus'),
-  )
-
-  configure_file(
     input: 'macos/bundle/Info.plist.in',
     output: 'Info.plist',
     configuration: {'APP_NAME': macos_app_name, 'VERSION': meson.project_version()},
   )
   # Last: it copies what the scripts before it installed.
   meson.add_install_script('macos/scripts/install-app.sh', macos_app_name)
+
+  # "ninja app", after an install.
+  run_target('app',
+    command: [
+      find_program('macos/scripts/bundle-app.sh'),
+      prefix, macos_app_name, meson.current_build_dir(),
+    ],
+  )
+  # "ninja dmg", after "ninja app".
+  run_target('dmg',
+    command: [
+      find_program('macos/scripts/make-dmg.sh'),
+      macos_app_name, meson.project_version(), meson.current_build_dir(),
+    ],
+  )
 endif
 
 #### Summary ####
