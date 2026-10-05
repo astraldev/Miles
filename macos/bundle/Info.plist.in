@@ -32,7 +32,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 1999 The Files Authors. GPL 3.0 or later.</string>
+	<string>© 1999 The Files Authors. © 2026 Ekure Edem. GPL 3.0 or later.</string>
 
 	<!-- macOS shows each of these the first time the app goes to that place.
 	     Without the key, access is refused without a question. -->
@@ -51,7 +51,7 @@
 
 	<!-- For finding servers through Bonjour: the types src/macos/nautilus-mac-bonjour.c looks for. -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>@APP_NAME@ looks for file servers on your local network.</string>
+	<string>@APP_NAME@ finds and connects to file servers on your local network.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_sftp-ssh._tcp</string>

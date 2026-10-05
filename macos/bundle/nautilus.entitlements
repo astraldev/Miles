@@ -7,7 +7,7 @@
 	  (required for notarization):
 
 	    codesign -s "Developer ID Application: ..." -o runtime \
-	             -e macos/bundle/nautilus.entitlements Files.app
+	             -e macos/bundle/nautilus.entitlements Miles.app
 
 	  The App Sandbox is deliberately NOT enabled: a file manager has to
 	  reach the whole file system, which the sandbox forbids. That rules out

@@ -1769,14 +1769,24 @@ nautilus_window_show_about_dialog (NautilusWindow *window)
     adw_about_dialog_set_documenters (ADW_ABOUT_DIALOG (dialog), documenters);
     adw_about_dialog_set_support_url (ADW_ABOUT_DIALOG (dialog), "https://discourse.gnome.org/tag/nautilus");
 #ifdef __APPLE__
-    /* The port is not GNOME's: its issues and questions are not for GNOME. */
+    /* The port is not GNOME's, and has to say so: its issues and questions are not for GNOME. */
+    adw_about_dialog_set_application_name (ADW_ABOUT_DIALOG (dialog), NAUTILUS_MACOS_APP_NAME);
+    adw_about_dialog_set_developer_name (ADW_ABOUT_DIALOG (dialog), "Ekure Edem");
+    adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (dialog),
+                                    "© 1999 The Files Authors\n© 2026 Ekure Edem (MacOS port)");
+    adw_about_dialog_set_comments (ADW_ABOUT_DIALOG (dialog),
+                                   _("An unofficial port of GNOME Files (Nautilus) to MacOS, "
+                                     "modified by Ekure Edem in 2026. It is not made, endorsed or "
+                                     "supported by the GNOME Project or by Apple Inc."));
     adw_about_dialog_set_website (ADW_ABOUT_DIALOG (dialog), MACOS_PORT_URL);
     adw_about_dialog_set_issue_url (ADW_ABOUT_DIALOG (dialog), MACOS_PORT_URL "/issues");
     adw_about_dialog_set_support_url (ADW_ABOUT_DIALOG (dialog), MACOS_PORT_URL "/issues");
     adw_about_dialog_add_credit_section (ADW_ABOUT_DIALOG (dialog), _("MacOS Port"),
                                          (const char *[]) { "Ekure Edem https://github.com/astraldev", NULL });
     adw_about_dialog_add_credit_section (ADW_ABOUT_DIALOG (dialog), _("Icons"),
-                                         (const char *[]) { "Yaru, by the Ubuntu community https://github.com/ubuntu/yaru", NULL });
+                                         (const char *[]) { "Yaru Icons http://snwh.org/",
+                                                            "Yaru, by the Ubuntu community https://github.com/ubuntu/yaru",
+                                                            NULL });
     adw_about_dialog_add_legal_section (ADW_ABOUT_DIALOG (dialog), "Yaru",
                                         "© The Yaru authors",
                                         GTK_LICENSE_CUSTOM,

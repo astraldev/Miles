@@ -210,6 +210,7 @@ conf.set('ENABLE_LOCALSEARCH', host_machine.system() != 'darwin')
 if host_machine.system() == 'darwin'
   macos_app_name = 'Miles'
 
+  conf.set_quoted('NAUTILUS_MACOS_APP_NAME', macos_app_name)
   conf.set_quoted('NAUTILUS_PREFIX', prefix)
 
   brew = find_program('brew', required: false)
