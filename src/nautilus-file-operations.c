@@ -70,6 +70,10 @@
 #include <gdk/wayland/gdkwayland.h>
 #endif
 
+#ifdef __APPLE__
+#include "macos/nautilus-mac-privacy.h"
+#endif
+
 typedef struct
 {
     GTimer *time;
@@ -863,6 +867,45 @@ run_dialog (CommonJob              *job,
 
     return data->result;
 }
+
+#ifdef __APPLE__
+/*
+ * MacOS privacy, not the permissions of the folder, keeps the app out of it. Say where to allow
+ * it, and try again once it is allowed. FALSE if MacOS does not block the folder.
+ */
+static gboolean
+run_blocked_folder_dialog (CommonJob              *job,
+                           GFile                  *folder,
+                           const char             *heading,
+                           NautilusDialogResponse *response)
+{
+    g_autofree char *name = NULL;
+    g_autofree char *body = NULL;
+
+    if (folder == NULL || !nautilus_mac_location_is_blocked (folder))
+    {
+        return FALSE;
+    }
+
+    name = get_basename (folder);
+    body = g_strdup_printf (_("MacOS has not allowed %s into “%s”. Allow it in System Settings, "
+                              "under Privacy & Security, then try again."),
+                            NAUTILUS_MACOS_APP_NAME, name);
+
+    do
+    {
+        *response = run_dialog (job, heading, body, NULL,
+                                RESPONSE_PRIVACY_SETTINGS | RESPONSE_RETRY);
+        if (*response == RESPONSE_PRIVACY_SETTINGS)
+        {
+            nautilus_mac_open_privacy_settings (folder);
+        }
+    }
+    while (*response == RESPONSE_PRIVACY_SETTINGS);
+
+    return TRUE;
+}
+#endif
 
 /** Returns: Whether skip was chosen. */
 static gboolean
@@ -2849,6 +2892,25 @@ scan_file (GFile      *file,
 
             basename = get_basename (file);
 
+#ifdef __APPLE__
+            if (IS_IO_ERROR (error, PERMISSION_DENIED))
+            {
+                g_autoptr (GFile) parent = g_file_get_parent (file);
+                NautilusDialogResponse privacy_response;
+
+                if (run_blocked_folder_dialog (job, parent, primary, &privacy_response))
+                {
+                    if (privacy_response == RESPONSE_RETRY)
+                    {
+                        continue;
+                    }
+
+                    abort_job (job);
+                    break;
+                }
+            }
+#endif
+
             if (IS_IO_ERROR (error, PERMISSION_DENIED))
             {
                 secondary = g_strdup_printf (_("The file “%s” cannot be handled because you do not have "
@@ -2978,6 +3040,22 @@ verify_destination (CommonJob   *job,
             g_autofree gchar *primary = g_strdup_printf (_("Error while copying to “%s”."), basename);
             const char *secondary;
             const char *details = NULL;
+
+#ifdef __APPLE__
+            NautilusDialogResponse privacy_response;
+
+            if (IS_IO_ERROR (error, PERMISSION_DENIED) &&
+                run_blocked_folder_dialog (job, dest, primary, &privacy_response))
+            {
+                if (privacy_response == RESPONSE_RETRY)
+                {
+                    continue;
+                }
+
+                abort_job (job);
+                return;
+            }
+#endif
 
             if (IS_IO_ERROR (error, PERMISSION_DENIED))
             {
@@ -4022,6 +4100,25 @@ create_dest_dir (CommonJob  *job,
             const char *details = NULL;
             g_autofree gchar *basename = get_basename (src);
 
+#ifdef __APPLE__
+            if (IS_IO_ERROR (error, PERMISSION_DENIED))
+            {
+                g_autoptr (GFile) parent = g_file_get_parent (*dest);
+                NautilusDialogResponse privacy_response;
+
+                if (run_blocked_folder_dialog (job, parent, _("Error while copying."), &privacy_response))
+                {
+                    if (privacy_response == RESPONSE_RETRY)
+                    {
+                        continue;
+                    }
+
+                    abort_job (job);
+                    return CREATE_DEST_DIR_FAILED;
+                }
+            }
+#endif
+
             if (IS_IO_ERROR (error, PERMISSION_DENIED))
             {
                 secondary = g_strdup_printf (_("The folder “%s” cannot be copied because you do not "
@@ -4965,6 +5062,31 @@ copy_move_file (CopyMoveJob   *copy_job,
         /* Other error */
         else if (!IS_IO_ERROR (error, CANCELLED))
         {
+#ifdef __APPLE__
+            if (IS_IO_ERROR (error, PERMISSION_DENIED))
+            {
+                g_autofree gchar *blocked_basename = get_basename (src);
+                g_autofree char *heading = g_strdup_printf (copy_job->is_move ?
+                                                            _("Error while moving “%s”.") :
+                                                            _("Error while copying “%s”."),
+                                                            blocked_basename);
+                g_autoptr (GFile) src_dir = g_file_get_parent (src);
+                NautilusDialogResponse response;
+
+                if (run_blocked_folder_dialog (job, dest_dir, heading, &response) ||
+                    run_blocked_folder_dialog (job, src_dir, heading, &response))
+                {
+                    if (response == RESPONSE_RETRY)
+                    {
+                        continue;
+                    }
+
+                    abort_job (job);
+                    break;
+                }
+            }
+#endif
+
             if (job->skip_all_error)
             {
                 return FALSE;
@@ -5555,6 +5677,29 @@ move_file_prepare (CopyMoveJob  *move_job,
         else if (!IS_IO_ERROR (error, CANCELLED))
         {
             /* Other error */
+
+#ifdef __APPLE__
+            if (IS_IO_ERROR (error, PERMISSION_DENIED))
+            {
+                g_autofree gchar *blocked_basename = get_basename (src);
+                g_autofree char *heading = g_strdup_printf (_("Error while moving “%s”."),
+                                                            blocked_basename);
+                g_autoptr (GFile) src_dir = g_file_get_parent (src);
+                NautilusDialogResponse response;
+
+                if (run_blocked_folder_dialog (job, dest_dir, heading, &response) ||
+                    run_blocked_folder_dialog (job, src_dir, heading, &response))
+                {
+                    if (response == RESPONSE_RETRY)
+                    {
+                        continue;
+                    }
+
+                    abort_job (job);
+                    break;
+                }
+            }
+#endif
 
             if (job->skip_all_error)
             {

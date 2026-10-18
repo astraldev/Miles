@@ -2881,6 +2881,9 @@ typedef struct _PasteCallbackData
     NautilusFilesView *view;
     gboolean as_link;
     gchar *dest_uri;
+#ifdef __APPLE__
+    gboolean has_image;
+#endif
 } PasteCallbackData;
 
 static void
@@ -2912,6 +2915,29 @@ handle_clipboard_data (NautilusFilesView *view,
     }
 }
 
+#ifdef __APPLE__
+static gboolean
+paste_value_is_local_files (const GValue *value)
+{
+    GSList *files = G_VALUE_HOLDS (value, GDK_TYPE_FILE_LIST) ? g_value_get_boxed (value) : NULL;
+
+    if (files == NULL)
+    {
+        return FALSE;
+    }
+
+    for (GSList *l = files; l != NULL; l = l->next)
+    {
+        if (!g_file_is_native (l->data))
+        {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+#endif
+
 static void
 paste_value_received_callback (GObject      *source_object,
                                GAsyncResult *result,
@@ -2926,6 +2952,21 @@ paste_value_received_callback (GObject      *source_object,
     clipboard = GDK_CLIPBOARD (source_object);
 
     value = gdk_clipboard_read_value_finish (clipboard, result, &error);
+#ifdef __APPLE__
+    /*
+     * Copying an image in a browser gives its web address too: paste the image.
+     */
+    if (data->has_image && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED) &&
+        (error != NULL || !paste_value_is_local_files (value)))
+    {
+        nautilus_file_operations_paste_image_from_clipboard (GTK_WIDGET (data->view),
+                                                             NULL,
+                                                             data->dest_uri,
+                                                             copy_move_done_callback,
+                                                             pre_copy_move (data->view));
+        return;
+    }
+#endif
     if (error != NULL)
     {
         if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
@@ -2988,7 +3029,14 @@ paste_files (NautilusFilesView *view,
     view->selection_source = NAUTILUS_SELECTION_SOURCE_OP_START;
     real_dest_uri = dest_uri != NULL ? dest_uri : nautilus_files_view_get_backing_uri (view);
 
-    if (gdk_content_formats_contain_gtype (formats, GDK_TYPE_TEXTURE))
+    if (gdk_content_formats_contain_gtype (formats, GDK_TYPE_TEXTURE)
+#ifdef __APPLE__
+        /*
+         * Finder puts the icon of the files it copies with them: those are files, not an image.
+         */
+        && !gdk_content_formats_contain_gtype (formats, GDK_TYPE_FILE_LIST)
+#endif
+        )
     {
         nautilus_file_operations_paste_image_from_clipboard (GTK_WIDGET (view),
                                                              NULL,
@@ -3002,6 +3050,10 @@ paste_files (NautilusFilesView *view,
     data->dest_uri = real_dest_uri;
     data->as_link = as_link;
     data->view = view;
+#ifdef __APPLE__
+    data->has_image = gdk_content_formats_contain_gtype (formats, GDK_TYPE_TEXTURE) &&
+                      !gdk_content_formats_contain_gtype (formats, NAUTILUS_TYPE_CLIPBOARD);
+#endif
 
     if (gdk_content_formats_contain_gtype (formats, NAUTILUS_TYPE_CLIPBOARD))
     {

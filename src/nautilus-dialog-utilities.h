@@ -34,6 +34,7 @@ typedef enum
     RESPONSE_SKIP_ALL    = 1 << 10,
     RESPONSE_SKIP_FILES  = 1 << 11,
     RESPONSE_TRASHLESS_DELETE = 1 << 12,
+    RESPONSE_PRIVACY_SETTINGS = 1 << 13,
 } G_GNUC_FLAG_ENUM NautilusDialogResponse;
 
 NautilusDialogResponse
