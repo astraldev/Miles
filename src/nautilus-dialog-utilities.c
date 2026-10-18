@@ -22,6 +22,7 @@ static const char *DELETE = "delete";
 static const char *DELETE_ALL = "delete_all";
 static const char *EMPTY_TRASH = "empty_trash";
 static const char *MERGE = "merge";
+static const char *PRIVACY_SETTINGS = "privacy_settings";
 static const char *PROCEED = "proceed";
 static const char *REPLACE = "replace";
 static const char *RETRY = "retry";
@@ -56,6 +57,10 @@ nautilus_dialog_response_from_string (const char *response)
     else if (g_str_equal (response, MERGE))
     {
         return RESPONSE_MERGE;
+    }
+    else if (g_str_equal (response, PRIVACY_SETTINGS))
+    {
+        return RESPONSE_PRIVACY_SETTINGS;
     }
     else if (g_str_equal (response, PROCEED))
     {
@@ -149,6 +154,10 @@ add_dialog_responses (AdwAlertDialog         *dialog,
         {
             adw_alert_dialog_set_default_response (dialog, DELETE);
         }
+    }
+    if (response & RESPONSE_PRIVACY_SETTINGS)
+    {
+        adw_alert_dialog_add_response (dialog, PRIVACY_SETTINGS, _("Open System _Settings"));
     }
     if (response & RESPONSE_RETRY)
     {
